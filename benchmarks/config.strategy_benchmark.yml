@@ -1,0 +1,108 @@
+question: >-
+  Strategic Growth and Monetization Plan for the Arbitrium Framework Open-Source Project
+
+  # Context
+  - Project: Arbitrium Framework is an open-source (MIT) Python framework for high-stakes decision-making via
+  LLM agent tournaments. Its key innovations are a competitive elimination tournament structure and a
+  "Knowledge Bank" that preserves insights from eliminated models.
+  - Founder: Nikolay E., a German citizen and solo developer, currently employed at CrowdStrike in Germany
+  as a Data Platform Software Engineer. The project is a personal initiative developed entirely outside of
+  working hours using personal equipment.
+  - Status (October 2025): The codebase is pre-MVP. An EUIPO trademark application for "ARBITRIUM"
+  (classes 9 & 42) has been filed. Key domains `arbitriumframework.org` and `.com` are secured.
+  The short domain `arbitrium.org` has also been acquired. A scientifically rigorous benchmarking system
+  is already integrated to prove the framework's effectiveness.
+  - Competitive Landscape:
+    - Direct Analogues (Tournament + KB): None currently exist in the mainstream.
+    - Indirect Competitors: AutoGen, CrewAI, LangGraph (focus on collaboration and workflow),
+    Salesforce Agentforce (enterprise ecosystem).
+    - Brand Noise: Proximity to the powerful crypto brand "Arbitrum" and mentions of
+    "Arbitrium RAT" (malware) require careful brand positioning.
+
+  # The Core Strategic Challenge
+  The primary challenge is to define a coherent, multi-horizon strategy that balances idealistic
+  open-source principles with long-term project sustainability and potential monetization.
+  Models should propose strategic pathways, considering and potentially blending elements from several archetypes:
+  - The "Academic Purist": Focus on becoming the de-facto standard for multi-agent systems research.
+  Growth through scientific papers, grants, and academic collaborations. Monetization via donations.
+  - The "Open-Core Champion": Build a sustainable business. Keep the core framework free (MIT),
+  but develop a commercial "Arbitrium Pro" (SaaS/on-prem) with enterprise features
+  (e.g., advanced audit trails, integrations, SLAs).
+  - The "Boutique Consultant": Monetize expertise, not the product. The framework remains 100% free,
+  while revenue comes from paid consulting, implementation services, workshops, and custom strategy
+  development for clients.
+
+  A hybrid approach is not just possible but may be optimal. The proposed strategy must be holistic.
+
+  # Requirements for the Strategic Plan
+  The final output must be a comprehensive plan. For each strategic pathway you propose
+  (1-3 distinct options), you must develop a multi-horizon plan that clearly distinguishes between:
+
+  1.  Global vs. Local Strategy:
+      - Global Strategy (Long-Term Vision, 2-3 years): What is the ultimate goal? What does "winning"
+      look like for Arbitrium? (e.g., becoming an academic standard, a profitable SaaS, a leading
+      consultancy brand).
+      - Local Strategy (Short-Term Execution, 0-12 months): What are the concrete, prioritized actions
+      to build momentum *now*?
+
+  2.  Phased & Conditional Rollout:
+      - Phased Plan: Break down the 2-year strategy into clear phases (e.g., Phase 1: Launch & Validate
+      (0-3 months), Phase 2: Community Growth (3-9 months), Phase 3: Monetization Pilot (9-18 months)).
+      Define the goals, key actions, and KPIs for each phase.
+      - Conditional Triggers: Identify key decision points. Propose an "if-then" strategy.
+      *Example: "IF the project reaches >500 GitHub stars within 6 months AND an inbound request for an
+      enterprise feature arrives, THEN activate the 'Open-Core' pilot; ELSE, focus on the 'Consulting'
+      path by offering paid workshops."*
+
+  3.  Detailed Strategy Components (For each proposed pathway):
+      - Community & Recognition: How to get the first 100 GitHub stars and 5 external contributors?
+      What specific articles/tutorials (for Dev.to, Medium) and academic papers (for arXiv/NeurIPS)
+      should be published? How to position the brand against AutoGen/CrewAI and mitigate the
+      "Arbitrum" crypto noise?
+      - Product Roadmap: What specific features must be in v0.1 for the initial public release?
+      What defines the v1.0 "production-ready" milestone? How to prioritize core features
+      (e.g., new tournament types) vs. UX improvements (e.g., better reporting, progress bars)?
+      - Monetization Model: Detail the mechanics. For "Open-Core," define the top 3 enterprise-only
+      features and a pricing model (per-seat, per-run, etc.). For "Consulting," create a sample service
+      offering with rates (hourly, project-based). For "Academic," outline a plan to apply for EU/German
+      research grants.
+
+  # Critical Constraints & Red Flags (Must be addressed in the final recommendation)
+  - "Solo Developer" Constraint: The entire strategy must be realistically executable by one person
+  in their spare time (max 8-10 hours/week). "Hire a team" is not an acceptable answer for the
+  first 12-18 months.
+  - "Conflict of Interest" Constraint: The founder works at CrowdStrike. The strategy must not involve
+  creating cybersecurity-specific products or competing with the employer, as per his employment
+  agreement and HR approval.
+  - "Evidence Mandate": The project's credibility hinges on proving its superiority. The plan must
+  prioritize the publication of statistically significant benchmark results (from the existing BBH/GPQA
+  test suite) as a foundational step.
+  - "Monetization Paradox": How to introduce commercial intentions without alienating the open-source
+  community that values "free-for-all" projects?
+
+  # Final Task: A Single, Comprehensive Recommendation
+  Based on your analysis of different strategic options, provide a single, unified, and actionable
+  strategic plan. This final recommendation can be one of the pathways you designed or a synthesized
+  hybrid of the best elements. It must include:
+  1.  Clear Choice of Strategy: A detailed justification for the chosen path (or hybrid),
+  explaining how it optimally addresses all constraints.
+  2.  12-Month Phased Plan: A concrete timeline with quarterly goals and actions.
+  3.  The First 10 Tactical Steps: A checklist of what to do in the next 30 days.
+  4.  Key Performance Indicators (KPIs): Measurable success metrics for the 3, 6, and 12-month marks
+  (e.g., GitHub stars, number of forks, paper citations, first pilot revenue).
+  5.  Risk Mitigation Plan: How the recommended strategy specifically handles the "Solo Developer,"
+  "Conflict of Interest," and "Monetization Paradox" constraints.
+
+# Active models for this benchmark
+# Model definitions come from config/defaults/models.yml
+# Just list which models to use (can override settings if needed)
+models:
+  gpt: {}
+  claude: {}
+  gemini: {}
+  grok: {}
+
+# All other settings (retry, features, knowledge_bank, prompts, secrets)
+# are loaded from config/defaults/ automatically
+
+outputs_dir: "reports"

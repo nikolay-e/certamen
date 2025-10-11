@@ -395,12 +395,7 @@ async def run_benchmark_suite(
     print(f"\n✅ Tournament Complete: {tournament_results['accuracy']:.1f}% accuracy")
 
     # Compute statistical significance
-    from benchmarks.stats import (
-        cohens_h,
-        compute_cost_normalized_metrics,
-        mcnemar,
-        paired_bootstrap_delta_acc,
-    )
+    from benchmarks.stats import cohens_h, compute_cost_normalized_metrics, mcnemar, paired_bootstrap_delta_acc
 
     stats = {}
     if baseline_results_list:

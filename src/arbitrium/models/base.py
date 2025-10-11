@@ -230,6 +230,7 @@ class LiteLLMModel(BaseModel):
         model_config: dict[str, Any] | None = None,
         use_llm_compression: bool = True,
         compression_model: str = "ollama/qwen:1.8b",
+        system_prompt: str | None = None,
     ):
         """Initialize a LiteLLM-backed model."""
         super().__init__(
@@ -245,6 +246,7 @@ class LiteLLMModel(BaseModel):
         )
         self.reasoning = reasoning
         self.reasoning_effort = reasoning_effort  # "low", "medium", "high"
+        self.system_prompt = system_prompt  # Optional system prompt for role-playing
 
         # Check if this model requires temperature=1.0
         # Models that require this should have force_temp_one: true in their YAML config
@@ -417,7 +419,13 @@ class LiteLLMModel(BaseModel):
 
         # Prepare parameters
         temperature = 1.0 if self.requires_temp_one else float(self.temperature)
-        messages = [{"role": "user", "content": prompt}]
+
+        # Build messages array with optional system prompt
+        messages = []
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         params = {
             "model": self.model_name,
             "messages": messages,
@@ -590,6 +598,11 @@ class LiteLLMModel(BaseModel):
         use_llm_compression = model_config.get("llm_compression", True)
         compression_model = model_config.get("compression_model", "ollama/qwen:1.8b")
 
+        # Get system_prompt from config (optional)
+        system_prompt = model_config.get("system_prompt")
+        if system_prompt:
+            logger.info(f"Using system_prompt for {model_key}: {system_prompt[:100]}...")
+
         return cls(
             model_key=model_key,
             model_name=model_config["model_name"],
@@ -603,6 +616,7 @@ class LiteLLMModel(BaseModel):
             model_config=model_config,
             use_llm_compression=use_llm_compression,
             compression_model=compression_model,
+            system_prompt=system_prompt,
         )
 
 

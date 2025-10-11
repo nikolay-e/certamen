@@ -18,10 +18,10 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from arbitrium.benchmarks.benchmark_helpers import initialize_benchmark
-from arbitrium.benchmarks.reporting import generate_manual_evaluation_template
 from arbitrium.core.comparison import ModelComparison
 from arbitrium.logging import get_contextual_logger
+from benchmarks.benchmark_helpers import initialize_benchmark
+from benchmarks.reporting import generate_manual_evaluation_template
 from tests.test_data_shared import TEST_QUESTIONS
 
 logger = get_contextual_logger("tests.integration.test_kb_quick_validation")

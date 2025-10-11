@@ -65,18 +65,56 @@ jobs:
           CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
           echo "Current branch: $CURRENT_BRANCH"
 
-          git add src/arbitrium/__about__.py
-          if ! git diff --staged --quiet; then
-            git commit -m "Release version ${{ github.event.inputs.version }}"
+          VERSION="${{ github.event.inputs.version }}"
+          COMMIT_MSG="Release version $VERSION"
+
+          # Check if the last commit already has this message (idempotent)
+          LAST_COMMIT_MSG=$(git log -1 --pretty=%s)
+          if [ "$LAST_COMMIT_MSG" = "$COMMIT_MSG" ]; then
+            echo "Version bump commit already exists, skipping commit"
           else
-            echo "No changes to commit."
+            git add src/arbitrium/__about__.py
+            if ! git diff --staged --quiet; then
+              git commit -m "$COMMIT_MSG"
+              echo "Committed version bump"
+            else
+              echo "No changes to commit."
+            fi
           fi
+
           COMMIT_SHA=$(git rev-parse HEAD)
           echo "Commit SHA: $COMMIT_SHA"
           echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
 
-          # Explicitly push to the current branch by name
-          git push origin $CURRENT_BRANCH
+          # Push to remote (this is safe if commit already exists on remote)
+          git push origin $CURRENT_BRANCH || echo "Push may have already been done"
+
+      - name: Delete existing tag and release if present
+        continue-on-error: true
+        run: |
+          TAG_NAME="v${{ github.event.inputs.version }}"
+          echo "Checking if tag $TAG_NAME exists..."
+
+          # Delete release if it exists
+          if gh release view "$TAG_NAME" &>/dev/null; then
+            echo "Release $TAG_NAME exists, deleting..."
+            gh release delete "$TAG_NAME" --yes --cleanup-tag
+          else
+            echo "Release $TAG_NAME does not exist"
+          fi
+
+          # Delete tag if it exists (local and remote)
+          if git rev-parse "$TAG_NAME" &>/dev/null; then
+            echo "Tag $TAG_NAME exists locally, deleting..."
+            git tag -d "$TAG_NAME"
+          fi
+
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
+            echo "Tag $TAG_NAME exists on remote, deleting..."
+            git push origin ":refs/tags/$TAG_NAME"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release and Tag
         id: create_release
@@ -103,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/arbitrium
+      url: https://pypi.org/p/arbitrium-framework
     permissions:
       id-token: write
     steps:

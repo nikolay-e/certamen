@@ -21,12 +21,7 @@ from .scorer import ScoreExtractor
 
 # Re-export everything from tournament for backwards compatibility
 from .tournament import ModelComparison  # Main class
-from .tournament import (
-    EventHandler,
-    HostEnvironment,
-    InitialCosts,
-    TournamentRunner,
-)
+from .tournament import EventHandler, HostEnvironment, InitialCosts, TournamentRunner
 
 __all__ = [
     # Supporting classes

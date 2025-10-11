@@ -160,8 +160,13 @@ class Arbitrium:
 
         # Step 1: Validate settings (including outputs_dir)
         logger.info("Validating settings dictionary")
-        if not validate_config(settings):
-            raise ConfigurationError("Invalid settings dictionary provided")
+        is_valid, errors = validate_config(settings)
+        if not is_valid:
+            error_details = "\n  - ".join(errors)
+            raise ConfigurationError(
+                f"Invalid configuration provided. Missing or invalid sections:\n  - {error_details}\n\n"
+                f"Required sections: models, retry, features, prompts, outputs_dir"
+            )
 
         # Create a Config object and populate it
         config_obj = Config()

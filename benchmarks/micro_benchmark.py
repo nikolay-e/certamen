@@ -28,10 +28,10 @@ from typing import Any
 
 # Public API imports - benchmarks use only exported interface
 from arbitrium import Arbitrium
+from arbitrium.logging import get_contextual_logger, setup_logging
 
 # Benchmark-specific imports
-from arbitrium.benchmarks.reporting import generate_manual_evaluation_template
-from arbitrium.logging import get_contextual_logger, setup_logging
+from benchmarks.reporting import generate_manual_evaluation_template
 
 # Setup logging explicitly
 setup_logging(verbose=True, enable_file_logging=True)

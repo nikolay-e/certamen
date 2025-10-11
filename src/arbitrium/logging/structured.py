@@ -79,6 +79,37 @@ def clear_all_context() -> None:
     model_context.set(None)
 
 
+def build_context_parts(record: logging.LogRecord) -> list[str]:
+    """
+    Build context parts from log record attributes.
+
+    This function extracts context attributes set by ContextFilter and
+    formats them as a list of strings for display.
+
+    Args:
+        record: LogRecord with context attributes set by ContextFilter
+
+    Returns:
+        List of formatted context strings (e.g., ["run:abc123", "task:def456"])
+    """
+    context_parts = []
+
+    # Check for context attributes (set by ContextFilter)
+    if hasattr(record, "run_id") and record.run_id:
+        context_parts.append(f"run:{record.run_id}")
+
+    if hasattr(record, "task_id") and record.task_id:
+        context_parts.append(f"task:{record.task_id}")
+
+    if hasattr(record, "phase") and record.phase:
+        context_parts.append(f"phase:{record.phase}")
+
+    if hasattr(record, "model") and record.model:
+        context_parts.append(f"model:{record.model}")
+
+    return context_parts
+
+
 class JSONFormatter(logging.Formatter):
     """Formatter that outputs logs as JSON with correlation IDs."""
 
@@ -183,20 +214,7 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record with correlation IDs and context."""
         # Build context parts from record attributes (set by ContextFilter)
-        context_parts = []
-
-        # Check for context attributes (set by ContextFilter)
-        if hasattr(record, "run_id") and record.run_id:
-            context_parts.append(f"run:{record.run_id}")
-
-        if hasattr(record, "task_id") and record.task_id:
-            context_parts.append(f"task:{record.task_id}")
-
-        if hasattr(record, "phase") and record.phase:
-            context_parts.append(f"phase:{record.phase}")
-
-        if hasattr(record, "model") and record.model:
-            context_parts.append(f"model:{record.model}")
+        context_parts = build_context_parts(record)
 
         # Format the original message
         original_msg = super().format(record)

@@ -1,12 +1,11 @@
 test
-*.md
 tests
-*example*
+benchmarks
+examples
 LICENSE
 NOTICE
 sonar-project.properties
 .*
 mkdocs.yml
 reports
-docs
 CITATION.cff

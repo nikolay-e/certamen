@@ -1,6 +1,6 @@
-.PHONY: help fmt lint test bench docs clean install dev build publish
+.PHONY: help fmt lint test bench bench-ablation docs clean install dev build publish
 
-PY_SOURCES = src/ benchmarks/ tests/ scripts/
+PY_SOURCES = src/ benchmarks/ tests/
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -26,6 +26,10 @@ test-quick:  ## Run tests without coverage
 
 bench:  ## Run benchmarks
 	@echo "Run benchmarks with: python -m benchmarks.micro_benchmark --config config.yml"
+
+bench-ablation:  ## Run full ablation benchmark to validate core hypotheses
+	@echo "Running ablation benchmark..."
+	python -m benchmarks.ablation_benchmark --config config.example.yml
 
 check-mkdocs: ## Check if mkdocs is installed
 	@command -v mkdocs >/dev/null 2>&1 || { echo "MkDocs not installed. Run: pip install mkdocs-material"; exit 1; }

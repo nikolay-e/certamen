@@ -16,14 +16,7 @@ from arbitrium.utils.constants import PLACEHOLDER_RESPONSES
 from .anonymizer import ModelAnonymizer
 from .helpers import indent_text, strip_meta_commentary
 from .knowledge_bank import EnhancedKnowledgeBank
-from .prompt_templates import (
-    LOG_EVALUATOR_RESPONSE,
-    LOG_FEEDBACK,
-    LOG_JUDGE_EVALUATION,
-    LOG_PROMPT,
-    LOG_RESPONSE,
-    RESPONSE_WRAPPER,
-)
+from .prompt_templates import LOG_EVALUATOR_RESPONSE, LOG_FEEDBACK, LOG_JUDGE_EVALUATION, LOG_PROMPT, LOG_RESPONSE, RESPONSE_WRAPPER
 from .prompting import PromptBuilder
 from .report import ReportGenerator
 from .scorer import ScoreExtractor

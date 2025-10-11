@@ -111,6 +111,29 @@ repos:
         pass_filenames: false
 
   # ============================================================================
+  # CODE DUPLICATION DETECTION (reduces maintenance burden & bug propagation)
+  # Evidence: Studies show duplicated code increases bug density by 2-3x
+  # Detects copy-pasted code blocks that should be refactored into functions
+  # ============================================================================
+  - repo: https://github.com/PyCQA/pylint
+    rev: v3.3.4
+    hooks:
+      - id: pylint
+        name: pylint (duplicate code detection)
+        args:
+          [
+            "--disable=all",
+            "--enable=duplicate-code",
+            "--min-similarity-lines=6",
+            "--ignore-comments=yes",
+            "--ignore-docstrings=yes",
+            "--ignore-imports=yes",
+          ]
+        files: ^src/
+        exclude: ^(tests/|docs/|scripts/|benchmarks/|__init__.py)
+        additional_dependencies: ["types-PyYAML", "types-aiofiles", "types-colorama", "types-requests"]
+
+  # ============================================================================
   # LINTING (focused on correctness, not style)
   # Using Ruff for speed; flake8 removed to avoid redundancy
   # ============================================================================

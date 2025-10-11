@@ -134,10 +134,8 @@ arbitrium_*_provenance.json
 arbitrium_*_champion_solution.md
 arbitrium_*_complete_history.json
 
-# Strategy benchmark (personal/private)
-src/arbitrium/benchmarks/strategy_benchmark.py
-src/arbitrium/benchmarks/config.strategy_benchmark.yml
-src/arbitrium/benchmarks/reports/strategy_benchmark_results.md
+# Demo notebook outputs
+arbitrium_demo_outputs/
 
 # Coverage reports
 coverage.xml

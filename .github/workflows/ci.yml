@@ -111,7 +111,7 @@ jobs:
 
       - name: Run mutation testing
         run: |
-          mutmut run --paths-to-mutate=src/arbitrium/core/
+          mutmut run
           mutmut results
           mutmut show
         continue-on-error: true  # Mutation testing is slow and exploratory
@@ -196,16 +196,8 @@ jobs:
           fetch-depth: 0 # Shallow clones disabled for better analysis
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=arbitrium-framework
-            -Dsonar.organization=nikolay-e
-            -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.sources=src
-            -Dsonar.tests=tests
-            -Dsonar.python.version=3.10,3.11,3.12
         continue-on-error: true # Don't fail build on quality gate failure initially
