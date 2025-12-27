@@ -1,0 +1,80 @@
+version: "1.0"
+name: "Prompt Template"
+description: "Use template node to build structured prompts with variables"
+
+nodes:
+  - id: topic
+    type: simple/text
+    position: { x: 100, y: 100 }
+    properties:
+      pages: [["artificial intelligence"]]
+      current_page: 0
+      mode: append
+
+  - id: style
+    type: simple/text
+    position: { x: 100, y: 250 }
+    properties:
+      pages: [["a curious 5-year-old child"]]
+      current_page: 0
+      mode: append
+
+  - id: length
+    type: simple/text
+    position: { x: 100, y: 400 }
+    properties:
+      pages: [["3 sentences"]]
+      current_page: 0
+      mode: append
+
+  - id: template
+    type: simple/template
+    position: { x: 450, y: 250 }
+    properties:
+      template: "Explain {var1} as if you were {var2}. Keep your explanation to {var3}."
+
+  - id: llm
+    type: simple/llm
+    position: { x: 800, y: 250 }
+    properties:
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.8
+      max_tokens: 200
+
+  - id: output
+    type: simple/text
+    position: { x: 1150, y: 250 }
+    properties:
+      pages: []
+      current_page: 0
+      mode: append
+
+edges:
+  - source: topic
+    target: template
+    sourceHandle: output_text
+    targetHandle: var1
+
+  - source: style
+    target: template
+    sourceHandle: output_text
+    targetHandle: var2
+
+  - source: length
+    target: template
+    sourceHandle: output_text
+    targetHandle: var3
+
+  - source: template
+    target: llm
+    sourceHandle: text
+    targetHandle: prompt
+
+  - source: llm
+    target: output
+    sourceHandle: response
+    targetHandle: input_text
+
+outputs:
+  - output

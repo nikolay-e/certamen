@@ -1,0 +1,189 @@
+name: CI
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ============================================================================
+  # LAYER 1: Fast feedback (~1-2 min)
+  # ============================================================================
+
+  pre-commit:
+    name: Pre-commit hooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ env.pythonLocation }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - run: pip install pre-commit
+
+      - run: pre-commit run --show-diff-on-failure --color=always --all-files
+
+  # ============================================================================
+  # LAYER 2: Testing
+  # All Python versions on Linux + spot-check macOS/Windows on primary version
+  # ============================================================================
+
+  test:
+    name: Test (Python ${{ matrix.python-version }} / ${{ matrix.os }})
+    needs: [pre-commit]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+        include:
+          - os: macos-latest
+            python-version: '3.12'
+          - os: windows-latest
+            python-version: '3.12'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv pip install -e ".[dev]" --system
+
+      - name: Run tests with coverage
+        shell: bash
+        run: |
+          pytest tests/ -v \
+            --cov=src/arbitrium_core \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-branch \
+            --junitxml=test-results.xml
+
+      - name: Enforce coverage threshold
+        if: runner.os == 'Linux' && matrix.python-version == '3.12'
+        run: coverage report --fail-under=40
+
+      - name: Upload coverage report
+        if: runner.os == 'Linux' && matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            test-results.xml
+          retention-days: 1
+
+  # ============================================================================
+  # LAYER 3: Quality analysis (non-blocking, main only)
+  # ============================================================================
+
+  mutation-testing:
+    name: Mutation Testing
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv pip install -e ".[dev]" --system
+          uv pip install pytest-timeout --system
+
+      - name: Run mutation testing
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          echo "=== Running Mutation Testing ==="
+          cd ${{ github.workspace }}
+          mutmut run || true
+
+      - name: Generate mutation report
+        run: |
+          echo "=== Mutation Testing Results ==="
+          mutmut results || true
+          echo ""
+          echo "=== Survived Mutants ==="
+          mutmut results --survived 2>/dev/null || true
+
+  complexity-checks:
+    name: Complexity & Maintainability
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - run: pip install radon
+
+      - name: Check cyclomatic complexity
+        run: |
+          echo "=== Cyclomatic Complexity Report ==="
+          radon cc src/arbitrium_core/ --min B --show-complexity --total-average
+
+      - name: Check maintainability index
+        run: |
+          echo "=== Maintainability Index Report ==="
+          radon mi src/arbitrium_core/ --min B --show
+
+      - name: Fail on high complexity
+        run: |
+          radon cc src/arbitrium_core/ --min C --total-average || \
+            (echo "::warning::High complexity detected (grade C or worse)" && exit 0)
+
+  architecture-checks:
+    name: Architecture & Import Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv pip install -e . --system
+          uv pip install import-linter --system
+
+      - name: Validate architecture
+        run: lint-imports || echo "::warning::Architecture violations detected"

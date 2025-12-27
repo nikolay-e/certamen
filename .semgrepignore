@@ -1,0 +1,36 @@
+# Semgrep ignore file
+# https://semgrep.dev/docs/ignoring-files-folders-code/
+
+# Test fixtures and test files
+tests/
+**/test_*.py
+**/*_test.py
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# IDE/Editor
+.idea/
+.vscode/
+
+# Cache
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# CI/CD
+.github/
+
+# Documentation
+docs/
+
+# Outputs/Reports
+outputs/
+reports/

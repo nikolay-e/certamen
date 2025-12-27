@@ -1,0 +1,10 @@
+name: Diff Context
+"on": [pull_request]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diff:
+    uses: nikolay-e/treemapper-action/.github/workflows/diff-context.yml@v1

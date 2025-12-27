@@ -1,0 +1,262 @@
+name: Tournament Elimination with Feedback Loop
+description: 'Multi-round tournament where models compete until one champion remains'
+nodes:
+  - id: question
+    type: simple/text
+    position:
+      x: 100
+      'y': 0
+    properties:
+      texts:
+        - Explain quantum entanglement to a high school student in a way that is both accurate and memorable.
+      separator: "\n"
+      pages: []
+      current_page: 0
+      hidden: false
+
+  - id: llm_a
+    type: simple/llm
+    position:
+      x: -200
+      'y': 200
+    properties:
+      name: Creative Writer
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.9
+      max_tokens: 500
+      system_prompt: |
+        You are a creative science communicator who uses vivid metaphors and storytelling to explain complex concepts.
+
+  - id: llm_b
+    type: simple/llm
+    position:
+      x: -200
+      'y': 400
+    properties:
+      name: Precise Educator
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.3
+      max_tokens: 500
+      system_prompt: |
+        You are a precise physics teacher who values accuracy above all.
+        You explain concepts step by step with clear definitions.
+
+  - id: llm_c
+    type: simple/llm
+    position:
+      x: -200
+      'y': 600
+    properties:
+      name: Analogy Master
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.7
+      max_tokens: 500
+      system_prompt: |
+        You explain science through everyday analogies and relatable examples.
+        You connect abstract concepts to things students already know.
+
+  - id: llm_d
+    type: simple/llm
+    position:
+      x: -200
+      'y': 800
+    properties:
+      name: Visual Thinker
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.6
+      max_tokens: 500
+      system_prompt: |
+        You explain concepts by describing visual scenarios and thought experiments.
+        You help students 'see' the physics in their mind.
+
+  - id: models
+    type: tournament/models
+    position:
+      x: 100
+      'y': 500
+    properties:
+      selected_models: []
+
+  - id: gate
+    type: flow/gate
+    position:
+      x: 400
+      'y': 300
+    properties:
+      max_rounds: 10
+
+  - id: generate
+    type: tournament/generate
+    position:
+      x: 700
+      'y': 0
+    properties:
+      system_prompt: ''
+
+  - id: peer_review
+    type: tournament/peer_review
+    position:
+      x: 1000
+      'y': 200
+    properties:
+      anonymize: true
+      criteria: |
+        Rate each response on:
+        1) Scientific accuracy (1-10)
+        2) Clarity for target audience (1-10)
+        3) Memorability/creativity (1-10)
+        Provide overall score.
+
+  - id: eliminate
+    type: tournament/eliminate
+    position:
+      x: 1300
+      'y': 400
+    properties:
+      count: 1
+
+  - id: champion_output
+    type: simple/text
+    position:
+      x: 700
+      'y': 600
+    properties:
+      texts: []
+      separator: "\n"
+      pages: []
+      current_page: 0
+      hidden: false
+
+  - id: responses_output
+    type: simple/text
+    position:
+      x: 1000
+      'y': -200
+    properties:
+      texts: []
+      separator: "\n"
+      pages: []
+      current_page: 0
+      hidden: false
+
+  - id: evaluations_output
+    type: simple/text
+    position:
+      x: 1300
+      'y': 0
+    properties:
+      texts: []
+      separator: "\n"
+      pages: []
+      current_page: 0
+      hidden: false
+
+edges:
+  # LLM configs → Models collector
+  - id: llm_a-models
+    source: llm_a
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_1
+  - id: llm_b-models
+    source: llm_b
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_2
+  - id: llm_c-models
+    source: llm_c
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_3
+  - id: llm_d-models
+    source: llm_d
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_4
+
+  # Models → Gate (primary input)
+  - id: models-gate
+    source: models
+    target: gate
+    sourceHandle: models
+    targetHandle: primary
+
+  # Gate → Generate (models for this round)
+  - id: gate-generate
+    source: gate
+    target: generate
+    sourceHandle: models
+    targetHandle: models
+
+  # Question → Generate
+  - id: question-generate
+    source: question
+    target: generate
+    sourceHandle: output_text
+    targetHandle: prompt
+
+  # Generate → Peer Review
+  - id: generate-peer_review
+    source: generate
+    target: peer_review
+    sourceHandle: responses
+    targetHandle: responses
+
+  # Gate → Peer Review (models for judging)
+  - id: gate-peer_review
+    source: gate
+    target: peer_review
+    sourceHandle: models
+    targetHandle: models
+
+  # Question → Peer Review
+  - id: question-peer_review
+    source: question
+    target: peer_review
+    sourceHandle: output_text
+    targetHandle: question
+
+  # Peer Review → Eliminate
+  - id: peer_review-eliminate
+    source: peer_review
+    target: eliminate
+    sourceHandle: scores
+    targetHandle: scores
+
+  # Gate → Eliminate (models to filter)
+  - id: gate-eliminate
+    source: gate
+    target: eliminate
+    sourceHandle: models
+    targetHandle: models
+
+  # FEEDBACK LOOP: Eliminate survivors → Gate feedback
+  - id: eliminate-gate-feedback
+    source: eliminate
+    target: gate
+    sourceHandle: survivors
+    targetHandle: feedback
+
+  # Gate champion → Output (when tournament ends)
+  - id: gate-champion-output
+    source: gate
+    target: champion_output
+    sourceHandle: champion
+    targetHandle: input_text
+
+  # Debug outputs
+  - id: generate-responses-output
+    source: generate
+    target: responses_output
+    sourceHandle: responses
+    targetHandle: input_text
+
+  - id: peer_review-evaluations-output
+    source: peer_review
+    target: evaluations_output
+    sourceHandle: evaluations
+    targetHandle: input_text

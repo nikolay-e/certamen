@@ -1,0 +1,13 @@
+from typing import Any, Protocol
+
+
+class SimilarityEngine(Protocol):
+    def fit(self, texts: list[str]) -> None: ...
+
+    def transform(self, texts: list[str]) -> Any: ...
+
+    def is_fitted(self) -> bool: ...
+
+    def compute_similarity(
+        self, query_vector: Any, corpus_vectors: Any
+    ) -> list[float]: ...

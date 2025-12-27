@@ -1,0 +1,29 @@
+name: Feature Request
+description: Suggest a new feature for arbitrium-core
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem Description
+      description: A clear description of the problem this feature would solve.
+      placeholder: Describe the problem you are facing.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: A clear description of the solution you would like.
+      placeholder: Describe your proposed solution.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives-considered
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or features you have considered.
+      placeholder: Describe any alternatives you have considered.
+    validations:
+      required: false

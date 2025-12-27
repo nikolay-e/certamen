@@ -1,0 +1,17 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 120
+    level: error
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
+    check-keys: false
+  empty-lines:
+    max: 2
+  comments:
+    min-spaces-from-content: 1
+
+ignore: |
+  config.example.yml

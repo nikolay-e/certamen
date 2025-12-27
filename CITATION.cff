@@ -1,0 +1,50 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: Arbitrium Framework
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Nikolay
+    family-names: Eremeev
+    email: nikolay.eremeev@outlook.com
+repository-code: 'https://github.com/nikolay-e/arbitrium-core'
+url: 'https://github.com/nikolay-e/arbitrium-core'
+abstract: >-
+  Arbitrium Framework is an open-source Python framework for
+  high-stakes AI decision-making via tournament-based model
+  synthesis. Unlike general-purpose agent frameworks,
+  Arbitrium uses competitive elimination tournaments where AI
+  agents generate independent solutions, critique each other,
+  compete in evaluation rounds, and progressively refine
+  until a champion emerges. The Knowledge Bank innovation
+  preserves insights from eliminated models, ensuring no
+  valuable perspective is lost.
+keywords:
+  - artificial intelligence
+  - large language models
+  - llm
+  - multi-agent systems
+  - decision-making
+  - tournament
+  - agent synthesis
+  - knowledge bank
+  - model evaluation
+  - benchmarking
+version: 0.1.0
+date-released: '2026-02-21'
+preferred-citation:
+  type: software
+  title: >-
+    Arbitrium Framework: Tournament-Based Synthesis for
+    High-Stakes AI Decisions
+  authors:
+    - given-names: Nikolay
+      family-names: Eremeev
+      email: nikolay.eremeev@outlook.com
+  year: 2025
+  url: 'https://github.com/nikolay-e/arbitrium-core'
+  repository-code: 'https://github.com/nikolay-e/arbitrium-core'

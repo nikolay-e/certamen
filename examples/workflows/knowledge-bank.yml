@@ -1,0 +1,201 @@
+version: "1.0"
+name: "Knowledge Bank"
+description: "Extract insights from eliminated models and use them to improve survivors"
+
+nodes:
+  - id: question
+    type: simple/text
+    position: { x: 100, y: 100 }
+    properties:
+      texts:
+        - "Design a sustainable city transportation system for a metropolitan area of 5 million people."
+      separator: "\n"
+
+  - id: llm_urbanist
+    type: simple/llm
+    position: { x: 100, y: 250 }
+    properties:
+      name: "Urban Planner"
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.7
+      max_tokens: 600
+      system_prompt: >
+        You are an urban planner focused on human-centric city design. You
+        prioritize walkability, public spaces, mixed-use zoning, and reducing
+        car dependency. You think in terms of neighborhoods, density, and
+        quality of life.
+
+  - id: llm_engineer
+    type: simple/llm
+    position: { x: 100, y: 400 }
+    properties:
+      name: "Transport Engineer"
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.7
+      max_tokens: 600
+      system_prompt: >
+        You are a transportation engineer who thinks in systems and
+        infrastructure. You focus on capacity, efficiency, network design, and
+        technical feasibility. You optimize for throughput and reliability.
+
+  - id: llm_economist
+    type: simple/llm
+    position: { x: 100, y: 550 }
+    properties:
+      name: "Transport Economist"
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.7
+      max_tokens: 600
+      system_prompt: >
+        You are a transportation economist who analyzes costs, benefits, and
+        incentives. You focus on funding models, pricing mechanisms,
+        cost-effectiveness, and economic impacts. You think in terms of ROI
+        and externalities.
+
+  - id: llm_environmentalist
+    type: simple/llm
+    position: { x: 100, y: 700 }
+    properties:
+      name: "Climate Advocate"
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.7
+      max_tokens: 600
+      system_prompt: >
+        You are an environmental advocate focused on climate impact and
+        sustainability. You prioritize emissions reduction, renewable energy,
+        green infrastructure, and long-term ecological thinking. You challenge
+        car-centric assumptions.
+
+  - id: models
+    type: tournament/models
+    position: { x: 450, y: 400 }
+    properties: {}
+
+  - id: generate
+    type: tournament/generate
+    position: { x: 700, y: 250 }
+    properties: {}
+
+  - id: peer_review
+    type: tournament/peer_review
+    position: { x: 950, y: 250 }
+    properties:
+      anonymize: true
+      criteria: "Score on feasibility, sustainability, cost-effectiveness, and innovation."
+
+  - id: eliminate
+    type: tournament/eliminate
+    position: { x: 1200, y: 400 }
+    properties:
+      count: 2
+
+  - id: extract
+    type: tournament/extract_insights
+    position: { x: 700, y: 550 }
+    properties:
+      max_insights: 5
+
+  - id: inject
+    type: tournament/inject_insights
+    position: { x: 450, y: 100 }
+    properties:
+      position: "before"
+
+  - id: improve
+    type: tournament/improve
+    position: { x: 1200, y: 100 }
+    properties:
+      instruction: "Incorporate the insights from eliminated models to strengthen your proposal."
+
+edges:
+  - source: llm_urbanist
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_1
+
+  - source: llm_engineer
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_2
+
+  - source: llm_economist
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_3
+
+  - source: llm_environmentalist
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_4
+
+  - source: question
+    target: generate
+    sourceHandle: output_text
+    targetHandle: prompt
+
+  - source: models
+    target: generate
+    sourceHandle: models
+    targetHandle: models
+
+  - source: generate
+    target: peer_review
+    sourceHandle: responses
+    targetHandle: responses
+
+  - source: models
+    target: peer_review
+    sourceHandle: models
+    targetHandle: models
+
+  - source: question
+    target: peer_review
+    sourceHandle: output_text
+    targetHandle: question
+
+  - source: peer_review
+    target: eliminate
+    sourceHandle: scores
+    targetHandle: scores
+
+  - source: models
+    target: eliminate
+    sourceHandle: models
+    targetHandle: models
+
+  - source: eliminate
+    target: extract
+    sourceHandle: eliminated_info
+    targetHandle: response
+
+  - source: question
+    target: inject
+    sourceHandle: output_text
+    targetHandle: prompt
+
+  - source: extract
+    target: inject
+    sourceHandle: insights
+    targetHandle: insights
+
+  - source: eliminate
+    target: improve
+    sourceHandle: survivors
+    targetHandle: models
+
+  - source: generate
+    target: improve
+    sourceHandle: responses
+    targetHandle: responses
+
+  - source: extract
+    target: improve
+    sourceHandle: insights
+    targetHandle: insights
+
+outputs:
+  - improve

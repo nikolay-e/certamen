@@ -1,0 +1,10 @@
+.*
+CITATION.cff
+LICENSE
+NOTICE
+tests
+examples
+CLAUDE.md
+CONTRIBUTING.md
+SECURITY.md
+test_*

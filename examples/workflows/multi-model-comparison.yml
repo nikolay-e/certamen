@@ -1,0 +1,99 @@
+version: "1.0"
+name: "Multi-Model Comparison"
+description: "Compare responses from multiple LLMs side-by-side"
+
+nodes:
+  - id: prompt
+    type: simple/text
+    position: { x: 100, y: 300 }
+    properties:
+      pages: [["Write a haiku about programming. Be creative and philosophical."]]
+      current_page: 0
+      mode: append
+
+  - id: llm1
+    type: simple/llm
+    position: { x: 450, y: 100 }
+    properties:
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.9
+      max_tokens: 100
+
+  - id: llm2
+    type: simple/llm
+    position: { x: 450, y: 300 }
+    properties:
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.5
+      max_tokens: 100
+
+  - id: llm3
+    type: simple/llm
+    position: { x: 450, y: 500 }
+    properties:
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.1
+      max_tokens: 100
+
+  - id: output1
+    type: simple/text
+    position: { x: 800, y: 100 }
+    properties:
+      pages: []
+      current_page: 0
+      mode: append
+
+  - id: output2
+    type: simple/text
+    position: { x: 800, y: 300 }
+    properties:
+      pages: []
+      current_page: 0
+      mode: append
+
+  - id: output3
+    type: simple/text
+    position: { x: 800, y: 500 }
+    properties:
+      pages: []
+      current_page: 0
+      mode: append
+
+edges:
+  - source: prompt
+    target: llm1
+    sourceHandle: output_text
+    targetHandle: prompt
+
+  - source: prompt
+    target: llm2
+    sourceHandle: output_text
+    targetHandle: prompt
+
+  - source: prompt
+    target: llm3
+    sourceHandle: output_text
+    targetHandle: prompt
+
+  - source: llm1
+    target: output1
+    sourceHandle: response
+    targetHandle: input_text
+
+  - source: llm2
+    target: output2
+    sourceHandle: response
+    targetHandle: input_text
+
+  - source: llm3
+    target: output3
+    sourceHandle: response
+    targetHandle: input_text
+
+outputs:
+  - output1
+  - output2
+  - output3

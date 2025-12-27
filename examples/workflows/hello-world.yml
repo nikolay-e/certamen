@@ -1,0 +1,44 @@
+version: "1.0"
+name: "Hello World"
+description: "Simple LLM workflow that generates a creative greeting"
+
+nodes:
+  - id: text-input
+    type: simple/text
+    position: { x: 100, y: 200 }
+    properties:
+      texts: ["Say hello world in a creative and friendly way!"]
+      separator: "\n"
+      hidden: false
+
+  - id: llm-main
+    type: simple/llm
+    position: { x: 450, y: 200 }
+    properties:
+      name: ""
+      provider: ollama
+      model_name: ollama/gemma3:12b
+      temperature: 0.7
+      max_tokens: 4096
+
+  - id: text-output
+    type: simple/text
+    position: { x: 800, y: 200 }
+    properties:
+      texts: []
+      separator: "\n"
+      hidden: false
+
+edges:
+  - source: text-input
+    target: llm-main
+    sourceHandle: output_text
+    targetHandle: prompt
+
+  - source: llm-main
+    target: text-output
+    sourceHandle: response
+    targetHandle: input_text
+
+outputs:
+  - text-output

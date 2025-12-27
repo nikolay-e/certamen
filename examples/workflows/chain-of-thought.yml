@@ -1,0 +1,147 @@
+version: "1.0"
+name: "Chain of Thought Reasoning"
+description: "Multi-step reasoning pipeline where each step builds on the previous"
+
+nodes:
+  - id: problem
+    type: simple/text
+    position: { x: 100, y: 250 }
+    properties:
+      texts:
+        - >
+          A company has 3 factories. Factory A produces 40% of products with 2%
+          defect rate. Factory B produces 35% with 3% defect rate. Factory C
+          produces 25% with 5% defect rate. If a random product is defective,
+          what's the probability it came from Factory C?
+      separator: "\n"
+
+  - id: step1_understand
+    type: simple/llm
+    position: { x: 350, y: 250 }
+    properties:
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.3
+      max_tokens: 300
+      system_prompt: >
+        You are a careful problem analyzer. Your job is ONLY to restate the
+        problem clearly, identify what is given, what is asked, and what type
+        of problem this is (e.g., Bayes theorem, combinatorics, etc.). Do NOT
+        solve it yet.
+
+  - id: template_step2
+    type: simple/template
+    position: { x: 600, y: 250 }
+    properties:
+      template: >
+        PROBLEM ANALYSIS:\n{var1}\n\nNow set up the mathematical framework.
+        Define variables, write out relevant formulas (like Bayes theorem if
+        applicable), and show how to structure the solution. Do NOT calculate
+        final answer yet.
+
+  - id: step2_setup
+    type: simple/llm
+    position: { x: 850, y: 250 }
+    properties:
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.2
+      max_tokens: 400
+      system_prompt: >
+        You are a mathematician who sets up problems rigorously. Define all
+        variables, state the relevant theorem or formula, and show the
+        structure of the solution without computing the final answer.
+
+  - id: template_step3
+    type: simple/template
+    position: { x: 1100, y: 250 }
+    properties:
+      template: >
+        SETUP:\n{var1}\n\nNow perform the calculations step by step. Show all
+        work clearly. Compute intermediate values before the final answer.
+
+  - id: step3_calculate
+    type: simple/llm
+    position: { x: 1350, y: 250 }
+    properties:
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.1
+      max_tokens: 400
+      system_prompt: >
+        You are a precise calculator. Perform each calculation step by step,
+        showing all intermediate work. Double-check arithmetic. Present the
+        final numerical answer clearly.
+
+  - id: template_step4
+    type: simple/template
+    position: { x: 1600, y: 250 }
+    properties:
+      template: >
+        CALCULATION:\n{var1}\n\nVerify this answer makes intuitive sense.
+        Explain what the result means in plain English. Check if the answer is
+        reasonable given the problem context.
+
+  - id: step4_verify
+    type: simple/llm
+    position: { x: 1850, y: 250 }
+    properties:
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.3
+      max_tokens: 300
+      system_prompt: >
+        You are a critical reviewer. Check if the answer makes sense. Explain
+        what it means intuitively. Verify the logic and identify any potential
+        errors.
+
+  - id: final
+    type: simple/text
+    position: { x: 2100, y: 250 }
+    properties:
+      texts: []
+      separator: "\n"
+
+edges:
+  - source: problem
+    target: step1_understand
+    sourceHandle: output_text
+    targetHandle: prompt
+
+  - source: step1_understand
+    target: template_step2
+    sourceHandle: response
+    targetHandle: var1
+
+  - source: template_step2
+    target: step2_setup
+    sourceHandle: text
+    targetHandle: prompt
+
+  - source: step2_setup
+    target: template_step3
+    sourceHandle: response
+    targetHandle: var1
+
+  - source: template_step3
+    target: step3_calculate
+    sourceHandle: text
+    targetHandle: prompt
+
+  - source: step3_calculate
+    target: template_step4
+    sourceHandle: response
+    targetHandle: var1
+
+  - source: template_step4
+    target: step4_verify
+    sourceHandle: text
+    targetHandle: prompt
+
+  - source: step4_verify
+    target: final
+    sourceHandle: response
+    targetHandle: input_text
+
+outputs:
+  - final
