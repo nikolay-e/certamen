@@ -12,7 +12,7 @@ This interactive demo lets you run **actual** Arbitrium tournaments with **real 
 
 **Easiest way to get started - just click and run!**
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/arbitrium-framework/arbitrium/blob/main/examples/interactive_demo.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nikolay-e/arbitrium-framework/blob/main/examples/interactive_demo.ipynb)
 
 **Pros:**
 
@@ -52,7 +52,7 @@ This interactive demo lets you run **actual** Arbitrium tournaments with **real 
 
 **Free cloud Jupyter environment**
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/arbitrium-framework/arbitrium/main?labpath=examples/interactive_demo.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/nikolay-e/arbitrium-framework/main?labpath=examples/interactive_demo.ipynb)
 
 **Pros:**
 
@@ -151,7 +151,7 @@ import micropip
 await micropip.install('arbitrium')
 
 # Or from GitHub:
-# !pip install git+https://github.com/arbitrium-framework/arbitrium.git
+# !pip install git+https://github.com/nikolay-e/arbitrium-framework.git
 ```
 
 ### Step 2: Configure API Keys
@@ -395,23 +395,23 @@ Edit the notebook markdown cells to:
 
 **If you liked it:**
 
-1. ⭐ Star the [GitHub repo](https://github.com/arbitrium-framework/arbitrium)
+1. ⭐ Star the [GitHub repo](https://github.com/nikolay-e/arbitrium-framework)
 2. 📦 Install locally: `pip install arbitrium-framework`
-3. 📖 Read the [full documentation](https://github.com/arbitrium-framework/arbitrium)
+3. 📖 Read the [full documentation](https://github.com/nikolay-e/arbitrium-framework)
 4. 💬 Join our [Discord community](https://discord.gg/arbitrium)
 
 **If you have feedback:**
 
-1. 🐛 [Report issues](https://github.com/arbitrium-framework/arbitrium/issues)
-2. 💡 [Request features](https://github.com/arbitrium-framework/arbitrium/issues/new)
-3. 🤝 [Contribute](https://github.com/arbitrium-framework/arbitrium/blob/main/CONTRIBUTING.md)
+1. 🐛 [Report issues](https://github.com/nikolay-e/arbitrium-framework/issues)
+2. 💡 [Request features](https://github.com/nikolay-e/arbitrium-framework/issues/new)
+3. 🤝 [Contribute](https://github.com/nikolay-e/arbitrium-framework/blob/main/CONTRIBUTING.md)
 
 ### Real-World Usage
 
 ```python
 # Install for production use
 pip install arbitrium
-# Or from GitHub: pip install git+https://github.com/arbitrium-framework/arbitrium.git
+# Or from GitHub: pip install git+https://github.com/nikolay-e/arbitrium-framework.git
 
 # Create config file
 cp config.example.yml config.yml
@@ -464,16 +464,8 @@ async def main():
 
 ---
 
-## 🏷️ Trademark
-
-Arbitrium Framework™ is a trademark. See [TRADEMARK.md](../TRADEMARK.md)
-
-**Note:** Not affiliated with Arbitrum (Ethereum L2) or Arbitrium RAT.
-
----
-
 **Ready to run your first AI tournament?**
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/arbitrium-framework/arbitrium/blob/main/examples/interactive_demo.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nikolay-e/arbitrium-framework/blob/main/examples/interactive_demo.ipynb)
 
-*Arbitrium Framework™ - Tournament-Based AI Decision Synthesis*
+*Arbitrium Framework - Tournament-Based AI Decision Synthesis*

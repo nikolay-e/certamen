@@ -12,7 +12,7 @@ Learn by doing! These examples demonstrate Arbitrium Framework's core features i
 
 **Zero installation required** - runs directly in your browser!
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/arbitrium-framework/arbitrium/blob/main/examples/interactive_demo.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nikolay-e/arbitrium-framework/blob/main/examples/interactive_demo.ipynb)
 
 **Features:**
 
@@ -187,7 +187,7 @@ logging:
 ## 📖 Next Steps
 
 - Read the [full documentation](../README.md)
-- Check out [GitHub Discussions](https://github.com/arbitrium-framework/arbitrium/discussions) for Q&A
+- Check out [GitHub Discussions](https://github.com/nikolay-e/arbitrium-framework/discussions) for Q&A
 - Contribute your own examples via PR!
 
 ## 🔬 For Developers: Internal Benchmarks
@@ -202,4 +202,4 @@ See [`src/arbitrium/benchmarks/`](../src/arbitrium/benchmarks/) for internal tes
 
 ---
 
-**Questions?** Open a [GitHub Discussion](https://github.com/arbitrium-framework/arbitrium/discussions) or [Issue](https://github.com/arbitrium-framework/arbitrium/issues)!
+**Questions?** Open a [GitHub Discussion](https://github.com/nikolay-e/arbitrium-framework/discussions) or [Issue](https://github.com/nikolay-e/arbitrium-framework/issues)!

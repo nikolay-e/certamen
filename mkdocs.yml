@@ -1,10 +1,10 @@
 site_name: Arbitrium Framework
 site_description: Tournament-based LLM evaluation framework for decision synthesis
 site_author: Nikolay Eremeev
-site_url: https://arbitrium-framework.github.io/arbitrium-core
+site_url: https://nikolay-e.github.io/arbitrium-core
 
-repo_name: arbitrium-framework/arbitrium-core
-repo_url: https://github.com/arbitrium-framework/arbitrium-core
+repo_name: nikolay-e/arbitrium-core
+repo_url: https://github.com/nikolay-e/arbitrium-core
 edit_uri: edit/main/docs/
 
 theme:
@@ -67,4 +67,4 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/arbitrium-framework/arbitrium-core
+      link: https://github.com/nikolay-e/arbitrium-core

@@ -18,7 +18,7 @@ The Arbitrium Framework team takes security seriously. We appreciate your effort
 
 Instead, use GitHub's **Private Vulnerability Reporting** (recommended):
 
-1. Go to the [Security tab](https://github.com/arbitrium-framework/arbitrium/security)
+1. Go to the [Security tab](https://github.com/nikolay-e/arbitrium-framework/security)
 2. Click "Report a vulnerability"
 3. Fill out the form with details
 
@@ -159,17 +159,17 @@ Arbitrium Framework is designed for:
 
 Security updates are released as patch versions (0.0.x). Subscribe to:
 
-- **GitHub Watch:** Click "Watch" → "Releases only" on [our repo](https://github.com/arbitrium-framework/arbitrium)
-- **Security Advisories:** [GitHub Security Advisories](https://github.com/arbitrium-framework/arbitrium/security/advisories)
+- **GitHub Watch:** Click "Watch" → "Releases only" on [our repo](https://github.com/nikolay-e/arbitrium-framework)
+- **Security Advisories:** [GitHub Security Advisories](https://github.com/nikolay-e/arbitrium-framework/security/advisories)
 
 ## Questions?
 
 For security-related questions (not vulnerabilities), please:
 
-- Open a [GitHub Discussion](https://github.com/arbitrium-framework/arbitrium/discussions) (preferred)
-- Or file a regular [GitHub Issue](https://github.com/arbitrium-framework/arbitrium/issues) with the `security-question` label
+- Open a [GitHub Discussion](https://github.com/nikolay-e/arbitrium-framework/discussions) (preferred)
+- Or file a regular [GitHub Issue](https://github.com/nikolay-e/arbitrium-framework/issues) with the `security-question` label
 
-For general questions, use [GitHub Discussions](https://github.com/arbitrium-framework/arbitrium/discussions).
+For general questions, use [GitHub Discussions](https://github.com/nikolay-e/arbitrium-framework/discussions).
 
 ---
 

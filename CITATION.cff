@@ -12,7 +12,7 @@ authors:
     family-names: Eremeev
     email: nikolay.eremeev@outlook.com
     orcid: 'https://orcid.org/0000-0000-0000-0000'
-repository-code: 'https://github.com/arbitrium-framework/arbitrium'
+repository-code: 'https://github.com/nikolay-e/arbitrium-framework'
 url: 'https://arbitriumframework.org'
 abstract: >-
   Arbitrium Framework is an open-source Python framework for
@@ -48,4 +48,4 @@ preferred-citation:
       email: nikolay.eremeev@outlook.com
   year: 2025
   url: 'https://arbitriumframework.org'
-  repository-code: 'https://github.com/arbitrium-framework/arbitrium'
+  repository-code: 'https://github.com/nikolay-e/arbitrium-framework'

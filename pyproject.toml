@@ -65,10 +65,10 @@ dev = [
 
 
 [project.urls]
-"Homepage" = "https://github.com/arbitrium-framework/arbitrium-core"
-"Bug Tracker" = "https://github.com/arbitrium-framework/arbitrium-core/issues"
-"Repository" = "https://github.com/arbitrium-framework/arbitrium-core"
-"Documentation" = "https://github.com/arbitrium-framework/arbitrium-core#readme"
+"Homepage" = "https://github.com/nikolay-e/arbitrium-core"
+"Bug Tracker" = "https://github.com/nikolay-e/arbitrium-core/issues"
+"Repository" = "https://github.com/nikolay-e/arbitrium-core"
+"Documentation" = "https://github.com/nikolay-e/arbitrium-core#readme"
 
 [project.scripts]
 arbitrium = "arbitrium_core.interfaces.cli.main:run_from_cli"

@@ -9,7 +9,7 @@ Experience Arbitrium Framework with actual AI models - no installation required!
 ## 🚀 Launch Demo
 
 <div style="text-align: center; margin: 2em 0;">
-  <a href="https://colab.research.google.com/github/arbitrium-framework/arbitrium/blob/main/examples/interactive_demo.ipynb" target="_blank">
+  <a href="https://colab.research.google.com/github/nikolay-e/arbitrium-framework/blob/main/examples/interactive_demo.ipynb" target="_blank">
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab" style="height: 50px;"/>
   </a>
 </div>
@@ -74,7 +74,7 @@ You need at least **2 API keys** from:
 
 **Best for:** First-time users, quick demos
 
-<a href="https://colab.research.google.com/github/arbitrium-framework/arbitrium/blob/main/examples/interactive_demo.ipynb" target="_blank">
+<a href="https://colab.research.google.com/github/nikolay-e/arbitrium-framework/blob/main/examples/interactive_demo.ipynb" target="_blank">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
@@ -87,7 +87,7 @@ You need at least **2 API keys** from:
 
 **Best for:** No-account option
 
-<a href="https://mybinder.org/v2/gh/arbitrium-framework/arbitrium/main?labpath=examples/interactive_demo.ipynb" target="_blank">
+<a href="https://mybinder.org/v2/gh/nikolay-e/arbitrium-framework/main?labpath=examples/interactive_demo.ipynb" target="_blank">
   <img src="https://mybinder.org/badge_logo.svg" alt="Launch on Binder"/>
 </a>
 
@@ -123,7 +123,7 @@ For complete documentation including:
 - Example questions
 - Deployment instructions
 
-**[View Full Documentation →](https://github.com/arbitrium-framework/arbitrium/blob/main/examples/INTERACTIVE_DEMO.md)**
+**[View Full Documentation →](https://github.com/nikolay-e/arbitrium-framework/blob/main/examples/INTERACTIVE_DEMO.md)**
 
 ---
 
@@ -137,9 +137,9 @@ For complete documentation including:
 
 ### Still Stuck?
 
-- 📖 [Read the FAQ](https://github.com/arbitrium-framework/arbitrium#faq)
+- 📖 [Read the FAQ](https://github.com/nikolay-e/arbitrium-framework#faq)
 - 💬 [Join Discord](https://discord.gg/arbitrium)
-- 🐛 [Report Issues](https://github.com/arbitrium-framework/arbitrium/issues)
+- 🐛 [Report Issues](https://github.com/nikolay-e/arbitrium-framework/issues)
 
 ---
 
@@ -149,7 +149,7 @@ For complete documentation including:
 
 **If you liked it:**
 
-1. ⭐ [Star the repository](https://github.com/arbitrium-framework/arbitrium)
+1. ⭐ [Star the repository](https://github.com/nikolay-e/arbitrium-framework)
 2. 📦 Install locally: `pip install arbitrium-core`
 3. 🚀 Run your own tournaments
 4. 📢 Share your results!
@@ -165,7 +165,7 @@ For complete documentation including:
 ## 🎯 Ready to Start?
 
 <div style="text-align: center; margin: 3em 0;">
-  <a href="https://colab.research.google.com/github/arbitrium-framework/arbitrium/blob/main/examples/interactive_demo.ipynb" target="_blank" style="display: inline-block; padding: 15px 30px; background: #4285f4; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 1.2em;">
+  <a href="https://colab.research.google.com/github/nikolay-e/arbitrium-framework/blob/main/examples/interactive_demo.ipynb" target="_blank" style="display: inline-block; padding: 15px 30px; background: #4285f4; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 1.2em;">
     🚀 Launch Interactive Demo
   </a>
 </div>
@@ -176,4 +176,4 @@ For complete documentation including:
 
 ---
 
-*Questions? [Open an issue](https://github.com/arbitrium-framework/arbitrium/issues) or ask in [Discord](https://discord.gg/arbitrium)!*
+*Questions? [Open an issue](https://github.com/nikolay-e/arbitrium-framework/issues) or ask in [Discord](https://discord.gg/arbitrium)!*

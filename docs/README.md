@@ -6,7 +6,7 @@ This directory contains web-based tools for Arbitrium Framework.
 
 Interactive calculator to help users determine if Arbitrium Framework is cost-effective for their decision.
 
-**Live:** <https://arbitrium-framework.github.io/arbitrium/calculator.html>
+**Live:** <https://nikolay-e.github.io/arbitrium-framework/calculator.html>
 
 ## Setup GitHub Pages
 
