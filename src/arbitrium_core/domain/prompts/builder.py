@@ -8,6 +8,7 @@ from arbitrium_core.domain.prompts.templates import (
     FEEDBACK_PROMPT_TEMPLATE,
     IMPROVEMENT_PROMPT_TEMPLATE,
     INITIAL_PROMPT_TEMPLATE,
+    SYNTHESIS_PROMPT_TEMPLATE,
 )
 from arbitrium_core.ports.llm import BaseModel
 
@@ -17,11 +18,13 @@ class PromptBuilder:
 
     def __init__(
         self,
-        prompts: dict[str, dict[str, Any]],
+        prompts: dict[str, Any],
         formatter: PromptFormatter | None = None,
+        reasoning_perspectives: list[str] | None = None,
     ):
         self.prompts = prompts
         self.formatter = formatter or PromptFormatter()
+        self.reasoning_perspectives = reasoning_perspectives or []
 
     def _format_prompt(self, prompt_type: str, context: dict[str, Any]) -> str:
         prompt_config = self.prompts.get(prompt_type)
@@ -95,16 +98,17 @@ class PromptBuilder:
             )
         return "\n\n".join(parts)
 
-    def build_initial_prompt(self, initial_question: str) -> str:
-        """Build the initial prompt for the first round.
-
-        Args:
-            initial_question: The question to answer
-
-        Returns:
-            Formatted initial prompt
-        """
+    def build_initial_prompt(
+        self, initial_question: str, perspective_index: int = -1
+    ) -> str:
         base_prompt = self._format_prompt("initial", context={})
+
+        if self.reasoning_perspectives and perspective_index >= 0:
+            perspective = self.reasoning_perspectives[
+                perspective_index % len(self.reasoning_perspectives)
+            ]
+            base_prompt = f"{perspective}\n\n{base_prompt}"
+
         question_section = self.formatter.wrap_section(
             "QUESTION", initial_question
         )
@@ -236,4 +240,37 @@ class PromptBuilder:
             question_section=question_section,
             responses_section=responses_section,
             model_names=models_list,
+        )
+
+    def build_synthesis_prompt(
+        self,
+        initial_question: str,
+        all_responses: dict[str, str],
+        kb_context: str,
+    ) -> str:
+        synthesis_instruction = self._format_prompt("synthesis", context={})
+        question_section = self.formatter.wrap_section(
+            "QUESTION", initial_question
+        )
+
+        formatted_responses = []
+        for name, resp in all_responses.items():
+            formatted_responses.append(
+                self.formatter.format_response_wrapper(name, resp)
+            )
+        all_responses_section = self.formatter.wrap_section(
+            "ALL EXPERT RESPONSES", "\n\n".join(formatted_responses)
+        )
+
+        knowledge_section = (
+            f"\n\n{self.formatter.wrap_section('PRESERVED KNOWLEDGE', kb_context)}"
+            if kb_context
+            else ""
+        )
+
+        return SYNTHESIS_PROMPT_TEMPLATE.format(
+            synthesis_instruction=synthesis_instruction,
+            question_section=question_section,
+            all_responses_section=all_responses_section,
+            knowledge_section=knowledge_section,
         )

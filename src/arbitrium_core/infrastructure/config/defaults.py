@@ -38,9 +38,11 @@ FEATURES: dict[str, Any] = {
 }
 
 # Default prompts (JSON-like structured format)
-PROMPTS: dict[str, dict[str, Any]] = {
+PROMPTS: dict[str, Any] = {
     "initial": {
         "content": (
+            "Before answering, briefly identify the fundamental principles underlying this problem. "
+            "Consider at least 2-3 genuinely different approaches before committing to one. "
             "Analyze the problem from multiple perspectives using evidence-based reasoning and common sense. "
             "Be aware of your inherent biases and actively work to counteract them. "
             "Don't be constrained by current trends or prevailing narratives - trends change, "
@@ -84,13 +86,16 @@ PROMPTS: dict[str, dict[str, Any]] = {
             "Improve the answer using feedback, grounding it in scientific evidence and "
             "practical reasoning. Recognize and mitigate your own biases in the analysis. "
             "Don't let emotional appeals or fashionable opinions constrain rigorous thinking. "
+            "IMPORTANT: Before revising, identify what unique insight in YOUR original answer is absent from others' "
+            "responses. Preserve it — it may be the most valuable contribution. "
             "Make the key verifiable insights the central thesis. "
             "Rebuild the entire argument around this main point, removing all generic claims, "
             "unsubstantiated speculation, and secondary details."
             "Do NOT discard high-utility specifics; instead, reframe them with evidence tags and confidence levels. "
             "Translate uncited precise numbers into operational ranges or decision rules. "
             "Append a 'Heuristics Annex' that retains weakly evidenced but useful tactics, clearly labeled. "
-            "Produce a short Change Log explaining what was generalized/relocated and why."
+            "Produce a short Change Log explaining what was generalized/relocated and why. "
+            "After writing your improved answer, reconsider: What did you simplify? What perspective is missing?"
         ),
         "metadata": {
             "version": "1.0",
@@ -100,8 +105,10 @@ PROMPTS: dict[str, dict[str, Any]] = {
     },
     "evaluate": {
         "content": (
-            "You are an editor judging analytical depth, scientific rigor and common sense. How insightful "
-            "and evidence-based is this answer? Does it rely on proven methodology and sound "
+            "You are an editor judging analytical depth, scientific rigor and common sense. "
+            "Evaluate the REASONING PROCESS, not just final conclusions. "
+            "A response with novel, well-evidenced insights should score higher even if its structure is less polished. "
+            "How insightful and evidence-based is this answer? Does it rely on proven methodology and sound "
             "reasoning, or does it resort to speculation and unfalsifiable claims? "
             "Be aware that all analysis contains inherent biases - evaluate whether the answer "
             "acknowledges and addresses its own potential biases. Does it demonstrate intellectual "
@@ -117,7 +124,50 @@ PROMPTS: dict[str, dict[str, Any]] = {
             "phase": "evaluation",
         },
     },
+    "synthesis": {
+        "content": (
+            "You are synthesizing multiple expert analyses into the most comprehensive answer possible. "
+            "Your task is to create a unified answer that preserves EVERY unique finding, piece of evidence, "
+            "perspective, and nuance from ALL responses below. Nothing valuable should be lost. "
+            "Where experts disagree, present both views with evidence quality assessment. "
+            "Minority findings that appear in only one response may be the most valuable — preserve them. "
+            "Combine strengths of all responses while eliminating redundancy and resolving contradictions. "
+            "The final synthesis should be richer and more complete than any individual response."
+        ),
+        "metadata": {
+            "version": "1.0",
+            "type": "instruction",
+            "phase": "synthesis",
+        },
+    },
 }
+
+REASONING_PERSPECTIVES: list[str] = [
+    (
+        "Analyze using first-principles reasoning. Break the problem down to its fundamental components. "
+        "Challenge every assumption. What must be true for any solution to work?"
+    ),
+    (
+        "Analyze through historical precedents and analogies. What similar situations have occurred? "
+        "What lessons from adjacent domains apply here? What patterns repeat?"
+    ),
+    (
+        "Take a contrarian stance. Challenge the conventional wisdom on this topic. "
+        "What is everyone getting wrong? What risks and failure modes are being ignored?"
+    ),
+    (
+        "Use systems thinking. Focus on second-order effects, feedback loops, and unintended consequences. "
+        "How do the parts interact? What emerges from the whole that isn't visible in the parts?"
+    ),
+    (
+        "Apply decision-theoretic analysis. What are the key trade-offs? "
+        "What information would change the optimal decision? What are the irreversible choices?"
+    ),
+    (
+        "Reason from the perspective of implementation and practice. What are the real-world obstacles? "
+        "What would actually work vs. what sounds good in theory? Focus on actionable specifics."
+    ),
+]
 
 # Default Knowledge Bank settings
 KNOWLEDGE_BANK: dict[str, Any] = {
@@ -133,5 +183,6 @@ def get_defaults() -> dict[str, Any]:
         "retry": RETRY,
         "features": FEATURES,
         "prompts": PROMPTS,
+        "reasoning_perspectives": REASONING_PERSPECTIVES,
         "knowledge_bank": KNOWLEDGE_BANK,
     }

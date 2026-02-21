@@ -483,13 +483,64 @@ class TournamentRunner:
             return "medium"
         return "low"
 
+    def _collect_all_final_responses(self) -> dict[str, str]:
+        all_responses: dict[str, str] = {}
+        for round_answers in self.comp.previous_answers:
+            for model_name, response in round_answers.items():
+                all_responses[model_name] = response
+        return all_responses
+
+    async def _run_synthesis(
+        self,
+        initial_question: str,
+        champion_model_key: str,
+        champion_answer: str,
+    ) -> str:
+        all_responses = self._collect_all_final_responses()
+
+        if len(all_responses) <= 1:
+            return champion_answer
+
+        self.logger.info(
+            "SYNTHESIS PHASE: Combining insights from all participants",
+            extra={"display_type": "section_header"},
+        )
+
+        kb_context = await self.comp._get_knowledge_bank_context()
+
+        synthesis_prompt = self.comp.prompt_builder.build_synthesis_prompt(
+            initial_question, all_responses, kb_context
+        )
+
+        champion_model = self.comp.models[champion_model_key]
+        try:
+            response = await champion_model.generate_with_retry(
+                synthesis_prompt,
+                max_attempts=self.comp.retry_settings.get("max_attempts", 3),
+            )
+            self.comp.cost_tracker.add_cost(
+                champion_model.display_name, response.cost
+            )
+
+            if response.is_successful and response.content.strip():
+                self.logger.info(
+                    f"Synthesis complete — combined {len(all_responses)} perspectives"
+                )
+                return response.content.strip()
+        except Exception as e:
+            self.logger.warning(
+                f"Synthesis failed, using champion answer: {e}"
+            )
+
+        return champion_answer
+
     async def _finalize_tournament(self, initial_question: str) -> str:
         if len(self.comp.active_model_keys) == 0:
             self.logger.error(
                 "All models failed during tournament. No champion can be determined."
             )
             return "Tournament ended prematurely: All models failed or were eliminated due to errors."
-        elif len(self.comp.active_model_keys) == 1:
+        elif len(self.comp.active_model_keys) >= 1:
             final_model_key = self.comp.active_model_keys[0]
             final_model_anon = self.comp.anon_mapping[final_model_key]
 
@@ -507,27 +558,31 @@ class TournamentRunner:
                 f"CHAMPION: {final_model_anon} - Using their final refined answer"
             )
 
+            final_answer = await self._run_synthesis(
+                initial_question, final_model_key, champion_answer
+            )
+
             if self.comp.features.get("save_reports_to_disk", True):
                 await self.comp._save_champion_report(
                     initial_question=initial_question,
                     final_model_anon=final_model_anon,
-                    champion_answer=champion_answer,
+                    champion_answer=final_answer,
                     all_previous_answers=self.comp.previous_answers,
                 )
 
             self.logger.info(
-                "Champion's Final Answer",
+                "Synthesized Final Answer",
                 extra={"display_type": "section_header"},
             )
             self.logger.info(
-                champion_answer,
+                final_answer,
                 extra={
                     "display_type": "model_response",
                     "model_name": "success",
                 },
             )
 
-            return champion_answer
+            return final_answer
         else:
             msg = f"Tournament ended with {len(self.comp.active_model_keys)} models remaining. No single champion determined."
             self.logger.warning(
@@ -584,7 +639,11 @@ class ModelComparison:
         self.score_extractor = ScoreExtractor()
         self.report_generator = ReportGenerator(self.host)
         self.formatter = PromptFormatter()
-        self.prompt_builder = PromptBuilder(self.prompts, self.formatter)
+        self.prompt_builder = PromptBuilder(
+            self.prompts,
+            self.formatter,
+            reasoning_perspectives=config.get("reasoning_perspectives", []),
+        )
 
         self.active_model_keys = list(models.keys())
         self.judge_model_key = self._identify_and_remove_judge()
@@ -960,7 +1019,10 @@ class ModelComparison:
         )
 
         def build_initial_prompt(model_key: str, model: BaseModel) -> str:
-            return self.prompt_builder.build_initial_prompt(initial_question)
+            idx = self.active_model_keys.index(model_key)
+            return self.prompt_builder.build_initial_prompt(
+                initial_question, perspective_index=idx
+            )
 
         valid_responses = await self._execute_parallel_model_tasks(
             model_keys_to_run=self.active_model_keys,
