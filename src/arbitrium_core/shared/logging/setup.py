@@ -418,13 +418,19 @@ def setup_logging(
     verbose: bool = False,
     enable_file_logging: bool = True,
     include_module: bool = True,
+    log_dir: str | None = None,
 ) -> logging.Logger:
     # Generate timestamped log file if not specified but file logging is enabled
     if log_file is None and enable_file_logging:
         from datetime import datetime
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = f"arbitrium_{timestamp}_logs.log"
+        filename = f"arbitrium_{timestamp}_logs.log"
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+            log_file = os.path.join(log_dir, filename)
+        else:
+            log_file = filename
 
     # Validate log file path
     log_file = _validate_log_file_path(log_file)

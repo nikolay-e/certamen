@@ -113,9 +113,16 @@ class App:
 
         from arbitrium_core.shared.logging import setup_logging
 
+        log_dir = self.outputs_dir
+        if log_dir is None:
+            try:
+                log_dir = self.arbitrium.config.config_data.get("outputs_dir")
+            except (AttributeError, TypeError):
+                pass
         setup_logging(
             debug=bool(self.args.get("debug", False)),
             verbose=bool(self.args.get("verbose", False)),
+            log_dir=str(log_dir) if log_dir else None,
         )
 
     async def _initialize_arbitrium(self) -> None:
