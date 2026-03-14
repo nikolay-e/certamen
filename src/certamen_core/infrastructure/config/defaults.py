@@ -29,10 +29,38 @@ FEATURES: dict[str, Any] = {
     "llm_compression": False,  # Disabled - user pays for full context
     "compression_model": None,  # None = auto-select model with highest context window
     "synthesis_enabled": True,  # Enable synthesis phase after champion determination
+    # Knowledge extraction features
+    "interrogation_enabled": True,  # Adversarial cross-examination between models
+    "interrogation_max_questions": 4,  # Questions per model pair
+    "disagreement_investigation_enabled": True,  # Deep-dive into model disagreements
+    "confidence_calibration_enabled": True,  # Append confidence tags to initial prompts
+    "knowledge_map_enabled": True,  # Build structured knowledge map after tournament
+    "deep_extraction_enabled": False,  # Recursive sub-tournaments on exploration branches (expensive)
+    "deep_extraction_depth": 2,  # Max recursion depth for deep extraction
+    "persistence_enabled": True,  # Persist knowledge maps to SQLite across tournaments
+    "persistence_db_path": "certamen_knowledge.db",  # Path to knowledge store database
+    "interrogation_rounds": 1,  # Number of interrogation rounds (round 2 probes round 1 findings)
 }
 
 # Default prompts (JSON-like structured format)
 PROMPTS: dict[str, Any] = {
+    "confidence_calibrated": {
+        "content": (
+            "For each significant claim in your response, append a confidence tag:\n"
+            "[HIGH] — You have strong evidence or this is well-established\n"
+            "[MEDIUM] — Reasonable inference but could be wrong\n"
+            "[LOW] — Educated guess, limited evidence\n"
+            "[UNCERTAIN] — You genuinely don't know but are offering a possibility\n\n"
+            "Also identify at the end of your response:\n"
+            "KNOWN_UNKNOWNS: Things relevant to this question that you know you don't know\n"
+            "ASSUMPTIONS: Premises you're assuming but haven't verified\n"
+        ),
+        "metadata": {
+            "version": "1.0",
+            "type": "instruction",
+            "phase": "confidence",
+        },
+    },
     "initial": {
         "content": (
             "Before answering, briefly identify the fundamental principles underlying this problem. "

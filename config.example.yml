@@ -79,6 +79,34 @@ features:
   # "leader" = use current tournament leader, or specify a model key (e.g., "claude")
   knowledge_bank_model: leader
 
+  # --- Knowledge Extraction Features ---
+
+  # Adversarial cross-examination: models interrogate each other after initial answers
+  # to extract knowledge they didn't volunteer. High ROI for revealing hidden insights.
+  interrogation_enabled: true
+  interrogation_max_questions: 4  # Questions each model asks of each other (1-10)
+
+  # Disagreement investigation: when models disagree, instead of resolving it,
+  # we investigate it. Disagreements mark the frontier of extractable knowledge.
+  disagreement_investigation_enabled: true
+
+  # Confidence calibration: models annotate claims with [HIGH]/[MEDIUM]/[LOW]/[UNCERTAIN]
+  # and explicitly state KNOWN_UNKNOWNS and ASSUMPTIONS.
+  confidence_calibration_enabled: true
+
+  # Knowledge map: after the tournament, build a structured map of consensus,
+  # disagreements, unique insights, and exploration branches. Available in metrics["knowledge_map"].
+  knowledge_map_enabled: true
+
+  # Deep extraction: recursively run sub-tournaments on exploration branches.
+  # EXPENSIVE - each branch runs a full tournament. Use sparingly.
+  deep_extraction_enabled: false
+  deep_extraction_depth: 2  # Max recursion levels
+
+  # Persist knowledge maps to SQLite for cross-tournament learning.
+  persistence_enabled: true
+  persistence_db_path: "certamen_knowledge.db"
+
 # Output configuration
 outputs_dir: "."
 

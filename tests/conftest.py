@@ -1,11 +1,20 @@
 """Pytest configuration and shared fixtures."""
 
+import shutil
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+
+@pytest.fixture(autouse=True)  # type: ignore[misc]
+def cleanup_coroutine_dirs() -> Generator[None, None, None]:
+    yield
+    for p in Path(".").iterdir():
+        if p.is_dir() and p.name.startswith("<coroutine object"):
+            shutil.rmtree(p, ignore_errors=True)
 
 
 @pytest.fixture()  # type: ignore[misc]

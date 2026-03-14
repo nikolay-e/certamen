@@ -38,6 +38,9 @@ class TournamentRunner:
     async def _run_tournament_phases(self, initial_question: str) -> str:
         if not await self._run_initial_phase(initial_question):
             return "No valid initial responses. Tournament cannot proceed."
+        await self._run_interrogation_phase(
+            initial_question, self.comp.previous_answers[0]
+        )
         if not await self._run_phase_2(initial_question):
             return "Phase 2 failed. Tournament cannot proceed."
         await self._run_elimination_rounds(initial_question)
@@ -54,12 +57,16 @@ class TournamentRunner:
         self.comp.evaluation_history = []
         self.comp.feedback_history = []
         self.comp.criticism_history = []
+        self.comp.interrogation_context = ""
         self.comp.model_score_variances = {}
         self.comp.self_scoring_biases = {}
         self.comp.elimination_reason = ""
         self.comp.elimination_score = None
+        self._knowledge_map: object = None
+        self._disagreement_reports: list[object] = []
 
         try:
+            await self._load_prior_knowledge(initial_question)
             return await self._run_tournament_phases(initial_question)
         except KeyboardInterrupt:
             self.logger.warning("Process interrupted by user.")
@@ -179,6 +186,356 @@ class TournamentRunner:
             )
         return True
 
+    async def _run_interrogation_phase(
+        self,
+        initial_question: str,
+        current_responses: dict[str, str],
+    ) -> None:
+        if not self.comp.features.get("interrogation_enabled", True):
+            return
+        if len(current_responses) < 2:
+            return
+
+        from certamen_core.domain.interrogation.interrogator import (
+            AdversarialInterrogator,
+        )
+
+        self.logger.info("\n" + "=" * 80)
+        self.logger.info(
+            "INTERROGATION PHASE: Cross-examining models for hidden knowledge"
+        )
+        self.logger.info("=" * 80)
+
+        interrogator = AdversarialInterrogator(self.comp.semaphore)
+        max_q = int(self.comp.features.get("interrogation_max_questions", 4))
+        interrogation_rounds = int(
+            self.comp.features.get("interrogation_rounds", 1)
+        )
+        model_names = list(current_responses.keys())
+
+        async def run_round(responses: dict[str, str]) -> list[str]:
+            async def interrogate_pair(
+                examiner_name: str, target_name: str
+            ) -> list[str]:
+                examiner_key = next(
+                    (
+                        k
+                        for k, v in self.comp.anon_mapping.items()
+                        if v == examiner_name
+                    ),
+                    None,
+                )
+                target_key = next(
+                    (
+                        k
+                        for k, v in self.comp.anon_mapping.items()
+                        if v == target_name
+                    ),
+                    None,
+                )
+                if not examiner_key or not target_key:
+                    return []
+                examiner_model = self.comp.models.get(examiner_key)
+                target_model = self.comp.models.get(target_key)
+                if not examiner_model or not target_model:
+                    return []
+                questions = await interrogator.generate_questions(
+                    examiner_model=examiner_model,
+                    target_response=responses[target_name],
+                    other_response=responses[examiner_name],
+                    question=initial_question,
+                    max_questions=max_q,
+                )
+                qa = await interrogator.conduct_interrogation(
+                    target_model=target_model,
+                    questions=questions,
+                    question=initial_question,
+                    own_response=responses[target_name],
+                )
+                return [f"Q: {q}\nA: {a}" for q, a in qa.items()]
+
+            tasks = [
+                interrogate_pair(examiner, target)
+                for i, examiner in enumerate(model_names)
+                for j, target in enumerate(model_names)
+                if i != j
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            return [
+                item
+                for result in results
+                if isinstance(result, list)
+                for item in result
+            ]
+
+        all_qa = await run_round(current_responses)
+
+        if not all_qa:
+            self.logger.info("INTERROGATION COMPLETE: No Q&A pairs extracted")
+            return
+
+        combined = "\n\n".join(all_qa)
+        self.comp.interrogation_context = combined
+
+        from certamen_core.shared.constants import INTERROGATION_INSIGHT_PROMPT
+        from certamen_core.shared.text import parse_insight_lines
+
+        extractor_key = self.comp.judge_model_key or (
+            self.comp.active_model_keys[0]
+            if self.comp.active_model_keys
+            else None
+        )
+        if not extractor_key or extractor_key not in self.comp.models:
+            self.logger.warning(
+                "No model available for interrogation insight extraction"
+            )
+            return
+
+        prompt = INTERROGATION_INSIGHT_PROMPT.format(text=combined)
+        response = await self.comp.execute_single_model_task(
+            model_key=extractor_key,
+            prompt=prompt,
+            context_for_logging="INTERROGATION_EXTRACTION",
+        )
+
+        if response.is_error():
+            self.logger.warning(
+                "Interrogation insight extraction failed: %s", response.error
+            )
+            return
+
+        insights = parse_insight_lines(
+            response.content, min_length=10, skip_apologies=True
+        )
+        if insights:
+            await self.comp.knowledge_bank._add_insights_to_db(
+                insights, "interrogation_phase", 0
+            )
+
+        if interrogation_rounds >= 2 and insights:
+            round2_context = "\n".join(f"- {i}" for i in insights[:10])
+            round2_responses = {
+                n: f"{t}\n\n[Cross-examination findings:]\n{round2_context}"
+                for n, t in current_responses.items()
+            }
+            r2_qa = await run_round(round2_responses)
+            if r2_qa:
+                prompt2 = INTERROGATION_INSIGHT_PROMPT.format(
+                    text="\n\n".join(r2_qa)
+                )
+                resp2 = await self.comp.execute_single_model_task(
+                    model_key=extractor_key,
+                    prompt=prompt2,
+                    context_for_logging="INTERROGATION_R2_EXTRACTION",
+                )
+                if not resp2.is_error():
+                    r2_insights = parse_insight_lines(
+                        resp2.content, min_length=10, skip_apologies=True
+                    )
+                    if r2_insights:
+                        await self.comp.knowledge_bank._add_insights_to_db(
+                            r2_insights, "interrogation_phase_r2", 0
+                        )
+                        insights.extend(r2_insights)
+
+        self.logger.info(
+            "INTERROGATION COMPLETE: %s Q&A pairs → %s insights extracted",
+            len(all_qa),
+            len(insights),
+        )
+
+    async def _run_disagreement_phase(
+        self,
+        initial_question: str,
+        responses: dict[str, str],
+    ) -> list[object]:
+        if not self.comp.features.get(
+            "disagreement_investigation_enabled", True
+        ):
+            return []
+        if len(responses) < 2:
+            return []
+
+        from certamen_core.domain.disagreement.detector import (
+            DisagreementDetector,
+        )
+        from certamen_core.domain.disagreement.resolver import (
+            DisagreementInvestigator,
+        )
+
+        judge_key = self.comp.judge_model_key or (
+            self.comp.active_model_keys[0]
+            if self.comp.active_model_keys
+            else None
+        )
+        if not judge_key:
+            return []
+        judge_model = self.comp.models.get(judge_key)
+        if not judge_model:
+            return []
+
+        # Map anonymized names back to display names for better readability
+        real_responses: dict[str, str] = {}
+        for anon_name, text in responses.items():
+            real_key = next(
+                (
+                    k
+                    for k, v in self.comp.anon_mapping.items()
+                    if v == anon_name
+                ),
+                None,
+            )
+            if real_key:
+                model = self.comp.models[real_key]
+                display = model.display_name or real_key
+                real_responses[display] = text
+
+        detector = DisagreementDetector()
+        disagreements = await detector.detect_disagreements(
+            real_responses, judge_model, initial_question
+        )
+
+        if not disagreements:
+            return []
+
+        self.logger.info(
+            "DISAGREEMENT PHASE: Found %s disagreements, investigating...",
+            len(disagreements),
+        )
+
+        display_to_model: dict[str, BaseModel] = {}
+        for key, model in self.comp.models.items():
+            if (
+                key in self.comp.active_model_keys
+                or key == self.comp.judge_model_key
+            ):
+                display = model.display_name or key
+                display_to_model[display] = model
+
+        investigator = DisagreementInvestigator()
+        reports = await asyncio.gather(
+            *[
+                investigator.investigate(d, display_to_model, initial_question)
+                for d in disagreements
+            ],
+            return_exceptions=True,
+        )
+
+        valid: list[object] = [
+            r for r in reports if not isinstance(r, BaseException)
+        ]
+        self.logger.info(
+            "DISAGREEMENT PHASE COMPLETE: Investigated %s disagreements",
+            len(valid),
+        )
+        return valid
+
+    async def _build_knowledge_map(
+        self,
+        initial_question: str,
+        synthesis: str,
+        champion_model_key: str,
+    ) -> object:
+        if not self.comp.features.get("knowledge_map_enabled", True):
+            return None
+
+        from certamen_core.domain.knowledge_map.builder import (
+            KnowledgeMapBuilder,
+        )
+
+        judge_key = self.comp.judge_model_key or champion_model_key
+        judge_model = self.comp.models.get(judge_key)
+        if not judge_model:
+            return None
+
+        all_responses = self._collect_all_final_responses()
+        builder = KnowledgeMapBuilder()
+
+        try:
+            km = await builder.build(
+                question=initial_question,
+                all_responses=all_responses,
+                synthesis=synthesis,
+                champion_model=champion_model_key,
+                judge_model=judge_model,
+                disagreements=self._disagreement_reports,  # type: ignore[arg-type]
+            )
+            km.exploration_branches = (
+                await builder.generate_exploration_branches(km, judge_model)
+            )
+            if self.comp.features.get("persistence_enabled", True):
+                try:
+                    from certamen_core.infrastructure.persistence.knowledge_store import (
+                        PersistentKnowledgeStore,
+                    )
+
+                    db_path = self.comp.features.get(
+                        "persistence_db_path", "certamen_knowledge.db"
+                    )
+                    store = PersistentKnowledgeStore(db_path)
+                    known = await store.get_all_branch_questions()
+                    km.exploration_branches = [
+                        b for b in km.exploration_branches if b not in known
+                    ]
+                except Exception as e:
+                    self.logger.debug("Branch dedup failed: %s", e)
+            self.logger.info(
+                "KNOWLEDGE MAP: Built with %s consensus items, %s disagreements, "
+                "%s exploration branches",
+                len(km.consensus),
+                len(km.disagreements),
+                len(km.exploration_branches),
+            )
+            return km
+        except Exception as e:
+            self.logger.warning("Knowledge map construction failed: %s", e)
+            return None
+
+    async def _persist_knowledge_map(self, km: object) -> None:
+        if not self.comp.features.get("persistence_enabled", True):
+            return
+
+        from certamen_core.infrastructure.persistence.knowledge_store import (
+            PersistentKnowledgeStore,
+        )
+
+        db_path = self.comp.features.get(
+            "persistence_db_path", "certamen_knowledge.db"
+        )
+        store = PersistentKnowledgeStore(db_path)
+        tournament_id = getattr(self, "_tournament_id", "unknown")
+        try:
+            await store.store_knowledge_map(km, tournament_id)  # type: ignore[arg-type]
+            self.logger.info("Knowledge map persisted to %s", db_path)
+        except Exception as e:
+            self.logger.warning("Failed to persist knowledge map: %s", e)
+
+    async def _load_prior_knowledge(self, initial_question: str) -> None:
+        if not self.comp.features.get("persistence_enabled", True):
+            return
+        try:
+            from certamen_core.infrastructure.persistence.knowledge_store import (
+                PersistentKnowledgeStore,
+            )
+
+            db_path = self.comp.features.get(
+                "persistence_db_path", "certamen_knowledge.db"
+            )
+            store = PersistentKnowledgeStore(db_path)
+            prior_claims = await store.get_relevant_prior_knowledge(
+                initial_question, limit=15
+            )
+            if prior_claims:
+                await self.comp.knowledge_bank._add_insights_to_db(
+                    prior_claims, "prior_tournament", 0
+                )
+                self.logger.info(
+                    "Loaded %s prior knowledge claims from previous tournaments",
+                    len(prior_claims),
+                )
+        except Exception as e:
+            self.logger.warning("Failed to load prior knowledge: %s", e)
+
     async def _run_phase_2(self, initial_question: str) -> bool:
         return await self._run_improvement_phase(
             initial_question,
@@ -200,6 +557,27 @@ class TournamentRunner:
             self.logger.info("\n" + "-" * 80)
             self.logger.info("ROUND %s: Cross-Evaluation Phase", round_num)
             self.logger.info("-" * 80)
+
+            disagreement_reports = await self._run_disagreement_phase(
+                initial_question, self.comp.previous_answers[-1]
+            )
+            self._disagreement_reports.extend(disagreement_reports)
+
+            if disagreement_reports:
+                from certamen_core.domain.disagreement.resolver import (
+                    DisagreementReport,
+                )
+
+                disagreement_insights = [
+                    f"DISAGREEMENT [{r.resolution_status}]: {r.topic}"  # type: ignore[union-attr]
+                    f" — {r.neutral_analysis[:200]}"  # type: ignore[union-attr]
+                    for r in disagreement_reports
+                    if isinstance(r, DisagreementReport) and r.neutral_analysis
+                ]
+                if disagreement_insights:
+                    await self.comp.knowledge_bank._add_insights_to_db(
+                        disagreement_insights, "disagreement_investigation", 0
+                    )
 
             evaluations = await self.comp.run_cross_evaluation(
                 initial_question, self.comp.previous_answers[-1], round_num
@@ -403,6 +781,7 @@ class TournamentRunner:
         initial_question: str,
         champion_model_key: str,
         champion_answer: str,
+        km_context: str = "",
     ) -> str:
         if not self.comp.features.get("synthesis_enabled", True):
             return champion_answer
@@ -418,6 +797,10 @@ class TournamentRunner:
         )
 
         kb_context = await self.comp.get_knowledge_bank_context()
+        if km_context:
+            kb_context = (
+                f"{kb_context}\n\n{km_context}" if kb_context else km_context
+            )
 
         synthesis_prompt = self.comp.prompt_builder.build_synthesis_prompt(
             initial_question, all_responses, kb_context
@@ -468,9 +851,30 @@ class TournamentRunner:
                 final_model_anon,
             )
 
-            final_answer = await self._run_synthesis(
-                initial_question, final_model_key, champion_answer
+            km = await self._build_knowledge_map(
+                initial_question, champion_answer, final_model_key
             )
+
+            km_context_str = ""
+            if km is not None:
+                try:
+                    from certamen_core.domain.knowledge_map.renderer import (
+                        KnowledgeMapRenderer,
+                    )
+
+                    km_context_str = KnowledgeMapRenderer().to_markdown(km)  # type: ignore[arg-type]
+                except Exception as e:
+                    self.logger.debug("KM context rendering failed: %s", e)
+
+            final_answer = await self._run_synthesis(
+                initial_question,
+                final_model_key,
+                champion_answer,
+                km_context=km_context_str,
+            )
+
+            if km is not None:
+                km.synthesis = final_answer  # type: ignore[attr-defined]
 
             if self.comp.features.get("save_reports_to_disk", True):
                 await self.comp.history_builder.save_champion_report(
@@ -491,6 +895,30 @@ class TournamentRunner:
                     "model_name": "success",
                 },
             )
+
+            if km is not None:
+                self._knowledge_map = km
+                await self._persist_knowledge_map(km)
+                try:
+                    from datetime import datetime
+
+                    from certamen_core.domain.knowledge_map.renderer import (
+                        KnowledgeMapRenderer,
+                    )
+
+                    km_md = KnowledgeMapRenderer().to_markdown(km)  # type: ignore[arg-type]
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    await self.comp.host.write_file(
+                        f"certamen_{timestamp}_knowledge_map.md", km_md
+                    )
+                    self.logger.info(
+                        "Knowledge map saved to certamen_%s_knowledge_map.md",
+                        timestamp,
+                    )
+                except Exception as e:
+                    self.logger.warning(
+                        "Failed to save knowledge map to file: %s", e
+                    )
 
             return final_answer
 
@@ -517,7 +945,9 @@ class ModelComparison:
 
         self.retry_settings = config["retry"]
         self.features = config["features"]
-        self.prompts = config["prompts"]
+        self.prompts = self._apply_confidence_calibration(
+            config["prompts"], self.features
+        )
 
         self.previous_answers: list[dict[str, str]] = []
         self.eliminated_models: list[dict[str, Any]] = []
@@ -528,6 +958,7 @@ class ModelComparison:
         self.all_evaluations: dict[str, str] = {}
         self.feedback_history: list[dict[str, Any]] = []
         self.criticism_history: list[dict[str, Any]] = []
+        self.interrogation_context: str = ""
 
         self.elimination_reason: str = ""
         self.elimination_score: float | None = None
@@ -581,6 +1012,30 @@ class ModelComparison:
     @property
     def cost_by_model(self) -> dict[str, float]:
         return self.cost_tracker.cost_by_model
+
+    @staticmethod
+    def _apply_confidence_calibration(
+        prompts: dict[str, Any], features: dict[str, Any]
+    ) -> dict[str, Any]:
+        if not features.get("confidence_calibration_enabled", True):
+            return prompts
+        calib_config = prompts.get("confidence_calibrated", {})
+        calib_content = (
+            calib_config.get("content", "")
+            if isinstance(calib_config, dict)
+            else ""
+        )
+        if not calib_content:
+            return prompts
+        initial_config = prompts.get("initial", {})
+        if not isinstance(initial_config, dict):
+            return prompts
+        existing = initial_config.get("content", "")
+        updated_initial = {
+            **initial_config,
+            "content": existing + "\n\n" + calib_content,
+        }
+        return {**prompts, "initial": updated_initial}
 
     def _identify_and_remove_judge(self) -> str | None:
         judge_model_config_key = self.features.get("judge_model")
@@ -1080,6 +1535,18 @@ class ModelComparison:
 
         # Pre-fetch knowledge bank context (async) before entering sync prompt builder
         kb_context = await self.get_knowledge_bank_context()
+
+        if self.interrogation_context:
+            interrogation_section = (
+                "\n=== INTERROGATION FINDINGS: Knowledge surfaced through cross-examination ===\n"
+                + self.interrogation_context[:3000]
+                + "\n=== END INTERROGATION FINDINGS ===\n"
+            )
+            kb_context = (
+                kb_context + interrogation_section
+                if kb_context
+                else interrogation_section
+            )
 
         def build_improvement_prompt(model_key: str, model: BaseModel) -> str:
             display_name = self.anon_mapping[model_key]

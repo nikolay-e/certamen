@@ -183,6 +183,24 @@ Text to analyze:
 Extracted insights (one per line, starting with dash):
 """
 
+INTERROGATION_INSIGHT_PROMPT = """Review these question-answer exchanges from an adversarial cross-examination between AI models.
+Extract the most valuable NEW knowledge revealed — facts, reasoning, evidence, or perspectives
+that were NOT in the original responses but were surfaced through interrogation.
+
+REQUIREMENTS:
+- Each insight must be a standalone, self-contained claim
+- Focus on knowledge that was HIDDEN until the question forced it out
+- Ignore meta-commentary, hedging, and repetition of known facts
+- Present EACH insight on a new line, starting with a dash (-)
+
+Q&A Exchanges:
+---
+{text}
+---
+
+Extracted insights (one per line, starting with dash):
+"""
+
 # Score extraction patterns for evaluation parsing
 # ВАЖНО: Паттерны применяются по порядку. Самые строгие и надежные должны идти первыми.
 SCORE_EXTRACTION_PATTERNS = [

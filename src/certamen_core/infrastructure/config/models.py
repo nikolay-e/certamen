@@ -10,12 +10,24 @@ class RetryConfig(BaseModel):
 
 
 class FeaturesConfig(BaseModel):
+    model_config = {"extra": "allow"}
+
     save_reports_to_disk: bool = True
     deterministic_mode: bool = True
     judge_model: str | None = None
     knowledge_bank_model: str = "leader"
     llm_compression: bool = False
     compression_model: str | None = None
+    synthesis_enabled: bool = True
+    interrogation_enabled: bool = True
+    interrogation_max_questions: int = 4
+    disagreement_investigation_enabled: bool = True
+    confidence_calibration_enabled: bool = True
+    knowledge_map_enabled: bool = True
+    deep_extraction_enabled: bool = False
+    deep_extraction_depth: int = 2
+    persistence_enabled: bool = True
+    persistence_db_path: str = "certamen_knowledge.db"
 
 
 class KnowledgeBankConfig(BaseModel):

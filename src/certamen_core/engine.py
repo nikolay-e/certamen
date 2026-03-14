@@ -159,7 +159,7 @@ class Certamen:
         logger.info("Tournament completed successfully")
 
         # Build metrics dictionary
-        metrics = {
+        metrics: dict[str, Any] = {
             "total_cost": comparison.total_cost,
             "champion_model": (
                 comparison.active_model_keys[0]
@@ -169,8 +169,58 @@ class Certamen:
             "active_model_keys": comparison.active_model_keys.copy(),
             "eliminated_models": comparison.eliminated_models.copy(),
             "cost_by_model": comparison.cost_by_model.copy(),
+            "knowledge_map": getattr(
+                comparison.runner, "_knowledge_map", None
+            ),
         }
 
+        return result, metrics
+
+    async def run_deep_extraction(
+        self,
+        question: str,
+        depth: int = 2,
+    ) -> tuple[str, Any]:
+        if not self.config_data.get("features", {}).get(
+            "deep_extraction_enabled", False
+        ):
+            return await self.run_tournament(question)
+
+        result, metrics = await self.run_tournament(question)
+        km = metrics.get("knowledge_map")
+
+        if km is None or depth <= 1:
+            return result, metrics
+
+        branches = km.exploration_branches[:3]
+        for i, branch in enumerate(branches):
+            try:
+                logger.info(
+                    "Deep extraction branch %d/%d (depth %d): %s",
+                    i + 1,
+                    len(branches),
+                    depth,
+                    branch[:80],
+                )
+                _sub_result, sub_metrics = await self.run_deep_extraction(
+                    branch, depth=depth - 1
+                )
+                sub_km = sub_metrics.get("knowledge_map")
+                if sub_km is None:
+                    continue
+                km.consensus.extend(sub_km.consensus)
+                km.disagreements.extend(sub_km.disagreements)
+                for sub_model, sub_insights in sub_km.unique_insights.items():
+                    km.unique_insights.setdefault(sub_model, []).extend(
+                        sub_insights
+                    )
+                km.known_unknowns.extend(sub_km.known_unknowns)
+            except Exception as e:
+                logger.warning(
+                    "Deep extraction branch '%s' failed: %s", branch[:80], e
+                )
+
+        metrics["knowledge_map"] = km
         return result, metrics
 
     async def run_single_model(
