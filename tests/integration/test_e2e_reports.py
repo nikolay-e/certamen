@@ -16,7 +16,6 @@ class MockHost:
         self.should_fail = False
 
     async def write_file(self, path: str, content: str) -> None:
-        """Mock write file operation."""
         if self.should_fail:
             raise OSError("Mock write failure")
         self.written_files[path] = content
@@ -105,6 +104,7 @@ class TestBasicReportGeneration:
         assert "round1_evaluation.md" in mock_host.written_files
 
         file_content = mock_host.get_file_content("round1_evaluation.md")
+        assert file_content is not None
         assert "Round 1" in file_content
 
 
@@ -353,6 +353,7 @@ class TestMultipleReports:
 
         # Should have overwritten
         assert content1 != content2
+        assert content2 is not None
         assert "version" in content2 or "Version" in content2
 
 

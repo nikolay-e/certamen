@@ -139,8 +139,7 @@ class TestCertamenCreation:
     ) -> None:
         """Test creating Certamen from real config."""
         config_file = tmp_output_dir / "config.yml"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),
@@ -166,8 +165,7 @@ class TestCertamenCreation:
     ) -> None:
         """Test that CLI outputs_dir overrides config."""
         config_file = tmp_output_dir / "config.yml"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         cli_output_dir = str(tmp_output_dir / "cli_output")
         args = {
@@ -339,8 +337,7 @@ class TestCliWorkflow:
     ) -> None:
         """Test complete Certamen initialization."""
         config_file = tmp_output_dir / "config.yml"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),
@@ -382,8 +379,7 @@ class TestCliWorkflow:
         """Test full CLI flow: initialize -> get question -> run tournament."""
         config_file = tmp_output_dir / "config.yml"
         basic_config["question"] = "What is 2+2?"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),
@@ -420,8 +416,7 @@ class TestQuestionHandling:
         config_file = tmp_output_dir / "config.yml"
         test_question = "What is the meaning of life?"
         basic_config["question"] = test_question
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),
@@ -445,8 +440,7 @@ class TestQuestionHandling:
     ) -> None:
         """Test getting question in interactive mode."""
         config_file = tmp_output_dir / "config.yml"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),
@@ -476,8 +470,7 @@ class TestQuestionHandling:
     ) -> None:
         """Test falling back to interactive when no config question."""
         config_file = tmp_output_dir / "config.yml"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),
@@ -512,8 +505,7 @@ class TestAppRunMethod:
         """Test running complete tournament from App.run()."""
         config_file = tmp_output_dir / "config.yml"
         basic_config["question"] = "Test question?"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),
@@ -538,8 +530,7 @@ class TestAppRunMethod:
         """Test App.run() handles keyboard interrupt gracefully."""
         config_file = tmp_output_dir / "config.yml"
         basic_config["question"] = "Test question?"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),
@@ -574,8 +565,7 @@ class TestAppRunMethod:
         """Test App.run() handles tournament errors."""
         config_file = tmp_output_dir / "config.yml"
         basic_config["question"] = "Test question?"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         args = {
             "config": str(config_file),

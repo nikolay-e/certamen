@@ -98,7 +98,7 @@ def _setup_compression_models(models: dict[str, BaseModel]) -> None:
             )
 
 
-async def create_models(config: dict[str, object]) -> dict[str, BaseModel]:
+async def create_models(config: dict[str, Any]) -> dict[str, BaseModel]:
     logger.info("Creating models from config...")
     models_config = config["models"]
 
@@ -167,7 +167,7 @@ async def _check_single_model(
         response = await model.generate(HEALTH_CHECK_PROMPT)
 
         if response.is_error():
-            error = Exception(response.error or "Unknown error")
+            error = RuntimeError(response.error or "Unknown error")
             logger.warning("%s: %s", model.full_display_name, error)
             return model_key, None, error
         else:

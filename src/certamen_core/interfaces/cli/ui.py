@@ -30,7 +30,7 @@ class Display:
         return color
 
     def print(
-        self, text: str, level_or_color: str = DEFAULT_COLOR, end: str = "\n"
+        self, text: str, level_or_color: str = DEFAULT_COLOR, _end: str = "\n"
     ) -> None:
         level_map = {
             "info": logging.INFO,
@@ -98,7 +98,7 @@ class Display:
         self.print(f"\n--- {text} ---", color)
 
     def reset(self) -> None:
-        pass
+        pass  # intentional no-op
 
     def error(self, text: str) -> None:
         self.print(text, Fore.RED)

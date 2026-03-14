@@ -31,6 +31,7 @@ class AsyncExecutor(BaseExecutor):
         self.broadcast_fn = broadcast_fn
         self._current_execution_id: str | None = None
         self._cancel_event: asyncio.Event = asyncio.Event()
+        self._background_tasks: set[asyncio.Task[None]] = set()
         # Global execution timeout (prevents runaway executions)
         self.global_timeout = (config or {}).get(
             "global_timeout", DEFAULT_GLOBAL_EXECUTION_TIMEOUT
@@ -65,8 +66,9 @@ class AsyncExecutor(BaseExecutor):
                     e,
                 )
 
-        # Fire-and-forget with error handling - errors are logged, not propagated
-        asyncio.create_task(_safe_broadcast())  # noqa: RUF006
+        task = asyncio.create_task(_safe_broadcast())
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     def _initialize_execution_state(
         self,
@@ -298,6 +300,155 @@ class AsyncExecutor(BaseExecutor):
             self._current_execution_id = None
             self._cancel_event.clear()
 
+    def _apply_feedback_inputs(
+        self,
+        node_id: str,
+        inputs: dict[str, Any],
+        feedback_connections: list[tuple[str, str, str, str]],
+        node_outputs: dict[str, dict[str, Any]],
+    ) -> None:
+        for src, tgt, src_h, tgt_h in feedback_connections:
+            if tgt == node_id and src in node_outputs:
+                src_outputs = node_outputs[src]
+                if src_h in src_outputs:
+                    inputs[tgt_h] = src_outputs[src_h]
+
+    def _apply_previous_state_inputs(
+        self,
+        node_id: str,
+        inputs: dict[str, Any],
+        node_outputs: dict[str, dict[str, Any]],
+    ) -> None:
+        if node_id not in node_outputs:
+            return
+        for key, value in node_outputs[node_id].items():
+            if key.startswith("_"):
+                inputs[f"_prev_{key.removeprefix('_')}"] = value
+
+    async def _execute_layer(
+        self,
+        layer_index: int,
+        layer: list[str],
+        node_instances: dict[str, BaseNode],
+        connections: Any,
+        feedback_connections: list[tuple[str, str, str, str]],
+        node_outputs: dict[str, dict[str, Any]],
+        context: ExecutionContext,
+        execution_id: str,
+    ) -> list[tuple[str, Any]]:
+        self._check_cancelled()
+
+        logger.info(
+            "[%s] Starting layer %d/%d with %d node(s): %s",
+            execution_id[:8],
+            layer_index,
+            len(layer) - 1,
+            len(layer),
+            layer,
+        )
+
+        self._report_layer_start(execution_id, layer_index, len(layer), layer)
+
+        tasks: list[tuple[str, Any]] = []
+        for node_id in layer:
+            node = node_instances[node_id]
+            inputs = self._gather_node_inputs(
+                node_id, connections, node_outputs
+            )
+            self._apply_feedback_inputs(
+                node_id, inputs, feedback_connections, node_outputs
+            )
+            self._apply_previous_state_inputs(node_id, inputs, node_outputs)
+            task = self._execute_single_node(
+                node_id, node, inputs, context, execution_id
+            )
+            tasks.append((node_id, task))
+
+        results = await asyncio.gather(
+            *[task for _, task in tasks], return_exceptions=True
+        )
+
+        for (node_id, _), result in zip(tasks, results, strict=True):
+            if isinstance(result, ExecutionCancelledError):
+                raise result
+            if isinstance(result, BaseException):
+                raise result
+            node_outputs[node_id] = result
+
+        return tasks
+
+    def _is_iteration_done(
+        self,
+        tasks: list[tuple[str, Any]],
+        node_outputs: dict[str, dict[str, Any]],
+        execution_id: str,
+        iteration: int,
+        max_iterations: int,
+    ) -> bool:
+        current_iteration_nodes = {node_id for node_id, _ in tasks}
+        for node_id in current_iteration_nodes:
+            if node_outputs.get(node_id, {}).get("done") is True:
+                logger.info(
+                    "[%s] Termination signal from node %s",
+                    execution_id[:8],
+                    node_id,
+                )
+                return True
+
+        if iteration >= max_iterations:
+            logger.warning(
+                "[%s] Max iterations (%d) reached",
+                execution_id[:8],
+                max_iterations,
+            )
+            return True
+
+        return False
+
+    async def _run_iteration(
+        self,
+        iteration: int,
+        execution_layers: list[list[str]],
+        node_instances: dict[str, BaseNode],
+        connections: Any,
+        feedback_connections: list[tuple[str, str, str, str]],
+        node_outputs: dict[str, dict[str, Any]],
+        context: ExecutionContext,
+        execution_id: str,
+        has_feedback: bool,
+    ) -> list[tuple[str, Any]]:
+        context.round_num = iteration
+        self._check_cancelled()
+
+        if has_feedback:
+            logger.info(
+                "[%s] === ITERATION %d START ===",
+                execution_id[:8],
+                iteration,
+            )
+            await self._broadcast(
+                {
+                    "type": "iteration_start",
+                    "execution_id": execution_id,
+                    "iteration": iteration,
+                }
+            )
+
+        last_tasks: list[tuple[str, Any]] = []
+        for layer_index, layer in enumerate(execution_layers):
+            last_tasks = await self._execute_layer(
+                layer_index,
+                layer,
+                node_instances,
+                connections,
+                feedback_connections,
+                node_outputs,
+                context,
+                execution_id,
+            )
+
+        return last_tasks
+
     async def _execute_workflow(
         self,
         nodes: list[dict[str, Any]],
@@ -329,101 +480,28 @@ class AsyncExecutor(BaseExecutor):
         iteration = 0
         while True:
             iteration += 1
-            context.round_num = iteration
-            self._check_cancelled()
-
-            if has_feedback:
-                logger.info(
-                    "[%s] === ITERATION %d START ===",
-                    execution_id[:8],
-                    iteration,
-                )
-                await self._broadcast(
-                    {
-                        "type": "iteration_start",
-                        "execution_id": execution_id,
-                        "iteration": iteration,
-                    }
-                )
-
-            tasks: list[tuple[str, Any]] = []
-            for layer_index, layer in enumerate(execution_layers):
-                self._check_cancelled()
-
-                logger.info(
-                    "[%s] Starting layer %d/%d with %d node(s): %s",
-                    execution_id[:8],
-                    layer_index,
-                    len(execution_layers) - 1,
-                    len(layer),
-                    layer,
-                )
-
-                self._report_layer_start(
-                    execution_id, layer_index, len(execution_layers), layer
-                )
-
-                tasks = []
-                for node_id in layer:
-                    node = node_instances[node_id]
-                    inputs = self._gather_node_inputs(
-                        node_id, connections, node_outputs
-                    )
-                    for src, tgt, src_h, tgt_h in feedback_connections:
-                        if tgt == node_id and src in node_outputs:
-                            src_outputs = node_outputs[src]
-                            if src_h in src_outputs:
-                                inputs[tgt_h] = src_outputs[src_h]
-                    # Inject node's own previous outputs (for state persistence)
-                    if node_id in node_outputs:
-                        prev_outputs = node_outputs[node_id]
-                        for key, value in prev_outputs.items():
-                            if key.startswith("_"):
-                                base_key = key.removeprefix("_")
-                                inputs[f"_prev_{base_key}"] = value
-                    task = self._execute_single_node(
-                        node_id, node, inputs, context, execution_id
-                    )
-                    tasks.append((node_id, task))
-
-                results = await asyncio.gather(
-                    *[task for _, task in tasks], return_exceptions=True
-                )
-
-                for (node_id, _), result in zip(tasks, results, strict=True):
-                    if isinstance(result, ExecutionCancelledError):
-                        raise result
-                    if isinstance(result, BaseException):
-                        raise result
-                    node_outputs[node_id] = result
+            last_tasks = await self._run_iteration(
+                iteration,
+                execution_layers,
+                node_instances,
+                connections,
+                feedback_connections,
+                node_outputs,
+                context,
+                execution_id,
+                has_feedback,
+            )
 
             if not has_feedback:
                 break
 
-            done = False
-            current_iteration_nodes = {node_id for node_id, _ in tasks}
-            for node_id in current_iteration_nodes:
-                if (
-                    node_id in node_outputs
-                    and node_outputs[node_id].get("done") is True
-                ):
-                    done = True
-                    logger.info(
-                        "[%s] Termination signal from node %s",
-                        execution_id[:8],
-                        node_id,
-                    )
-                    break
-
-            if done:
-                break
-
-            if iteration >= max_iterations:
-                logger.warning(
-                    "[%s] Max iterations (%d) reached",
-                    execution_id[:8],
-                    max_iterations,
-                )
+            if self._is_iteration_done(
+                last_tasks,
+                node_outputs,
+                execution_id,
+                iteration,
+                max_iterations,
+            ):
                 break
 
         context.node_outputs = node_outputs

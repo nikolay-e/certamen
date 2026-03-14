@@ -2,7 +2,10 @@
 
 import pytest
 
-from certamen_core.infrastructure.llm.litellm_adapter import LiteLLMModel
+from certamen_core.infrastructure.llm.litellm_adapter import (
+    LiteLLMModel,
+    LiteLLMModelOptions,
+)
 
 
 @pytest.mark.skipif(
@@ -47,7 +50,7 @@ async def test_ollama_with_cache():
         provider="ollama",
         temperature=0.7,
         max_tokens=50,
-        response_cache=cache,
+        options=LiteLLMModelOptions(response_cache=cache),
     )
 
     prompt = "Say 'hello' in one word."

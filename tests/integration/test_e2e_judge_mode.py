@@ -533,8 +533,12 @@ class TestScoreAggregation:
         )  # Too low
 
         # Valid scores should pass through
-        assert comparison.score_extractor.normalize_score(5.0, "test") == 5.0
-        assert comparison.score_extractor.normalize_score(10.0, "test") == 10.0
+        assert comparison.score_extractor.normalize_score(
+            5.0, "test"
+        ) == pytest.approx(5.0)
+        assert comparison.score_extractor.normalize_score(
+            10.0, "test"
+        ) == pytest.approx(10.0)
 
     @pytest.mark.asyncio
     async def test_critical_no_scores_scenario(

@@ -166,51 +166,72 @@ class ReportNode(BaseNode):
         fmt = self.node_properties.get("format", "markdown")
 
         if fmt == "markdown":
-            lines = ["# Tournament Report\n"]
-
-            if question:
-                lines.append(f"## Question\n{question}\n")
-
-            if champion:
-                model_name = getattr(champion, "display_name", str(champion))
-                lines.append(f"## Champion\n**{model_name}**\n")
-
-            if rankings:
-                lines.append("## Final Rankings\n")
-                for r in rankings:
-                    lines.append(
-                        f"{r['rank']}. {r['model']} (score: {r.get('score', 'N/A')})"
-                    )
-                lines.append("")
-
-            if eliminated_info:
-                lines.append("## Elimination History\n")
-                for e in eliminated_info:
-                    lines.append(
-                        f"- Round {e.get('round', '?')}: {e['model']} (score: {e.get('score', 'N/A')})"
-                    )
-
-            report = "\n".join(lines)
+            report = self._render_markdown(
+                champion, rankings, eliminated_info, question
+            )
         elif fmt == "json":
-            import json
-
-            report = json.dumps(
-                {
-                    "question": question,
-                    "champion": str(champion) if champion else None,
-                    "rankings": rankings,
-                    "eliminated": eliminated_info,
-                },
-                indent=2,
+            report = self._render_json(
+                champion, rankings, eliminated_info, question
             )
         else:
-            lines = ["Tournament Report"]
-            if champion:
-                lines.append(f"Champion: {champion}")
-            if rankings:
-                lines.append("Rankings:")
-                for r in rankings:
-                    lines.append(f"  {r['rank']}. {r['model']}")
-            report = "\n".join(lines)
+            report = self._render_text(champion, rankings)
 
         return {"report": report}
+
+    @staticmethod
+    def _render_markdown(
+        champion: Any,
+        rankings: list[Any],
+        eliminated_info: list[Any],
+        question: str,
+    ) -> str:
+        lines = ["# Tournament Report\n"]
+        if question:
+            lines.append(f"## Question\n{question}\n")
+        if champion:
+            model_name = getattr(champion, "display_name", str(champion))
+            lines.append(f"## Champion\n**{model_name}**\n")
+        if rankings:
+            lines.append("## Final Rankings\n")
+            for r in rankings:
+                lines.append(
+                    f"{r['rank']}. {r['model']} (score: {r.get('score', 'N/A')})"
+                )
+            lines.append("")
+        if eliminated_info:
+            lines.append("## Elimination History\n")
+            for e in eliminated_info:
+                lines.append(
+                    f"- Round {e.get('round', '?')}: {e['model']} (score: {e.get('score', 'N/A')})"
+                )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _render_json(
+        champion: Any,
+        rankings: list[Any],
+        eliminated_info: list[Any],
+        question: str,
+    ) -> str:
+        import json
+
+        return json.dumps(
+            {
+                "question": question,
+                "champion": str(champion) if champion else None,
+                "rankings": rankings,
+                "eliminated": eliminated_info,
+            },
+            indent=2,
+        )
+
+    @staticmethod
+    def _render_text(champion: Any, rankings: list[Any]) -> str:
+        lines = ["Tournament Report"]
+        if champion:
+            lines.append(f"Champion: {champion}")
+        if rankings:
+            lines.append("Rankings:")
+            for r in rankings:
+                lines.append(f"  {r['rank']}. {r['model']}")
+        return "\n".join(lines)

@@ -95,37 +95,7 @@ class BaseNode(ABC):
         for key, value in self.node_properties.items():
             if key not in self.PROPERTIES:
                 continue
-
-            schema = self.PROPERTIES[key]
-            expected_type = schema.get("type")
-
-            if expected_type == "array" and not isinstance(value, list):
-                logger.error(
-                    f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be array, "
-                    f"got {type(value).__name__}. Value: {value!r}"
-                )
-            elif expected_type == "object" and not isinstance(value, dict):
-                logger.error(
-                    f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be object, "
-                    f"got {type(value).__name__}. Value: {value!r}"
-                )
-            elif expected_type == "string" and not isinstance(value, str):
-                logger.error(
-                    f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be string, "
-                    f"got {type(value).__name__}. Value: {value!r}"
-                )
-            elif expected_type == "number" and not isinstance(
-                value, (int, float)
-            ):
-                logger.error(
-                    f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be number, "
-                    f"got {type(value).__name__}. Value: {value!r}"
-                )
-            elif expected_type == "boolean" and not isinstance(value, bool):
-                logger.error(
-                    f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be boolean, "
-                    f"got {type(value).__name__}. Value: {value!r}"
-                )
+            self._validate_property_type(key, value, self.PROPERTIES[key])
 
         for key, schema in self.PROPERTIES.items():
             if "default" not in schema and key not in actual_keys:
@@ -133,6 +103,36 @@ class BaseNode(ABC):
                     f"Node {self.node_id} ({self.NODE_TYPE}): Missing property '{key}' "
                     f"(no default value defined)"
                 )
+
+    def _validate_property_type(
+        self, key: str, value: Any, schema: dict[str, Any]
+    ) -> None:
+        expected_type = schema.get("type")
+        if expected_type == "array" and not isinstance(value, list):
+            logger.error(
+                f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be array, "
+                f"got {type(value).__name__}. Value: {value!r}"
+            )
+        elif expected_type == "object" and not isinstance(value, dict):
+            logger.error(
+                f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be object, "
+                f"got {type(value).__name__}. Value: {value!r}"
+            )
+        elif expected_type == "string" and not isinstance(value, str):
+            logger.error(
+                f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be string, "
+                f"got {type(value).__name__}. Value: {value!r}"
+            )
+        elif expected_type == "number" and not isinstance(value, (int, float)):
+            logger.error(
+                f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be number, "
+                f"got {type(value).__name__}. Value: {value!r}"
+            )
+        elif expected_type == "boolean" and not isinstance(value, bool):
+            logger.error(
+                f"Node {self.node_id} ({self.NODE_TYPE}): Property '{key}' should be boolean, "
+                f"got {type(value).__name__}. Value: {value!r}"
+            )
 
     @abstractmethod
     async def execute(

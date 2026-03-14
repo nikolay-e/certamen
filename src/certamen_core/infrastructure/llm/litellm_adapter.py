@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass, field
 from typing import Any
 
 import litellm
@@ -17,6 +18,18 @@ from certamen_core.shared.text.json import to_dict
 _logger = get_contextual_logger("certamen.models")
 
 
+@dataclass
+class LiteLLMModelOptions:
+    reasoning: bool = False
+    reasoning_effort: str | None = None
+    model_config: dict[str, Any] | None = field(default=None)
+    use_llm_compression: bool = True
+    compression_model: str | None = None
+    system_prompt: str | None = None
+    response_cache: Any | None = None
+    web_search_options: dict[str, Any] | None = field(default=None)
+
+
 class LiteLLMModel(BaseModel):
     def __init__(
         self,
@@ -27,15 +40,9 @@ class LiteLLMModel(BaseModel):
         temperature: float,
         max_tokens: int = 1024,
         context_window: int | None = None,
-        reasoning: bool = False,
-        reasoning_effort: str | None = None,
-        model_config: dict[str, Any] | None = None,
-        use_llm_compression: bool = True,
-        compression_model: str | None = None,
-        system_prompt: str | None = None,
-        response_cache: Any | None = None,
-        web_search_options: dict[str, Any] | None = None,
+        options: LiteLLMModelOptions | None = None,
     ):
+        opts = options or LiteLLMModelOptions()
         super().__init__(
             model_key=model_key,
             model_name=model_name,
@@ -44,15 +51,16 @@ class LiteLLMModel(BaseModel):
             max_tokens=max_tokens,
             temperature=temperature,
             context_window=context_window,
-            use_llm_compression=use_llm_compression,
-            compression_model=compression_model,
+            use_llm_compression=opts.use_llm_compression,
+            compression_model=opts.compression_model,
         )
-        self.reasoning = reasoning
-        self.reasoning_effort = reasoning_effort
-        self.system_prompt = system_prompt
-        self.response_cache = response_cache
-        self.web_search_options = web_search_options
+        self.reasoning = opts.reasoning
+        self.reasoning_effort = opts.reasoning_effort
+        self.system_prompt = opts.system_prompt
+        self.response_cache = opts.response_cache
+        self.web_search_options = opts.web_search_options
 
+        model_config = opts.model_config
         self.requires_temp_one = (
             model_config is not None
             and hasattr(model_config, "get")
@@ -474,10 +482,10 @@ class LiteLLMModel(BaseModel):
         cls, model_key: str, model_config: dict[str, Any]
     ) -> None:
         required_fields = ["model_name", "provider"]
-        for field in required_fields:
-            if field not in model_config:
+        for required_field in required_fields:
+            if required_field not in model_config:
                 raise ValueError(
-                    f"Required field '{field}' missing in model configuration for {model_key}"
+                    f"Required field '{required_field}' missing in model configuration for {model_key}"
                 )
 
     @classmethod
@@ -507,6 +515,62 @@ class LiteLLMModel(BaseModel):
             return None
 
     @classmethod
+    async def _detect_ollama_context_window(
+        cls,
+        model_key: str,
+        model_config: dict[str, Any],
+        logger: Any,
+    ) -> int | None:
+        base_url = model_config.get("base_url") or get_ollama_base_url()
+        ollama_info = await cls._get_ollama_model_info(
+            base_url, model_config["model_name"], logger
+        )
+        if not (ollama_info and "model_info" in ollama_info):
+            return None
+        params = ollama_info["model_info"]
+        context_window = params.get("num_ctx") or params.get("context_length")
+        if context_window:
+            logger.info(
+                "Auto-detected context_window=%s for %s from Ollama API",
+                context_window,
+                model_key,
+            )
+        return int(context_window) if context_window is not None else None
+
+    @classmethod
+    async def _resolve_context_window(
+        cls,
+        model_key: str,
+        model_config: dict[str, Any],
+        litellm_info: dict[str, Any],
+        logger: Any,
+    ) -> int:
+        context_window = litellm_info.get("max_input_tokens")
+
+        if not context_window and model_config.get("provider") == "ollama":
+            context_window = await cls._detect_ollama_context_window(
+                model_key, model_config, logger
+            )
+
+        if context_window:
+            if model_config.get("provider") != "ollama":
+                logger.info(
+                    "Auto-detected context_window=%s for %s from LiteLLM",
+                    context_window,
+                    model_key,
+                )
+            return int(context_window)
+
+        default_context = 8192
+        logger.warning(
+            "context_window not provided for %s and could not be auto-detected. "
+            "Using default value: %s",
+            model_key,
+            default_context,
+        )
+        return default_context
+
+    @classmethod
     async def _auto_detect_context_window(
         cls,
         model_key: str,
@@ -515,47 +579,13 @@ class LiteLLMModel(BaseModel):
         logger: Any,
     ) -> None:
         if (
-            "context_window" not in model_config
-            or model_config["context_window"] is None
+            "context_window" in model_config
+            and model_config["context_window"] is not None
         ):
-            context_window = litellm_info.get("max_input_tokens")
-
-            if not context_window and model_config.get("provider") == "ollama":
-                base_url = model_config.get("base_url")
-                if not base_url:
-                    base_url = get_ollama_base_url()
-                ollama_info = await cls._get_ollama_model_info(
-                    base_url, model_config["model_name"], logger
-                )
-                if ollama_info and "model_info" in ollama_info:
-                    params = ollama_info["model_info"]
-                    context_window = params.get("num_ctx") or params.get(
-                        "context_length"
-                    )
-                    if context_window:
-                        logger.info(
-                            "Auto-detected context_window=%s for %s from Ollama API",
-                            context_window,
-                            model_key,
-                        )
-
-            if context_window:
-                if not model_config.get("provider") == "ollama":
-                    logger.info(
-                        "Auto-detected context_window=%s for %s from LiteLLM",
-                        context_window,
-                        model_key,
-                    )
-                model_config["context_window"] = context_window
-            else:
-                default_context = 8192
-                logger.warning(
-                    "context_window not provided for %s and could not be auto-detected. "
-                    "Using default value: %s",
-                    model_key,
-                    default_context,
-                )
-                model_config["context_window"] = default_context
+            return
+        model_config["context_window"] = await cls._resolve_context_window(
+            model_key, model_config, litellm_info, logger
+        )
 
     @classmethod
     def _auto_detect_max_tokens(
@@ -690,12 +720,14 @@ class LiteLLMModel(BaseModel):
             max_tokens=model_config["max_tokens"],
             temperature=float(model_config["temperature"]),
             context_window=model_config["context_window"],
-            reasoning=model_config.get("reasoning", False),
-            reasoning_effort=reasoning_effort,
-            model_config=model_config,
-            use_llm_compression=use_llm_compression,
-            compression_model=compression_model,
-            system_prompt=system_prompt,
-            response_cache=response_cache,
-            web_search_options=web_search_options,
+            options=LiteLLMModelOptions(
+                reasoning=model_config.get("reasoning", False),
+                reasoning_effort=reasoning_effort,
+                model_config=model_config,
+                use_llm_compression=use_llm_compression,
+                compression_model=compression_model,
+                system_prompt=system_prompt,
+                response_cache=response_cache,
+                web_search_options=web_search_options,
+            ),
         )

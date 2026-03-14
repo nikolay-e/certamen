@@ -405,13 +405,13 @@ class TestScoreNormalizationEdgeCases:
 
         # Test normalizing percentage scores (0-1 range)
         normalized = comparison.score_extractor.normalize_score(0.5, "test")
-        assert normalized == 5.0  # 0.5 * 10 = 5.0
+        assert normalized == pytest.approx(5.0)
 
         normalized = comparison.score_extractor.normalize_score(0.8, "test")
-        assert normalized == 8.0  # 0.8 * 10 = 8.0
+        assert normalized == pytest.approx(8.0)
 
         normalized = comparison.score_extractor.normalize_score(0.95, "test")
-        assert normalized == 9.5  # 0.95 * 10 = 9.5
+        assert normalized == pytest.approx(9.5)
 
     @pytest.mark.asyncio
     async def test_score_normalization_slightly_over_ten(
@@ -432,13 +432,13 @@ class TestScoreNormalizationEdgeCases:
 
         # Test normalizing scores between 10 and 10.5 (clamped to 10.0)
         normalized = comparison.score_extractor.normalize_score(10.1, "test")
-        assert normalized == 10.0
+        assert normalized == pytest.approx(10.0)
 
         normalized = comparison.score_extractor.normalize_score(10.3, "test")
-        assert normalized == 10.0
+        assert normalized == pytest.approx(10.0)
 
         normalized = comparison.score_extractor.normalize_score(10.5, "test")
-        assert normalized == 10.0
+        assert normalized == pytest.approx(10.0)
 
 
 class TestEmergencyJudgeNoModelsAvailable:

@@ -147,18 +147,6 @@ async def _get_input_with_validation(
             return
 
 
-async def _handle_input_timeout(
-    input_future: Any, timeout: int, default: str, logger: Any
-) -> None:
-    await asyncio.sleep(timeout)
-
-    if _try_set_future_result(input_future, default, logger):
-        logger.warning(
-            f"Input timed out after {timeout} seconds. Using default value."
-        )
-        print(f"\nInput timed out. Using default: '{default}'")
-
-
 def _check_non_interactive_environment(
     prompt: str, default: str, logger: Any
 ) -> str | None:
@@ -206,15 +194,19 @@ async def async_input(
     )
     input_task.add_done_callback(lambda _: None)
 
-    if timeout > 0:
-        timeout_task = asyncio.create_task(
-            _handle_input_timeout(input_future, timeout, default, logger)
-        )
-        timeout_task.add_done_callback(lambda _: None)
-
     try:
-        result: str = await input_future
+        if timeout > 0:
+            async with asyncio.timeout(timeout):
+                result: str = await input_future
+        else:
+            result = await input_future
         return result
+    except TimeoutError:
+        logger.warning(
+            f"Input timed out after {timeout} seconds. Using default value."
+        )
+        print(f"\nInput timed out. Using default: '{default}'")
+        return default
     except Exception as e:
         logger.error("Input error: %s", e)
         return default

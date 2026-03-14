@@ -1,43 +1,61 @@
+_APOLOGY_PREFIXES = ("i cannot", "i'm sorry", "i apologize", "sorry,")
+
+
+def _should_skip_line(
+    line: str, min_length: int, skip_apologies: bool
+) -> bool:
+    if not line or len(line) < min_length:
+        return True
+    if line.isupper() and len(line) < 50:
+        return True
+    if skip_apologies and line.lower().startswith(_APOLOGY_PREFIXES):
+        return True
+    return False
+
+
+def _extract_bullet_insight(line: str) -> str | None:
+    if line.startswith(("-", "•", "*")):
+        return line[1:].strip()
+    return None
+
+
+def _extract_numbered_insight(line: str) -> str | None:
+    is_single_digit = line[0].isdigit() and len(line) > 2 and line[1] in ".)"
+    is_double_digit = len(line) > 3 and line[:2].isdigit() and line[2] in ".)"
+    if not (is_single_digit or is_double_digit):
+        return None
+    for i, char in enumerate(line):
+        if char in ".)" and i < 4:
+            return line[i + 1 :].strip()
+    return None
+
+
+def _extract_insight(line: str) -> str | None:
+    bullet = _extract_bullet_insight(line)
+    if bullet is not None:
+        return bullet
+    numbered = _extract_numbered_insight(line)
+    if numbered is not None:
+        return numbered
+    if len(line) > 30:
+        return line
+    return None
+
+
 def parse_insight_lines(
     text: str,
     min_length: int = 10,
     skip_apologies: bool = True,
 ) -> list[str]:
     insights = []
-    apology_prefixes = ("i cannot", "i'm sorry", "i apologize", "sorry,")
 
     for raw_line in text.strip().split("\n"):
         line = raw_line.strip()
 
-        # Skip empty or very short lines
-        if not line or len(line) < min_length:
+        if _should_skip_line(line, min_length, skip_apologies):
             continue
 
-        # Skip header-like lines (all caps and short)
-        if line.isupper() and len(line) < 50:
-            continue
-
-        # Skip apologies if requested
-        if skip_apologies and line.lower().startswith(apology_prefixes):
-            continue
-
-        insight: str | None = None
-
-        # Check for bullet points
-        if line.startswith(("-", "•", "*")):
-            insight = line[1:].strip()
-        # Check for numbered lists (1. or 1))
-        elif (line[0].isdigit() and len(line) > 2 and line[1] in ".)") or (
-            len(line) > 3 and line[:2].isdigit() and line[2] in ".)"
-        ):
-            # Find the separator position
-            for i, char in enumerate(line):
-                if char in ".)" and i < 4:
-                    insight = line[i + 1 :].strip()
-                    break
-        # Accept plain text lines that look like complete statements
-        elif len(line) > 30:
-            insight = line
+        insight = _extract_insight(line)
 
         if insight and len(insight) >= min_length:
             insights.append(insight)

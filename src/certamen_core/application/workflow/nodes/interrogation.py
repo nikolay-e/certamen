@@ -98,14 +98,29 @@ class InterrogationNode(BaseNode):
             return {"extracted_knowledge": {}, "questions_asked": {}}
         models = models_result
 
+        model_items = list(models.items())
+        tasks = self._build_pair_tasks(model_items, responses)
+
         interrogator = AdversarialInterrogator(asyncio.Semaphore(4))
         max_q = self.max_questions_per_pair
 
-        model_items = list(models.items())
+        results = await asyncio.gather(
+            *[
+                self._interrogate_pair(
+                    interrogator, *t, question=question, max_q=max_q
+                )
+                for t in tasks
+            ],
+            return_exceptions=True,
+        )
 
-        extracted_knowledge: dict[str, str] = {}
-        questions_asked: dict[str, str] = {}
+        return self._collect_results(results)
 
+    @staticmethod
+    def _build_pair_tasks(
+        model_items: list[tuple[str, Any]],
+        responses: dict[str, str],
+    ) -> list[tuple[str, str, Any, Any, str, str]]:
         tasks = []
         for i, (examiner_key, examiner_model) in enumerate(model_items):
             for j, (target_key, target_model) in enumerate(model_items):
@@ -125,37 +140,43 @@ class InterrogationNode(BaseNode):
                         target_resp,
                     )
                 )
+        return tasks
 
-        async def interrogate_pair(
-            examiner_key: str,
-            target_key: str,
-            examiner_model: Any,
-            target_model: Any,
-            examiner_resp: str,
-            target_resp: str,
-        ) -> tuple[str, str, dict[str, str]]:
-            questions = await interrogator.generate_questions(
-                examiner_model=examiner_model,
-                target_response=target_resp,
-                other_response=examiner_resp,
-                question=question,
-                max_questions=max_q,
-            )
-            if not questions:
-                return examiner_key, target_key, {}
-            qa = await interrogator.conduct_interrogation(
-                target_model=target_model,
-                questions=questions,
-                question=question,
-                own_response=target_resp,
-            )
-            return examiner_key, target_key, qa
-
-        results = await asyncio.gather(
-            *[interrogate_pair(*t) for t in tasks],
-            return_exceptions=True,
+    @staticmethod
+    async def _interrogate_pair(
+        interrogator: Any,
+        examiner_key: str,
+        target_key: str,
+        examiner_model: Any,
+        target_model: Any,
+        examiner_resp: str,
+        target_resp: str,
+        question: str,
+        max_q: int,
+    ) -> tuple[str, str, dict[str, str]]:
+        questions = await interrogator.generate_questions(
+            examiner_model=examiner_model,
+            target_response=target_resp,
+            other_response=examiner_resp,
+            question=question,
+            max_questions=max_q,
         )
+        if not questions:
+            return examiner_key, target_key, {}
+        qa = await interrogator.conduct_interrogation(
+            target_model=target_model,
+            questions=questions,
+            question=question,
+            own_response=target_resp,
+        )
+        return examiner_key, target_key, qa
 
+    @staticmethod
+    def _collect_results(
+        results: list[Any],
+    ) -> dict[str, dict[str, str]]:
+        extracted_knowledge: dict[str, str] = {}
+        questions_asked: dict[str, str] = {}
         for result in results:
             if isinstance(result, BaseException):
                 logger.warning("Interrogation pair failed: %s", result)
@@ -166,7 +187,6 @@ class InterrogationNode(BaseNode):
                 qa_text = "\n\n".join(f"Q: {q}\nA: {a}" for q, a in qa.items())
                 extracted_knowledge[pair_label] = qa_text
                 questions_asked[pair_label] = "\n".join(qa.keys())
-
         return {
             "extracted_knowledge": extracted_knowledge,
             "questions_asked": questions_asked,

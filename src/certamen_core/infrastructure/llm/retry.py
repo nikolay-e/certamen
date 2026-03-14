@@ -240,16 +240,48 @@ async def _handle_retry_error(
     return min(current_delay * multiplier, max_delay_val)
 
 
-async def run_with_retry(
+def _log_retry_success(
+    logger: Any | None,
+    provider: str,
+    attempt: int,
+    max_attempts: int,
+    elapsed_time: float,
+) -> None:
+    if logger and attempt > 1:
+        logger.info(
+            "Retry successful for %s on attempt %d/%d. Total elapsed: %.2fs",
+            provider,
+            attempt,
+            max_attempts,
+            elapsed_time,
+            successful_attempt=attempt,
+        )
+
+
+def _log_retry_start(
+    logger: Any | None,
+    provider: str,
+    max_attempts: int,
+    initial_delay_val: float,
+    max_delay_val: float,
+    total_timeout: int,
+) -> None:
+    if logger:
+        logger.debug(
+            "Starting retry loop for %s. Max attempts: %d, initial delay: %.2fs, max delay: %.2fs, total timeout: %ds",
+            provider,
+            max_attempts,
+            initial_delay_val,
+            max_delay_val,
+            total_timeout,
+        )
+
+
+def _resolve_provider_delays(
     model: Any,
-    prompt: str,
-    max_attempts: int = 5,
-    initial_delay: float | None = None,
-    max_delay: float | None = None,
-    total_timeout: int = 3600,
-    logger: Any | None = None,
-) -> "ModelResponse":
-    from certamen_core.ports.llm import ModelResponse
+    initial_delay: float | None,
+    max_delay: float | None,
+) -> tuple[str, float, float]:
     from certamen_core.shared.constants import (
         PROVIDER_RETRY_DELAYS as provider_delays,
     )
@@ -264,19 +296,34 @@ async def run_with_retry(
     max_delay_val = (
         max_delay if max_delay is not None else provider_config["max"]
     )
+    return provider, float(initial_delay_val), float(max_delay_val)
 
-    current_delay: float = float(initial_delay_val)
+
+async def run_with_retry(
+    model: Any,
+    prompt: str,
+    max_attempts: int = 5,
+    initial_delay: float | None = None,
+    max_delay: float | None = None,
+    total_timeout: int = 3600,
+    logger: Any | None = None,
+) -> "ModelResponse":
+    from certamen_core.ports.llm import ModelResponse
+
+    provider, initial_delay_val, max_delay_val = _resolve_provider_delays(
+        model, initial_delay, max_delay
+    )
+    current_delay: float = initial_delay_val
     start_time = time.monotonic()
 
-    if logger:
-        logger.debug(
-            "Starting retry loop for %s. Max attempts: %d, initial delay: %.2fs, max delay: %.2fs, total timeout: %ds",
-            provider,
-            max_attempts,
-            initial_delay_val,
-            max_delay_val,
-            total_timeout,
-        )
+    _log_retry_start(
+        logger,
+        provider,
+        max_attempts,
+        initial_delay_val,
+        max_delay_val,
+        total_timeout,
+    )
 
     for attempt in range(1, max_attempts + 1):
         if _check_timeout_exceeded(start_time, total_timeout, logger):
@@ -288,15 +335,9 @@ async def run_with_retry(
             response = await model.generate(prompt)
             if not response.is_error():
                 elapsed_time = time.monotonic() - start_time
-                if logger and attempt > 1:
-                    logger.info(
-                        "Retry successful for %s on attempt %d/%d. Total elapsed: %.2fs",
-                        provider,
-                        attempt,
-                        max_attempts,
-                        elapsed_time,
-                        successful_attempt=attempt,
-                    )
+                _log_retry_success(
+                    logger, provider, attempt, max_attempts, elapsed_time
+                )
                 return response  # type: ignore[no-any-return]
 
             next_delay = await _handle_retry_error(

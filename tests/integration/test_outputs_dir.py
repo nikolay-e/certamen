@@ -5,6 +5,7 @@ Tests the bug where CLI was overwriting config file's outputs_dir with None,
 causing files to go to temp directory instead of the configured location.
 """
 
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -31,23 +32,21 @@ class TestOutputsDirBehavior:
         outputs_dir with None, causing files to go to wrong location.
         """
         # Create a temporary config file with outputs_dir="./test_output"
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yml", delete=False
-        ) as f:
-            config = {
-                "models": {
-                    "test": {
-                        "provider": "mock",
-                        "model_name": "test-model",
-                    }
-                },
-                "outputs_dir": "./test_output",
-                "retry": {},
-                "features": {},
-                "prompts": {},
-            }
-            yaml.dump(config, f)
-            config_path = f.name
+        config = {
+            "models": {
+                "test": {
+                    "provider": "mock",
+                    "model_name": "test-model",
+                }
+            },
+            "outputs_dir": "./test_output",
+            "retry": {},
+            "features": {},
+            "prompts": {},
+        }
+        fd, config_path = tempfile.mkstemp(suffix=".yml")
+        os.close(fd)
+        Path(config_path).write_text(yaml.dump(config))
 
         try:
             # Mock parse_arguments to return no outputs_dir (user didn't specify --outputs-dir)
@@ -94,23 +93,21 @@ class TestOutputsDirBehavior:
         Test that CLI --outputs-dir flag overrides config file's outputs_dir.
         """
         # Create a temporary config file with outputs_dir="./config_output"
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yml", delete=False
-        ) as f:
-            config = {
-                "models": {
-                    "test": {
-                        "provider": "mock",
-                        "model_name": "test-model",
-                    }
-                },
-                "outputs_dir": "./config_output",
-                "retry": {},
-                "features": {},
-                "prompts": {},
-            }
-            yaml.dump(config, f)
-            config_path = f.name
+        config = {
+            "models": {
+                "test": {
+                    "provider": "mock",
+                    "model_name": "test-model",
+                }
+            },
+            "outputs_dir": "./config_output",
+            "retry": {},
+            "features": {},
+            "prompts": {},
+        }
+        fd, config_path = tempfile.mkstemp(suffix=".yml")
+        os.close(fd)
+        Path(config_path).write_text(yaml.dump(config))
 
         try:
             # Mock parse_arguments with CLI override
@@ -154,23 +151,21 @@ class TestOutputsDirBehavior:
         Test that outputs_dir=None uses current directory (not temp).
         """
         # Create a temporary config file with outputs_dir=null
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yml", delete=False
-        ) as f:
-            config = {
-                "models": {
-                    "test": {
-                        "provider": "mock",
-                        "model_name": "test-model",
-                    }
-                },
-                "outputs_dir": None,
-                "retry": {},
-                "features": {},
-                "prompts": {},
-            }
-            yaml.dump(config, f)
-            config_path = f.name
+        config = {
+            "models": {
+                "test": {
+                    "provider": "mock",
+                    "model_name": "test-model",
+                }
+            },
+            "outputs_dir": None,
+            "retry": {},
+            "features": {},
+            "prompts": {},
+        }
+        fd, config_path = tempfile.mkstemp(suffix=".yml")
+        os.close(fd)
+        Path(config_path).write_text(yaml.dump(config))
 
         try:
             mock_parse.return_value = {

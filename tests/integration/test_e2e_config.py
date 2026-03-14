@@ -25,8 +25,7 @@ class TestConfigurationLoading:
         """Test loading configuration from a YAML file."""
         # Create temporary config file
         config_file = tmp_output_dir / "test_config.yml"
-        with open(config_file, "w") as f:
-            yaml.dump(basic_config, f)
+        config_file.write_text(yaml.dump(basic_config))
 
         # Load config
         certamen = await Certamen.from_config(
@@ -70,8 +69,7 @@ class TestConfigurationLoading:
         }
 
         config_file = tmp_output_dir / "invalid_config.yml"
-        with open(config_file, "w") as f:
-            yaml.dump(invalid_config, f)
+        config_file.write_text(yaml.dump(invalid_config))
 
         # Should raise ConfigurationError
         with pytest.raises(ConfigurationError):
@@ -184,7 +182,7 @@ class TestConfigurationMerging:
 
         # User value should override default
         model_config = certamen.config.get_model_config("model_a")
-        assert model_config["temperature"] == 0.9
+        assert model_config["temperature"] == pytest.approx(0.9)
 
     @pytest.mark.asyncio
     async def test_defaults_fill_missing_values(
@@ -333,7 +331,7 @@ class TestModelInitialization:
         # Verify properties
         assert model.model_name == "test-123"
         assert model.display_name == "Test Model 123"
-        assert model.temperature == 0.8
+        assert model.temperature == pytest.approx(0.8)
         assert model.max_tokens == 2000
 
 
@@ -547,8 +545,7 @@ class TestConfigurationEdgeCases:
         """Test that malformed YAML raises appropriate error."""
         # Create malformed YAML file
         config_file = tmp_output_dir / "malformed.yml"
-        with open(config_file, "w") as f:
-            f.write("models:\n  test: {invalid yaml syntax")
+        config_file.write_text("models:\n  test: {invalid yaml syntax")
 
         # Should raise ConfigurationError
         with pytest.raises(ConfigurationError):

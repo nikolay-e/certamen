@@ -15,7 +15,7 @@ logger = get_contextual_logger(__name__)
 
 class _InternalEventHandler(EventHandler):
     def publish(self, _event_name: str, _data: dict[str, Any]) -> None:
-        pass
+        pass  # intentional no-op
 
 
 class _InternalHost(HostEnvironment):
@@ -64,7 +64,8 @@ class Certamen:
 
         self.config = config
         self._all_models = all_models
-        self._healthy_models = healthy_models
+        self._healthy_models: dict[str, Any] = healthy_models
+        self._comparison: ModelComparison | None = None
         self._failed_models = failed_models
         self._last_comparison: ModelComparison | None = None
         self._similarity_engine = similarity_engine or TfidfSimilarityEngine()
@@ -233,7 +234,7 @@ class Certamen:
                 )
             raise KeyError(f"Model '{model_key}' not found in configuration")
 
-        model = self._healthy_models[model_key]
+        model: BaseModel = self._healthy_models[model_key]
         return await model.generate(prompt)
 
     async def run_all_models(self, prompt: str) -> dict[str, ModelResponse]:

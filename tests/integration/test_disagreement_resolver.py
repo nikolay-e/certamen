@@ -1,3 +1,5 @@
+import pytest
+
 from certamen_core.domain.disagreement.resolver import DisagreementInvestigator
 from tests.integration.conftest import MockModel
 
@@ -7,7 +9,7 @@ def test_parse_resolution_resolved():
         "After reviewing evidence, this is resolved. Confidence: 0.9"
     )
     assert status == "resolved"
-    assert conf == 0.9
+    assert conf == pytest.approx(0.9)
 
 
 def test_parse_resolution_unresolved():

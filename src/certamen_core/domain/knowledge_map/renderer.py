@@ -11,62 +11,85 @@ class KnowledgeMapRenderer:
             km.synthesis,
             "",
         ]
-
-        if km.consensus:
-            lines += ["## Consensus (All Models Agree)", ""]
-            for item in km.consensus:
-                lines.append(f"- {item.claim} [{item.confidence}]")
-            lines.append("")
-
-        if km.disagreements:
-            lines += ["## Disagreements", ""]
-            for d in km.disagreements:
-                lines.append(f"### {d.topic}")
-                for model, position in d.positions.items():
-                    lines.append(f"- **{model}**: {position}")
-                if d.neutral_analysis:
-                    summary = d.neutral_analysis[:400]
-                    lines.append(f"- **Analysis**: {summary}")
-                lines.append(
-                    f"- **Status**: {d.resolution_status} "
-                    f"(confidence: {d.confidence:.0%})"
-                )
-                lines.append("")
-
-        if km.unique_insights:
-            lines += ["## Unique Insights (Single-Source)", ""]
-            for model, insights in km.unique_insights.items():
-                lines.append(f"### From {model}")
-                for insight in insights:
-                    lines.append(f"- {insight}")
-                lines.append("")
-
-        if km.known_unknowns:
-            lines += ["## Known Unknowns", ""]
-            for unknown in km.known_unknowns:
-                lines.append(f"- {unknown}")
-            lines.append("")
-
-        if km.assumptions:
-            lines += ["## Assumptions Made", ""]
-            for assumption in km.assumptions:
-                lines.append(f"- {assumption}")
-            lines.append("")
-
-        dist = {k: v for k, v in km.confidence_distribution.items() if v > 0}
-        if dist:
-            lines += ["## Confidence Distribution", ""]
-            for level, count in dist.items():
-                lines.append(f"- {level}: {count} claims")
-            lines.append("")
-
-        if km.exploration_branches:
-            lines += ["## Suggested Follow-Up Questions", ""]
-            for i, question in enumerate(km.exploration_branches, 1):
-                lines.append(f"{i}. {question}")
-            lines.append("")
-
+        self._append_consensus(lines, km)
+        self._append_disagreements(lines, km)
+        self._append_unique_insights(lines, km)
+        self._append_simple_list(lines, km.known_unknowns, "Known Unknowns")
+        self._append_simple_list(lines, km.assumptions, "Assumptions Made")
+        self._append_confidence_distribution(lines, km)
+        self._append_exploration_branches(lines, km)
         return "\n".join(lines)
+
+    @staticmethod
+    def _append_consensus(lines: list[str], km: KnowledgeMap) -> None:
+        if not km.consensus:
+            return
+        lines += ["## Consensus (All Models Agree)", ""]
+        for item in km.consensus:
+            lines.append(f"- {item.claim} [{item.confidence}]")
+        lines.append("")
+
+    @staticmethod
+    def _append_disagreements(lines: list[str], km: KnowledgeMap) -> None:
+        if not km.disagreements:
+            return
+        lines += ["## Disagreements", ""]
+        for d in km.disagreements:
+            lines.append(f"### {d.topic}")
+            for model, position in d.positions.items():
+                lines.append(f"- **{model}**: {position}")
+            if d.neutral_analysis:
+                lines.append(f"- **Analysis**: {d.neutral_analysis[:400]}")
+            lines.append(
+                f"- **Status**: {d.resolution_status} "
+                f"(confidence: {d.confidence:.0%})"
+            )
+            lines.append("")
+
+    @staticmethod
+    def _append_unique_insights(lines: list[str], km: KnowledgeMap) -> None:
+        if not km.unique_insights:
+            return
+        lines += ["## Unique Insights (Single-Source)", ""]
+        for model, insights in km.unique_insights.items():
+            lines.append(f"### From {model}")
+            for insight in insights:
+                lines.append(f"- {insight}")
+            lines.append("")
+
+    @staticmethod
+    def _append_simple_list(
+        lines: list[str], items: list[str], heading: str
+    ) -> None:
+        if not items:
+            return
+        lines += [f"## {heading}", ""]
+        for item in items:
+            lines.append(f"- {item}")
+        lines.append("")
+
+    @staticmethod
+    def _append_confidence_distribution(
+        lines: list[str], km: KnowledgeMap
+    ) -> None:
+        dist = {k: v for k, v in km.confidence_distribution.items() if v > 0}
+        if not dist:
+            return
+        lines += ["## Confidence Distribution", ""]
+        for level, count in dist.items():
+            lines.append(f"- {level}: {count} claims")
+        lines.append("")
+
+    @staticmethod
+    def _append_exploration_branches(
+        lines: list[str], km: KnowledgeMap
+    ) -> None:
+        if not km.exploration_branches:
+            return
+        lines += ["## Suggested Follow-Up Questions", ""]
+        for i, question in enumerate(km.exploration_branches, 1):
+            lines.append(f"{i}. {question}")
+        lines.append("")
 
     def to_json(self, km: KnowledgeMap) -> dict[str, object]:
         return {

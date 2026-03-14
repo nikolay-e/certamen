@@ -66,17 +66,17 @@ class DisagreementDetector:
 
             topic_match = re.search(r"DISAGREEMENT:\s*(.+)", block)
             pos_a_match = re.search(
-                r"POSITION_A:\s*([^:]+):\s*(.+?)(?=\nPOSITION_B:|\Z)",
+                r"POSITION_A:\s*([^:]+):\s*(.+)(?=\nPOSITION_B:|\Z)",
                 block,
                 re.DOTALL,
             )
             pos_b_match = re.search(
-                r"POSITION_B:\s*([^:]+):\s*(.+?)(?=\nSIGNIFICANCE:|\Z)",
+                r"POSITION_B:\s*([^:]+):\s*(.+)(?=\nSIGNIFICANCE:|\Z)",
                 block,
                 re.DOTALL,
             )
             sig_match = re.search(
-                r"SIGNIFICANCE:\s*(.+?)(?=\n---|\Z)", block, re.DOTALL
+                r"SIGNIFICANCE:\s*(.+)(?=\n---|\Z)", block, re.DOTALL
             )
 
             if not (topic_match and pos_a_match and pos_b_match):

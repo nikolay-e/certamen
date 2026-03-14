@@ -15,11 +15,11 @@ class ConfidenceParser:
         re.IGNORECASE,
     )
     _KNOWN_UNKNOWNS_PATTERN = re.compile(
-        r"KNOWN[_\s]UNKNOWNS?:\s*(.+?)(?=\n[A-Z_]+:|\Z)",
+        r"KNOWN[_\s]UNKNOWNS?:\s*(.+)(?=\n[A-Z_]+:|\Z)",
         re.IGNORECASE | re.DOTALL,
     )
     _ASSUMPTIONS_PATTERN = re.compile(
-        r"ASSUMPTIONS?:\s*(.+?)(?=\n[A-Z_]+:|\Z)",
+        r"ASSUMPTIONS?:\s*(.+)(?=\n[A-Z_]+:|\Z)",
         re.IGNORECASE | re.DOTALL,
     )
 

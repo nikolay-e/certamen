@@ -16,17 +16,17 @@ class SensitiveDataFilter(logging.Filter):
         (re.compile(r"\bsk-[A-Za-z0-9]{20,50}\b"), "[REDACTED_OPENAI_KEY]"),
         # Anthropic API keys: sk-ant-...
         (
-            re.compile(r"\bsk-ant-[A-Za-z0-9\-]{20,100}\b"),
+            re.compile(r"\bsk-ant-[A-Za-z0-9-]{20,100}\b"),
             "[REDACTED_ANTHROPIC_KEY]",
         ),
         # Google API keys: AIza...
         (
-            re.compile(r"\bAIza[A-Za-z0-9\-_]{30,40}\b"),
+            re.compile(r"\bAIza[A-Za-z0-9_-]{30,40}\b"),
             "[REDACTED_GOOGLE_KEY]",
         ),
         # xAI API keys: xai-...
         (
-            re.compile(r"\bxai-[A-Za-z0-9\-_]{20,100}\b"),
+            re.compile(r"\bxai-[A-Za-z0-9_-]{20,100}\b"),
             "[REDACTED_XAI_KEY]",
         ),
         # Generic API keys in common formats
@@ -39,13 +39,13 @@ class SensitiveDataFilter(logging.Filter):
         # JWT tokens (header.payload.signature)
         (
             re.compile(
-                r"\beyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\b"
+                r"\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"
             ),
             "[REDACTED_JWT]",
         ),
         # Bearer tokens in headers
         (
-            re.compile(r"(?i)bearer\s+[A-Za-z0-9\-_\.]+"),
+            re.compile(r"(?i)bearer\s+[A-Za-z0-9_.+-]+"),
             "Bearer [REDACTED_TOKEN]",
         ),
         # Password patterns in key=value, key:value, "key":"value"
@@ -312,11 +312,11 @@ def _validate_log_file_path(log_file: str | None) -> str | None:
 
 def _create_file_handler(
     log_file: str,
-    file_format: str,
+    _file_format: str,
     file_duplicate_filter: DuplicateFilter,
     context_filter: logging.Filter,
     sensitive_data_filter: SensitiveDataFilter | None = None,
-    include_module: bool = True,
+    _include_module: bool = True,
 ) -> logging.FileHandler | None:
     try:
         file_handler = logging.FileHandler(
@@ -414,6 +414,62 @@ def _get_log_level_from_env() -> int | None:
     return level_map.get(env_level)
 
 
+def _resolve_log_file_path(
+    log_file: str | None, enable_file_logging: bool, log_dir: str | None
+) -> str | None:
+    if log_file is not None or not enable_file_logging:
+        return log_file
+    from datetime import datetime
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"certamen_{timestamp}_logs.log"
+    if log_dir:
+        resolved_dir = Path(log_dir).resolve()
+        os.makedirs(resolved_dir, exist_ok=True)
+        return os.path.join(str(resolved_dir), filename)
+    return filename
+
+
+def _resolve_log_level(level: int, debug: bool) -> int:
+    if debug:
+        return logging.DEBUG
+    env_level = _get_log_level_from_env()
+    return env_level if env_level is not None else level
+
+
+def _resolve_console_level(level: int, verbose: bool, debug: bool) -> int:
+    if verbose or debug:
+        return level
+    if _get_log_level_from_env() is not None:
+        return level
+    return logging.INFO
+
+
+def _reset_root_logger() -> logging.Logger:
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    return root_logger
+
+
+def _configure_third_party_loggers() -> None:
+    third_party_loggers = {
+        "httpx": logging.WARNING,
+        "httpcore": logging.WARNING,
+        "litellm": logging.ERROR,
+        "openai": logging.WARNING,
+        "anthropic": logging.WARNING,
+        "google": logging.WARNING,
+        "vertexai": logging.WARNING,
+        "asyncio": logging.WARNING,
+    }
+    for logger_name, log_level in third_party_loggers.items():
+        third_party_logger = logging.getLogger(logger_name)
+        third_party_logger.setLevel(log_level)
+        third_party_logger.propagate = logger_name != "litellm"
+
+
 def setup_logging(
     log_file: str | None = None,
     level: int = logging.INFO,
@@ -423,84 +479,33 @@ def setup_logging(
     include_module: bool = True,
     log_dir: str | None = None,
 ) -> logging.Logger:
-    # Generate timestamped log file if not specified but file logging is enabled
-    if log_file is None and enable_file_logging:
-        from datetime import datetime
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"certamen_{timestamp}_logs.log"
-        if log_dir:
-            resolved_dir = Path(log_dir).resolve()
-            os.makedirs(resolved_dir, exist_ok=True)
-            log_file = os.path.join(str(resolved_dir), filename)
-        else:
-            log_file = filename
-
-    # Validate log file path
+    log_file = _resolve_log_file_path(log_file, enable_file_logging, log_dir)
     log_file = _validate_log_file_path(log_file)
+    level = _resolve_log_level(level, debug)
 
-    # Priority: debug flag > LOG_LEVEL env var > explicit level parameter
-    if debug:
-        level = logging.DEBUG
-    else:
-        env_level = _get_log_level_from_env()
-        if env_level is not None:
-            level = env_level
+    root_logger = _reset_root_logger()
 
-    # Configure root logger
-    # IMPORTANT: Always set root logger to DEBUG so file handler can capture everything
-    # Individual handlers control what they output
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
-
-    # Remove existing handlers to avoid duplicate logs
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-    # Import ContextFilter - always needed for context injection
     from certamen_core.shared.logging.structured import ContextFilter
 
-    # Format strings
-    console_format = "[%(levelname)s] %(message)s"  # Cleaner console output
-    file_format = (
-        "%(asctime)s [%(levelname)s] %(message)s"  # Full timestamp for files
-    )
+    console_format = "[%(levelname)s] %(message)s"
+    file_format = "%(asctime)s [%(levelname)s] %(message)s"
 
-    # Create separate duplicate filters for console and file
     console_duplicate_filter = DuplicateFilter()
     file_duplicate_filter = DuplicateFilter()
-
-    # Create context filter for structured logging
     context_filter = ContextFilter()
-
-    # Create sensitive data filter to prevent logging secrets
     sensitive_data_filter = SensitiveDataFilter()
 
-    # Determine console level
-    # Priority: verbose/debug flags > LOG_LEVEL env var > INFO default
-    if verbose or debug:
-        console_level = level
-    elif _get_log_level_from_env() is not None:
-        console_level = level  # Use the env-specified level
-    else:
-        console_level = logging.INFO
-
+    console_level = _resolve_console_level(level, verbose, debug)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(console_level)
-    # Always use ColorFormatter for console (human-readable)
     console_handler.setFormatter(
         ColorFormatter(console_format, include_module=include_module)
     )
-    console_handler.addFilter(
-        sensitive_data_filter
-    )  # Must be first to sanitize before other filters
+    console_handler.addFilter(sensitive_data_filter)
     console_handler.addFilter(console_duplicate_filter)
     console_handler.addFilter(context_filter)
 
-    # Initialize file handler early for potential exceptions
     file_handler = None
-
-    # Add file handler if specified
     if log_file:
         file_handler = _create_file_handler(
             log_file,
@@ -508,52 +513,20 @@ def setup_logging(
             file_duplicate_filter,
             context_filter,
             sensitive_data_filter=sensitive_data_filter,
-            include_module=include_module,
+            _include_module=include_module,
         )
 
-    # Add handlers to root logger
     root_logger.addHandler(console_handler)
     if file_handler:
         root_logger.addHandler(file_handler)
-        # Log first message to verify file handler works
         root_logger.info("Log file initialized at %s", log_file)
 
-    # Configure LiteLLM suppression
     _configure_litellm()
 
-    # Create a specific logger for Certamen Framework
-    # IMPORTANT: Set to DEBUG so all messages reach handlers, handlers control what gets output
     logger = logging.getLogger("certamen")
     logger.setLevel(logging.DEBUG)
-    # Ensure the certamen logger propagates messages to the root logger
     logger.propagate = True
 
-    # Set appropriate levels for third-party loggers
-    # Avoid completely silencing them, but keep reasonable levels
-    third_party_loggers = {
-        # Core API request libraries - allow warnings
-        "httpx": logging.WARNING,
-        "httpcore": logging.WARNING,
-        # LLM-related libraries - silence completely in debug mode to avoid spam
-        "litellm": logging.ERROR,
-        "openai": logging.WARNING,
-        "anthropic": logging.WARNING,
-        "google": logging.WARNING,
-        "vertexai": logging.WARNING,
-        # Other system libraries
-        "asyncio": logging.WARNING,
-    }
+    _configure_third_party_loggers()
 
-    # Apply the configured log levels and ensure propagation
-    for logger_name, log_level in third_party_loggers.items():
-        third_party_logger = logging.getLogger(logger_name)
-        third_party_logger.setLevel(log_level)
-        # For LiteLLM, disable propagation completely to prevent debug spam
-        if logger_name == "litellm":
-            third_party_logger.propagate = False
-        else:
-            # Ensure other third-party loggers propagate messages to the root logger
-            third_party_logger.propagate = True
-
-    # Return the configured logger
     return logger

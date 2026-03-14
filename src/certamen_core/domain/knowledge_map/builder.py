@@ -33,6 +33,8 @@ INSIGHT: [the unique insight not found in other responses]
 
 Only list genuinely unique insights, not just different phrasings of the same idea."""
 
+_NONE_IDENTIFIED = "None identified"
+
 _EXPLORATION_PROMPT = """\
 Given this knowledge map about "{question}", identify 5-8 follow-up questions \
 that would extract the MOST additional knowledge.
@@ -151,7 +153,7 @@ class KnowledgeMapBuilder:
             "\n".join(
                 f"- {c.claim} [{c.confidence}]" for c in km.consensus[:10]
             )
-            or "None identified"
+            or _NONE_IDENTIFIED
         )
 
         disagreement_lines = []
@@ -163,11 +165,11 @@ class KnowledgeMapBuilder:
             disagreement_lines.append(
                 f"- {d.topic} ({status}): {positions_str}"
             )
-        disagreements_text = "\n".join(disagreement_lines) or "None identified"
+        disagreements_text = "\n".join(disagreement_lines) or _NONE_IDENTIFIED
 
         unknowns_text = (
             "\n".join(f"- {u}" for u in km.known_unknowns[:10])
-            or "None identified"
+            or _NONE_IDENTIFIED
         )
 
         low_conf = km.confidence_distribution.get(
@@ -177,12 +179,12 @@ class KnowledgeMapBuilder:
             f"{km.confidence_distribution.get('LOW', 0)} LOW-confidence claims, "
             f"{km.confidence_distribution.get('UNCERTAIN', 0)} UNCERTAIN claims detected"
             if low_conf > 0
-            else "None identified"
+            else _NONE_IDENTIFIED
         )
 
         assumptions_text = (
             "\n".join(f"- {a}" for a in km.assumptions[:10])
-            or "None identified"
+            or _NONE_IDENTIFIED
         )
 
         prompt = _EXPLORATION_PROMPT.format(
@@ -255,7 +257,7 @@ class KnowledgeMapBuilder:
             stripped_block = raw_block.strip()
             model_match = re.search(r"MODEL:\s*(.+)", stripped_block)
             insight_match = re.search(
-                r"INSIGHT:\s*(.+?)(?=\n---|\Z)", stripped_block, re.DOTALL
+                r"INSIGHT:\s*(.+)(?=\n---|\Z)", stripped_block, re.DOTALL
             )
             if model_match and insight_match:
                 model_name = model_match.group(1).strip()

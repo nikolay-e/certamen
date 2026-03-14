@@ -14,16 +14,11 @@ from certamen_core.shared.mapping_utils import deep_merge
 logger = get_contextual_logger("certamen.config")
 
 
-def validate_config(config_data: dict[str, Any]) -> tuple[bool, list[str]]:
-    errors: list[str] = []
-    logger.debug("Validating config sections: %s", list(config_data.keys()))
-
-    # Check models section is non-empty
-    models = config_data.get("models", {})
+def _validate_models(models: dict[str, Any], errors: list[str]) -> None:
     if not models:
         errors.append("Section 'models' is empty but must contain values")
+        return
 
-    # Validate each model with pydantic
     for model_key, model_cfg in models.items():
         if not isinstance(model_cfg, dict):
             errors.append(f"Model '{model_key}' must be a dictionary")
@@ -35,16 +30,27 @@ def validate_config(config_data: dict[str, Any]) -> tuple[bool, list[str]]:
                 field = ".".join(str(x) for x in err["loc"])
                 errors.append(f"Model '{model_key}': {field} - {err['msg']}")
 
-    # Validate full config structure
+
+def _validate_full_config(
+    config_data: dict[str, Any], errors: list[str]
+) -> None:
     try:
         CertamenConfig(**config_data)
     except ValidationError as e:
         for err in e.errors():
             loc = err["loc"]
             if loc and loc[0] == "models":
-                continue  # Already handled above
+                continue
             field = ".".join(str(x) for x in loc)
             errors.append(f"{field}: {err['msg']}")
+
+
+def validate_config(config_data: dict[str, Any]) -> tuple[bool, list[str]]:
+    errors: list[str] = []
+    logger.debug("Validating config sections: %s", list(config_data.keys()))
+
+    _validate_models(config_data.get("models", {}), errors)
+    _validate_full_config(config_data, errors)
 
     is_valid = len(errors) == 0
     logger.debug(

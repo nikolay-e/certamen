@@ -115,7 +115,7 @@ async def test_provenance_json_structure_complete():
     assert len(provenance["eliminations"]) == 1
     elim = provenance["eliminations"][0]
     assert elim["model"] == "LLM3"
-    assert elim["score"] == 6.5
+    assert elim["score"] == pytest.approx(6.5)
     assert len(elim["insights_preserved"]) == 2
 
     # Verify JSON serializability
@@ -212,8 +212,7 @@ async def test_provenance_saves_to_files():
 
         # Verify provenance JSON is valid
         provenance_path = Path(saved_files["provenance_json"])
-        with open(provenance_path, encoding="utf-8") as f:
-            provenance = json.load(f)
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
 
         # Should have all required fields
         assert provenance["question"] == "Test question"

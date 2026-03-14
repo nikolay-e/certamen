@@ -326,12 +326,11 @@ class EnhancedKnowledgeBank:
             insights = []
             for insight_id in self.insight_ids:
                 insight_data = self.insights_db[insight_id]
-                if insight_data["source_model"] == model_name:
-                    if (
-                        round_num is None
-                        or insight_data["source_round"] == round_num
-                    ):
-                        insights.append(insight_data["text"])
+                if insight_data["source_model"] == model_name and (
+                    round_num is None
+                    or insight_data["source_round"] == round_num
+                ):
+                    insights.append(insight_data["text"])
 
             return insights
 

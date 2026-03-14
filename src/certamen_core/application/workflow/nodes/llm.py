@@ -19,6 +19,8 @@ from certamen_core.shared.logging import get_contextual_logger
 
 logger = get_contextual_logger(__name__)
 
+_DEFAULT_OLLAMA_MODEL = "ollama/llama3.2:3b"
+
 # Non-chat model patterns to filter out when listing available models
 NON_CHAT_MODEL_PATTERNS = frozenset(
     ["embedding", "whisper", "tts", "moderation", "stt", "dall-e"]
@@ -38,30 +40,36 @@ def get_provider_options() -> list[str]:
 
 async def get_models_by_provider(provider: str) -> list[str]:
     if provider == "ollama":
-        try:
-            import httpx
+        return await _fetch_ollama_models()
 
-            base_url = get_ollama_base_url()
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(f"{base_url}/api/tags")
-                response.raise_for_status()
-                data = response.json()
-                models_list = data.get("models", [])
-                return [f"ollama/{model['name']}" for model in models_list]
-        except RuntimeError:
-            return []
-        except Exception as e:
-            logger.warning("Failed to fetch Ollama models: %s", e)
-            return []
-
-    # Use LiteLLM's models_by_provider as primary source
     if hasattr(litellm, "models_by_provider"):
         provider_models = litellm.models_by_provider.get(provider, [])
         if provider_models:
             chat_models = [m for m in provider_models if _is_chat_model(m)]
             return sorted(chat_models)[:100]
 
-    # Fallback: filter model_cost by litellm_provider field
+    return _litellm_fallback_models(provider)
+
+
+async def _fetch_ollama_models() -> list[str]:
+    try:
+        import httpx
+
+        base_url = get_ollama_base_url()
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{base_url}/api/tags")
+            response.raise_for_status()
+            data = response.json()
+            models_list = data.get("models", [])
+            return [f"ollama/{model['name']}" for model in models_list]
+    except RuntimeError:
+        return []
+    except Exception as e:
+        logger.warning("Failed to fetch Ollama models: %s", e)
+        return []
+
+
+def _litellm_fallback_models(provider: str) -> list[str]:
     models = []
     for model_name, model_info in litellm.model_cost.items():
         if model_info.get("litellm_provider") == provider:
@@ -69,7 +77,6 @@ async def get_models_by_provider(provider: str) -> list[str]:
                 continue
             if model_info.get("mode") in ("chat", None):
                 models.append(model_name)
-
     return sorted(models)[:100]
 
 
@@ -241,7 +248,7 @@ class LLMNode(BaseNode):
         },
         "model_name": {
             "type": "select",
-            "default": "ollama/llama3.2:3b",
+            "default": _DEFAULT_OLLAMA_MODEL,
             "options": [],
             "description": "Specific model to use - list updates based on selected provider",
             "dynamic": True,
@@ -271,42 +278,14 @@ class LLMNode(BaseNode):
         system_prompt = inputs.get("system", "")
         input_model_config = inputs.get("model_config")
 
-        # Use input model_config if provided, otherwise use properties
-        if input_model_config and isinstance(input_model_config, dict):
-            name = input_model_config.get("name", "") or self.node_id
-            provider = input_model_config.get("provider", "ollama")
-            model_name = input_model_config.get(
-                "model_name", "ollama/llama3.2:3b"
-            )
-            temperature = float(input_model_config.get("temperature", 0.7))
-            max_tokens = int(input_model_config.get("max_tokens", 4096))
-            if not system_prompt:
-                system_prompt = input_model_config.get("system_prompt", "")
-        else:
-            name = self.node_properties.get("name", "") or self.node_id
-            provider = self.node_properties.get("provider", "ollama")
-            model_name = self.node_properties.get(
-                "model_name", "ollama/llama3.2:3b"
-            )
-            temperature = float(self.node_properties.get("temperature", 0.7))
-            max_tokens = int(self.node_properties.get("max_tokens", 4096))
+        model_config = self._build_model_config(
+            input_model_config, system_prompt
+        )
 
-        model_config: dict[str, Any] = {
-            "name": name,
-            "provider": provider,
-            "model_name": model_name,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "display_name": name,
-        }
-
-        if system_prompt:
-            model_config["system_prompt"] = system_prompt
-
-        if provider == "ollama":
-            model_config["base_url"] = get_ollama_base_url()
-
-        if not model_name or model_name.strip() == "":
+        if (
+            not model_config["model_name"]
+            or not str(model_config["model_name"]).strip()
+        ):
             return {
                 "response": "[Error: No model selected]",
                 "model_config": model_config,
@@ -341,6 +320,47 @@ class LLMNode(BaseNode):
                 "response": f"[Error: {e!s}]",
                 "model_config": model_config,
             }
+
+    def _build_model_config(
+        self,
+        input_model_config: Any,
+        system_prompt: str,
+    ) -> dict[str, Any]:
+        if input_model_config and isinstance(input_model_config, dict):
+            name = input_model_config.get("name", "") or self.node_id
+            provider = input_model_config.get("provider", "ollama")
+            model_name = input_model_config.get(
+                "model_name", _DEFAULT_OLLAMA_MODEL
+            )
+            temperature = float(input_model_config.get("temperature", 0.7))
+            max_tokens = int(input_model_config.get("max_tokens", 4096))
+            if not system_prompt:
+                system_prompt = input_model_config.get("system_prompt", "")
+        else:
+            name = self.node_properties.get("name", "") or self.node_id
+            provider = self.node_properties.get("provider", "ollama")
+            model_name = self.node_properties.get(
+                "model_name", _DEFAULT_OLLAMA_MODEL
+            )
+            temperature = float(self.node_properties.get("temperature", 0.7))
+            max_tokens = int(self.node_properties.get("max_tokens", 4096))
+
+        config: dict[str, Any] = {
+            "name": name,
+            "provider": provider,
+            "model_name": model_name,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "display_name": name,
+        }
+
+        if system_prompt:
+            config["system_prompt"] = system_prompt
+
+        if provider == "ollama":
+            config["base_url"] = get_ollama_base_url()
+
+        return config
 
 
 @register_node

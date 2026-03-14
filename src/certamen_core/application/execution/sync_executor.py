@@ -77,8 +77,8 @@ class SyncExecutor(BaseExecutor):
         self,
         error: Exception,
         node_id: str,
-        node: BaseNode,
-        execution_id: str,
+        _node: BaseNode,
+        _execution_id: str,
     ) -> None:
         error_msg = f"Node [{node_id}] failed: {type(error).__name__}: {error}"
         self._print_progress(f"ERROR: {error_msg}")

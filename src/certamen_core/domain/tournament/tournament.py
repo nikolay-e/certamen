@@ -1,7 +1,12 @@
 import asyncio
 import re
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from certamen_core.domain.interrogation.interrogator import (
+        AdversarialInterrogator,
+    )
 
 from certamen_core.domain.knowledge.bank import EnhancedKnowledgeBank
 from certamen_core.domain.model_selection import select_model_by_capacity
@@ -27,6 +32,8 @@ from certamen_core.shared.constants import (
 )
 from certamen_core.shared.logging import get_contextual_logger
 from certamen_core.shared.text import indent_text, strip_meta_commentary
+
+_DEFAULT_DB_PATH = "certamen_knowledge.db"
 
 
 class TournamentRunner:
@@ -62,8 +69,8 @@ class TournamentRunner:
         self.comp.self_scoring_biases = {}
         self.comp.elimination_reason = ""
         self.comp.elimination_score = None
-        self._knowledge_map: object = None
-        self._disagreement_reports: list[object] = []
+        self._knowledge_map: Any = None
+        self._disagreement_reports: list[Any] = []
 
         try:
             await self._load_prior_knowledge(initial_question)
@@ -91,6 +98,81 @@ class TournamentRunner:
         )
         return True
 
+    def _build_phase_skip_message(
+        self, phase_name: str, round_num: int | None
+    ) -> str:
+        if round_num is not None:
+            return f"{phase_name} is disabled. Skipping round {round_num}."
+        return f"{phase_name} is disabled. Skipping."
+
+    def _log_phase_header(
+        self, phase_name: str, round_num: int | None
+    ) -> None:
+        if round_num is None:
+            self.logger.info("\n" + "=" * 80)
+            self.logger.info("%s", phase_name)
+            self.logger.info("=" * 80)
+        else:
+            self.logger.info("\nROUND %s: %s", round_num, phase_name)
+
+    async def _collect_feedback_context(
+        self,
+        initial_question: str,
+        source_answers: dict[str, str],
+        phase_config: dict[str, Any],
+        round_num: int | None,
+    ) -> dict[str, dict[str, str]] | None:
+        if not phase_config.get("feedback_enabled", False):
+            return None
+        self.logger.info("Collecting feedback from models...")
+        feedback_context = await self.comp.run_feedback(
+            initial_question,
+            source_answers,
+            feedback_instruction=phase_config.get(
+                "feedback_instruction", "Provide feedback for this answer."
+            ),
+            round_number=round_num if round_num is not None else 0,
+        )
+        if not feedback_context:
+            self.logger.warning("No feedback collected, proceeding without it")
+            return None
+        return feedback_context
+
+    def _merge_evaluation_into_feedback(
+        self,
+        feedback_context: dict[str, dict[str, str]] | None,
+        evaluation_context: dict[str, dict[str, str]],
+    ) -> dict[str, dict[str, str]]:
+        if feedback_context is None:
+            return evaluation_context
+        for model_name, eval_feedbacks in evaluation_context.items():
+            if model_name not in feedback_context:
+                feedback_context[model_name] = {}
+            feedback_context[model_name].update(eval_feedbacks)
+        return feedback_context
+
+    def _log_improvement_completion(
+        self,
+        phase_name: str,
+        round_num: int | None,
+        response_count: int,
+        action_word: str,
+    ) -> None:
+        if round_num is None:
+            self.logger.info(
+                "%s COMPLETE: Got %s %s responses",
+                phase_name,
+                response_count,
+                action_word,
+            )
+        else:
+            self.logger.info(
+                "ROUND %s COMPLETE: Got %s %s responses",
+                round_num,
+                response_count,
+                action_word,
+            )
+
     async def _run_improvement_phase(
         self,
         initial_question: str,
@@ -103,48 +185,23 @@ class TournamentRunner:
         phase_config = self.comp.config.get(config_key, {})
 
         if not phase_config.get("enabled", True):
-            skip_msg = f"{phase_name} is disabled. Skipping."
-            if round_num is not None:
-                skip_msg = (
-                    f"{phase_name} is disabled. Skipping round {round_num}."
-                )
-            self.logger.info(skip_msg)
+            self.logger.info(
+                self._build_phase_skip_message(phase_name, round_num)
+            )
             return True
 
-        if round_num is None:
-            self.logger.info("\n" + "=" * 80)
-            self.logger.info("%s", phase_name)
-            self.logger.info("=" * 80)
-        else:
-            self.logger.info("\nROUND %s: %s", round_num, phase_name)
+        self._log_phase_header(phase_name, round_num)
 
         source_answers = self.comp.previous_answers[answer_index]
 
-        feedback_context: dict[str, dict[str, str]] | None = None
-        if phase_config.get("feedback_enabled", False):
-            self.logger.info("Collecting feedback from models...")
-            feedback_context = await self.comp.run_feedback(
-                initial_question,
-                source_answers,
-                feedback_instruction=phase_config.get(
-                    "feedback_instruction", "Provide feedback for this answer."
-                ),
-                round_number=round_num if round_num is not None else 0,
-            )
-            if not feedback_context:
-                self.logger.warning(
-                    "No feedback collected, proceeding without it"
-                )
-                feedback_context = None
+        feedback_context = await self._collect_feedback_context(
+            initial_question, source_answers, phase_config, round_num
+        )
 
         if evaluation_context:
-            if feedback_context is None:
-                feedback_context = evaluation_context
-            else:
-                for model_name, eval_feedbacks in evaluation_context.items():
-                    if model_name not in feedback_context:
-                        feedback_context[model_name] = {}
-                    feedback_context[model_name].update(eval_feedbacks)
+            feedback_context = self._merge_evaluation_into_feedback(
+                feedback_context, evaluation_context
+            )
 
         action_word = "refined" if round_num is not None else "improved"
         self.logger.info("Generating %s responses...", action_word)
@@ -170,21 +227,136 @@ class TournamentRunner:
             return False
 
         self.comp.previous_answers.append(responses)
-        if round_num is None:
-            self.logger.info(
-                "%s COMPLETE: Got %s %s responses",
-                phase_name,
-                len(responses),
-                action_word,
-            )
-        else:
-            self.logger.info(
-                "ROUND %s COMPLETE: Got %s %s responses",
-                round_num,
-                len(responses),
-                action_word,
-            )
+        self._log_improvement_completion(
+            phase_name, round_num, len(responses), action_word
+        )
         return True
+
+    def _resolve_model_key_by_anon_name(self, anon_name: str) -> str | None:
+        return next(
+            (k for k, v in self.comp.anon_mapping.items() if v == anon_name),
+            None,
+        )
+
+    async def _interrogate_pair(
+        self,
+        interrogator: "AdversarialInterrogator",
+        examiner_name: str,
+        target_name: str,
+        responses: dict[str, str],
+        initial_question: str,
+        max_q: int,
+    ) -> list[str]:
+        examiner_key = self._resolve_model_key_by_anon_name(examiner_name)
+        target_key = self._resolve_model_key_by_anon_name(target_name)
+        if not examiner_key or not target_key:
+            return []
+        examiner_model = self.comp.models.get(examiner_key)
+        target_model = self.comp.models.get(target_key)
+        if not examiner_model or not target_model:
+            return []
+        questions = await interrogator.generate_questions(
+            examiner_model=examiner_model,
+            target_response=responses[target_name],
+            other_response=responses[examiner_name],
+            question=initial_question,
+            max_questions=max_q,
+        )
+        qa = await interrogator.conduct_interrogation(
+            target_model=target_model,
+            questions=questions,
+            question=initial_question,
+            own_response=responses[target_name],
+        )
+        return [f"Q: {q}\nA: {a}" for q, a in qa.items()]
+
+    async def _run_interrogation_round(
+        self,
+        interrogator: "AdversarialInterrogator",
+        responses: dict[str, str],
+        model_names: list[str],
+        initial_question: str,
+        max_q: int,
+    ) -> list[str]:
+        tasks = [
+            self._interrogate_pair(
+                interrogator,
+                examiner,
+                target,
+                responses,
+                initial_question,
+                max_q,
+            )
+            for i, examiner in enumerate(model_names)
+            for j, target in enumerate(model_names)
+            if i != j
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return [
+            item
+            for result in results
+            if isinstance(result, list)
+            for item in result
+        ]
+
+    async def _extract_interrogation_insights(
+        self,
+        qa_pairs: list[str],
+        extractor_key: str,
+        phase_tag: str,
+    ) -> list[str]:
+        from certamen_core.shared.constants import INTERROGATION_INSIGHT_PROMPT
+        from certamen_core.shared.text import parse_insight_lines
+
+        prompt = INTERROGATION_INSIGHT_PROMPT.format(
+            text="\n\n".join(qa_pairs)
+        )
+        response = await self.comp.execute_single_model_task(
+            model_key=extractor_key,
+            prompt=prompt,
+            context_for_logging=phase_tag,
+        )
+        if response.is_error():
+            self.logger.warning(
+                "Interrogation insight extraction failed: %s", response.error
+            )
+            return []
+        insights = parse_insight_lines(
+            response.content, min_length=10, skip_apologies=True
+        )
+        if insights:
+            await self.comp.knowledge_bank._add_insights_to_db(
+                insights, phase_tag.lower(), 0
+            )
+        return insights
+
+    async def _run_interrogation_round2(
+        self,
+        interrogator: "AdversarialInterrogator",
+        current_responses: dict[str, str],
+        model_names: list[str],
+        initial_question: str,
+        max_q: int,
+        extractor_key: str,
+        round1_insights: list[str],
+    ) -> list[str]:
+        round2_context = "\n".join(f"- {i}" for i in round1_insights[:10])
+        round2_responses = {
+            n: f"{t}\n\n[Cross-examination findings:]\n{round2_context}"
+            for n, t in current_responses.items()
+        }
+        r2_qa = await self._run_interrogation_round(
+            interrogator,
+            round2_responses,
+            model_names,
+            initial_question,
+            max_q,
+        )
+        if not r2_qa:
+            return []
+        return await self._extract_interrogation_insights(
+            r2_qa, extractor_key, "INTERROGATION_R2_EXTRACTION"
+        )
 
     async def _run_interrogation_phase(
         self,
@@ -213,72 +385,19 @@ class TournamentRunner:
         )
         model_names = list(current_responses.keys())
 
-        async def run_round(responses: dict[str, str]) -> list[str]:
-            async def interrogate_pair(
-                examiner_name: str, target_name: str
-            ) -> list[str]:
-                examiner_key = next(
-                    (
-                        k
-                        for k, v in self.comp.anon_mapping.items()
-                        if v == examiner_name
-                    ),
-                    None,
-                )
-                target_key = next(
-                    (
-                        k
-                        for k, v in self.comp.anon_mapping.items()
-                        if v == target_name
-                    ),
-                    None,
-                )
-                if not examiner_key or not target_key:
-                    return []
-                examiner_model = self.comp.models.get(examiner_key)
-                target_model = self.comp.models.get(target_key)
-                if not examiner_model or not target_model:
-                    return []
-                questions = await interrogator.generate_questions(
-                    examiner_model=examiner_model,
-                    target_response=responses[target_name],
-                    other_response=responses[examiner_name],
-                    question=initial_question,
-                    max_questions=max_q,
-                )
-                qa = await interrogator.conduct_interrogation(
-                    target_model=target_model,
-                    questions=questions,
-                    question=initial_question,
-                    own_response=responses[target_name],
-                )
-                return [f"Q: {q}\nA: {a}" for q, a in qa.items()]
-
-            tasks = [
-                interrogate_pair(examiner, target)
-                for i, examiner in enumerate(model_names)
-                for j, target in enumerate(model_names)
-                if i != j
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            return [
-                item
-                for result in results
-                if isinstance(result, list)
-                for item in result
-            ]
-
-        all_qa = await run_round(current_responses)
+        all_qa = await self._run_interrogation_round(
+            interrogator,
+            current_responses,
+            model_names,
+            initial_question,
+            max_q,
+        )
 
         if not all_qa:
             self.logger.info("INTERROGATION COMPLETE: No Q&A pairs extracted")
             return
 
-        combined = "\n\n".join(all_qa)
-        self.comp.interrogation_context = combined
-
-        from certamen_core.shared.constants import INTERROGATION_INSIGHT_PROMPT
-        from certamen_core.shared.text import parse_insight_lines
+        self.comp.interrogation_context = "\n\n".join(all_qa)
 
         extractor_key = self.comp.judge_model_key or (
             self.comp.active_model_keys[0]
@@ -291,52 +410,21 @@ class TournamentRunner:
             )
             return
 
-        prompt = INTERROGATION_INSIGHT_PROMPT.format(text=combined)
-        response = await self.comp.execute_single_model_task(
-            model_key=extractor_key,
-            prompt=prompt,
-            context_for_logging="INTERROGATION_EXTRACTION",
+        insights = await self._extract_interrogation_insights(
+            all_qa, extractor_key, "INTERROGATION_EXTRACTION"
         )
-
-        if response.is_error():
-            self.logger.warning(
-                "Interrogation insight extraction failed: %s", response.error
-            )
-            return
-
-        insights = parse_insight_lines(
-            response.content, min_length=10, skip_apologies=True
-        )
-        if insights:
-            await self.comp.knowledge_bank._add_insights_to_db(
-                insights, "interrogation_phase", 0
-            )
 
         if interrogation_rounds >= 2 and insights:
-            round2_context = "\n".join(f"- {i}" for i in insights[:10])
-            round2_responses = {
-                n: f"{t}\n\n[Cross-examination findings:]\n{round2_context}"
-                for n, t in current_responses.items()
-            }
-            r2_qa = await run_round(round2_responses)
-            if r2_qa:
-                prompt2 = INTERROGATION_INSIGHT_PROMPT.format(
-                    text="\n\n".join(r2_qa)
-                )
-                resp2 = await self.comp.execute_single_model_task(
-                    model_key=extractor_key,
-                    prompt=prompt2,
-                    context_for_logging="INTERROGATION_R2_EXTRACTION",
-                )
-                if not resp2.is_error():
-                    r2_insights = parse_insight_lines(
-                        resp2.content, min_length=10, skip_apologies=True
-                    )
-                    if r2_insights:
-                        await self.comp.knowledge_bank._add_insights_to_db(
-                            r2_insights, "interrogation_phase_r2", 0
-                        )
-                        insights.extend(r2_insights)
+            r2_insights = await self._run_interrogation_round2(
+                interrogator,
+                current_responses,
+                model_names,
+                initial_question,
+                max_q,
+                extractor_key,
+                insights,
+            )
+            insights.extend(r2_insights)
 
         self.logger.info(
             "INTERROGATION COMPLETE: %s Q&A pairs → %s insights extracted",
@@ -421,7 +509,7 @@ class TournamentRunner:
             return_exceptions=True,
         )
 
-        valid: list[object] = [
+        valid: list[Any] = [
             r for r in reports if not isinstance(r, BaseException)
         ]
         self.logger.info(
@@ -435,7 +523,7 @@ class TournamentRunner:
         initial_question: str,
         synthesis: str,
         champion_model_key: str,
-    ) -> object:
+    ) -> Any:
         if not self.comp.features.get("knowledge_map_enabled", True):
             return None
 
@@ -458,7 +546,7 @@ class TournamentRunner:
                 synthesis=synthesis,
                 champion_model=champion_model_key,
                 judge_model=judge_model,
-                disagreements=self._disagreement_reports,  # type: ignore[arg-type]
+                disagreements=self._disagreement_reports,
             )
             km.exploration_branches = (
                 await builder.generate_exploration_branches(km, judge_model)
@@ -470,7 +558,7 @@ class TournamentRunner:
                     )
 
                     db_path = self.comp.features.get(
-                        "persistence_db_path", "certamen_knowledge.db"
+                        "persistence_db_path", _DEFAULT_DB_PATH
                     )
                     store = PersistentKnowledgeStore(db_path)
                     known = await store.get_all_branch_questions()
@@ -491,7 +579,7 @@ class TournamentRunner:
             self.logger.warning("Knowledge map construction failed: %s", e)
             return None
 
-    async def _persist_knowledge_map(self, km: object) -> None:
+    async def _persist_knowledge_map(self, km: Any) -> None:
         if not self.comp.features.get("persistence_enabled", True):
             return
 
@@ -500,12 +588,12 @@ class TournamentRunner:
         )
 
         db_path = self.comp.features.get(
-            "persistence_db_path", "certamen_knowledge.db"
+            "persistence_db_path", _DEFAULT_DB_PATH
         )
         store = PersistentKnowledgeStore(db_path)
         tournament_id = getattr(self, "_tournament_id", "unknown")
         try:
-            await store.store_knowledge_map(km, tournament_id)  # type: ignore[arg-type]
+            await store.store_knowledge_map(km, tournament_id)
             self.logger.info("Knowledge map persisted to %s", db_path)
         except Exception as e:
             self.logger.warning("Failed to persist knowledge map: %s", e)
@@ -519,7 +607,7 @@ class TournamentRunner:
             )
 
             db_path = self.comp.features.get(
-                "persistence_db_path", "certamen_knowledge.db"
+                "persistence_db_path", _DEFAULT_DB_PATH
             )
             store = PersistentKnowledgeStore(db_path)
             prior_claims = await store.get_relevant_prior_knowledge(
@@ -544,6 +632,44 @@ class TournamentRunner:
             answer_index=0,
         )
 
+    async def _store_disagreement_insights(
+        self, disagreement_reports: list[object]
+    ) -> None:
+        from certamen_core.domain.disagreement.resolver import (
+            DisagreementReport,
+        )
+
+        disagreement_insights = [
+            f"DISAGREEMENT [{r.resolution_status}]: {r.topic}"  # type: ignore[union-attr]
+            f" — {r.neutral_analysis[:200]}"  # type: ignore[union-attr]
+            for r in disagreement_reports
+            if isinstance(r, DisagreementReport) and r.neutral_analysis
+        ]
+        if disagreement_insights:
+            await self.comp.knowledge_bank._add_insights_to_db(
+                disagreement_insights, "disagreement_investigation", 0
+            )
+
+    def _log_empty_evaluations_outcome(self, round_num: int) -> None:
+        active_count = len(self.comp.active_model_keys)
+        if active_count == 0:
+            self.logger.error(
+                "No evaluations in round %s and no active models remain. Tournament failed.",
+                round_num,
+            )
+        elif active_count == 1:
+            self.logger.warning(
+                "No evaluations in round %s, but 1 model remains. Declaring champion.",
+                round_num,
+            )
+        else:
+            self.logger.warning(
+                "No evaluations in round %s, but %s models remain. "
+                "This indicates an evaluation system failure. Declaring current leader as champion.",
+                round_num,
+                active_count,
+            )
+
     async def _run_elimination_rounds(self, initial_question: str) -> None:
         round_num = 1
         self.logger.info("\n" + "=" * 80)
@@ -564,46 +690,14 @@ class TournamentRunner:
             self._disagreement_reports.extend(disagreement_reports)
 
             if disagreement_reports:
-                from certamen_core.domain.disagreement.resolver import (
-                    DisagreementReport,
-                )
-
-                disagreement_insights = [
-                    f"DISAGREEMENT [{r.resolution_status}]: {r.topic}"  # type: ignore[union-attr]
-                    f" — {r.neutral_analysis[:200]}"  # type: ignore[union-attr]
-                    for r in disagreement_reports
-                    if isinstance(r, DisagreementReport) and r.neutral_analysis
-                ]
-                if disagreement_insights:
-                    await self.comp.knowledge_bank._add_insights_to_db(
-                        disagreement_insights, "disagreement_investigation", 0
-                    )
+                await self._store_disagreement_insights(disagreement_reports)
 
             evaluations = await self.comp.run_cross_evaluation(
                 initial_question, self.comp.previous_answers[-1], round_num
             )
             if not evaluations:
-                # Check if we still have models after evaluation failures
-                if len(self.comp.active_model_keys) == 0:
-                    self.logger.error(
-                        "No evaluations in round %s and no active models remain. Tournament failed.",
-                        round_num,
-                    )
-                    break
-                elif len(self.comp.active_model_keys) == 1:
-                    self.logger.warning(
-                        "No evaluations in round %s, but 1 model remains. Declaring champion.",
-                        round_num,
-                    )
-                    break
-                else:
-                    self.logger.warning(
-                        "No evaluations in round %s, but %s models remain. "
-                        "This indicates an evaluation system failure. Declaring current leader as champion.",
-                        round_num,
-                        len(self.comp.active_model_keys),
-                    )
-                    break
+                self._log_empty_evaluations_outcome(round_num)
+                break
 
             self.comp.evaluation_history.append(
                 {
@@ -825,102 +919,123 @@ class TournamentRunner:
         self.logger.warning("Synthesis failed, using champion answer")
         return champion_answer
 
+    def _render_knowledge_map_context(self, km: Any) -> str:
+        try:
+            from certamen_core.domain.knowledge_map.renderer import (
+                KnowledgeMapRenderer,
+            )
+
+            return KnowledgeMapRenderer().to_markdown(km)
+        except Exception as e:
+            self.logger.debug("KM context rendering failed: %s", e)
+            return ""
+
+    async def _save_knowledge_map_to_file(self, km: Any) -> None:
+        try:
+            from datetime import datetime
+
+            from certamen_core.domain.knowledge_map.renderer import (
+                KnowledgeMapRenderer,
+            )
+
+            km_md = KnowledgeMapRenderer().to_markdown(km)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            await self.comp.host.write_file(
+                f"certamen_{timestamp}_knowledge_map.md", km_md
+            )
+            self.logger.info(
+                "Knowledge map saved to certamen_%s_knowledge_map.md",
+                timestamp,
+            )
+        except Exception as e:
+            self.logger.warning("Failed to save knowledge map to file: %s", e)
+
+    async def _finalize_with_champion(
+        self,
+        initial_question: str,
+        final_model_key: str,
+        final_model_anon: str,
+        champion_answer: str,
+    ) -> str:
+        km = await self._build_knowledge_map(
+            initial_question, champion_answer, final_model_key
+        )
+
+        km_context_str = (
+            self._render_knowledge_map_context(km) if km is not None else ""
+        )
+
+        final_answer = await self._run_synthesis(
+            initial_question,
+            final_model_key,
+            champion_answer,
+            km_context=km_context_str,
+        )
+
+        if km is not None:
+            km.synthesis = final_answer
+
+        if self.comp.features.get("save_reports_to_disk", True):
+            await self.comp.history_builder.save_champion_report(
+                initial_question=initial_question,
+                final_model_anon=final_model_anon,
+                champion_answer=final_answer,
+                all_previous_answers=self.comp.previous_answers,
+            )
+
+        self.logger.info(
+            "Synthesized Final Answer",
+            extra={"display_type": "section_header"},
+        )
+        self.logger.info(
+            final_answer,
+            extra={
+                "display_type": "model_response",
+                "model_name": "success",
+            },
+        )
+
+        if km is not None:
+            self._knowledge_map = km
+            await self._persist_knowledge_map(km)
+            await self._save_knowledge_map_to_file(km)
+
+        return final_answer
+
     async def _finalize_tournament(self, initial_question: str) -> str:
         if len(self.comp.active_model_keys) == 0:
             self.logger.error(
                 "All models failed during tournament. No champion can be determined."
             )
             return "Tournament ended prematurely: All models failed or were eliminated due to errors."
-        else:
-            final_model_key = self.comp.active_model_keys[0]
-            final_model_anon = self.comp.anon_mapping[final_model_key]
 
-            champion_answer = self.comp.previous_answers[-1].get(
-                final_model_anon, ""
-            )
+        final_model_key = self.comp.active_model_keys[0]
+        final_model_anon = self.comp.anon_mapping[final_model_key]
 
-            if not champion_answer:
-                self.logger.error(
-                    "Could not find final answer for champion %s",
-                    final_model_anon,
-                )
-                return f"Champion {final_model_anon} determined but answer not found."
+        champion_answer = self.comp.previous_answers[-1].get(
+            final_model_anon, ""
+        )
 
-            self.logger.info(
-                "CHAMPION: %s - Using their final refined answer",
+        if not champion_answer:
+            self.logger.error(
+                "Could not find final answer for champion %s",
                 final_model_anon,
             )
-
-            km = await self._build_knowledge_map(
-                initial_question, champion_answer, final_model_key
+            return (
+                f"Champion {final_model_anon} determined but answer not found."
             )
 
-            km_context_str = ""
-            if km is not None:
-                try:
-                    from certamen_core.domain.knowledge_map.renderer import (
-                        KnowledgeMapRenderer,
-                    )
+        self.logger.info(
+            "CHAMPION: %s - Using their final refined answer",
+            final_model_anon,
+        )
 
-                    km_context_str = KnowledgeMapRenderer().to_markdown(km)  # type: ignore[arg-type]
-                except Exception as e:
-                    self.logger.debug("KM context rendering failed: %s", e)
-
-            final_answer = await self._run_synthesis(
-                initial_question,
-                final_model_key,
-                champion_answer,
-                km_context=km_context_str,
-            )
-
-            if km is not None:
-                km.synthesis = final_answer  # type: ignore[attr-defined]
-
-            if self.comp.features.get("save_reports_to_disk", True):
-                await self.comp.history_builder.save_champion_report(
-                    initial_question=initial_question,
-                    final_model_anon=final_model_anon,
-                    champion_answer=final_answer,
-                    all_previous_answers=self.comp.previous_answers,
-                )
-
-            self.logger.info(
-                "Synthesized Final Answer",
-                extra={"display_type": "section_header"},
-            )
-            self.logger.info(
-                final_answer,
-                extra={
-                    "display_type": "model_response",
-                    "model_name": "success",
-                },
-            )
-
-            if km is not None:
-                self._knowledge_map = km
-                await self._persist_knowledge_map(km)
-                try:
-                    from datetime import datetime
-
-                    from certamen_core.domain.knowledge_map.renderer import (
-                        KnowledgeMapRenderer,
-                    )
-
-                    km_md = KnowledgeMapRenderer().to_markdown(km)  # type: ignore[arg-type]
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    await self.comp.host.write_file(
-                        f"certamen_{timestamp}_knowledge_map.md", km_md
-                    )
-                    self.logger.info(
-                        "Knowledge map saved to certamen_%s_knowledge_map.md",
-                        timestamp,
-                    )
-                except Exception as e:
-                    self.logger.warning(
-                        "Failed to save knowledge map to file: %s", e
-                    )
-
-            return final_answer
+        return await self._finalize_with_champion(
+            initial_question,
+            final_model_key,
+            final_model_anon,
+            champion_answer,
+        )
 
 
 class ModelComparison:
@@ -1597,6 +1712,43 @@ class ModelComparison:
 
         return best_model_key
 
+    def _peer_scores_are_valid(self) -> bool:
+        if not self.evaluation_scores:
+            return False
+        first_value = next(iter(self.evaluation_scores.values()), None)
+        if not isinstance(first_value, dict):
+            return False
+        return any(self.evaluation_scores.values())
+
+    async def _peer_evaluation_with_emergency_fallback(
+        self,
+        initial_question: str,
+        responses: dict[str, str],
+    ) -> dict[str, str]:
+        result = await self._run_peer_evaluation(initial_question, responses)
+
+        if self._peer_scores_are_valid():
+            return result
+
+        self.logger.warning(
+            "ALL peer evaluators failed to provide valid scores. "
+            "Falling back to JUDGE MODE with largest model."
+        )
+        emergency_judge = self._select_largest_model_as_judge()
+        if emergency_judge:
+            self.logger.info(
+                "EMERGENCY JUDGE MODE: Using %s",
+                self.models[emergency_judge].display_name,
+            )
+            return await self._run_judge_evaluation(
+                emergency_judge, initial_question, responses
+            )
+
+        self.logger.error(
+            "CRITICAL: No model available for emergency judge fallback"
+        )
+        return result
+
     async def run_cross_evaluation(
         self,
         initial_question: str,
@@ -1617,41 +1769,13 @@ class ModelComparison:
             return await self._run_judge_evaluation_with_fallback(
                 self.judge_model_key, initial_question, responses
             )
-        else:
-            self.logger.info(
-                "Using cross-evaluation (peer review). All models will evaluate each other."
-            )
-            result = await self._run_peer_evaluation(
-                initial_question, responses
-            )
 
-            has_valid_scores = False
-            if self.evaluation_scores and isinstance(
-                next(iter(self.evaluation_scores.values()), None), dict
-            ):
-                has_valid_scores = any(self.evaluation_scores.values())
-
-            if not has_valid_scores:
-                self.logger.warning(
-                    "ALL peer evaluators failed to provide valid scores. "
-                    "Falling back to JUDGE MODE with largest model."
-                )
-
-                emergency_judge = self._select_largest_model_as_judge()
-                if emergency_judge:
-                    self.logger.info(
-                        "EMERGENCY JUDGE MODE: Using %s",
-                        self.models[emergency_judge].display_name,
-                    )
-                    result = await self._run_judge_evaluation(
-                        emergency_judge, initial_question, responses
-                    )
-                else:
-                    self.logger.error(
-                        "CRITICAL: No model available for emergency judge fallback"
-                    )
-
-            return result
+        self.logger.info(
+            "Using cross-evaluation (peer review). All models will evaluate each other."
+        )
+        return await self._peer_evaluation_with_emergency_fallback(
+            initial_question, responses
+        )
 
     async def _run_judge_evaluation_with_fallback(
         self,

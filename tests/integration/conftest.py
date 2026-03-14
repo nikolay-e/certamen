@@ -58,7 +58,6 @@ class MockModel(BaseModel):
         self._call_count = 0
 
     async def generate(self, prompt: str) -> ModelResponse:
-        """Generate mock response."""
         self._call_count += 1
 
         if self._delay > 0:
@@ -69,71 +68,52 @@ class MockModel(BaseModel):
                 "Mock failure", provider=self.provider
             )
 
-        # Vary responses based on call count for more realistic testing
-        if "evaluate" in prompt.lower() or "score" in prompt.lower():
-            # If response_text was explicitly set to something different from default,
-            # and it looks like apology/refusal, use it instead of auto-generating scores
-            default_response = "This is a comprehensive mock response with sufficient detail for knowledge bank validation"
-            if self._response_text != default_response and any(
-                keyword in self._response_text.lower()
-                for keyword in [
-                    "sorry",
-                    "cannot",
-                    "can't",
-                    "unable",
-                    "apologize",
-                ]
-            ):
-                # Use the custom response text (likely an apology/refusal)
-                response = self._response_text
-            else:
-                # Extract model names from the prompt to provide adaptive scores
-                # Look for patterns like "LLM1:", "Model A:", etc.
-                model_names = re.findall(
-                    r"(LLM\d+|Model [A-Z]|Response \d+)", prompt
-                )
-                unique_models = list(
-                    dict.fromkeys(model_names)
-                )  # Preserve order, remove duplicates
-
-                if unique_models:
-                    # Generate scores for the actual models in the prompt
-                    scores = []
-                    for i, model in enumerate(unique_models):
-                        # Vary scores to ensure there's a winner and loser
-                        score = (
-                            8 - i
-                        )  # First model gets 8, second gets 7, etc.
-                        scores.append(f"{model}: {score}/10")
-                    response = "\n".join(scores)
-                else:
-                    # Fallback to generic response if no models detected
-                    response = "Model A: 8/10\nModel B: 7/10"
-        elif "improve" in prompt.lower() or "refine" in prompt.lower():
-            response = (
-                f"Improved: {self._response_text} (call {self._call_count})"
-            )
-        elif "feedback" in prompt.lower():
-            response = "Feedback: This answer could be improved by adding more detail."
-        elif "extract" in prompt.lower() or "insight" in prompt.lower():
-            # Provide longer insights to pass the 50-character minimum validation
-            response = (
-                "- The primary consideration here is the long-term sustainability of the approach\n"
-                "- Historical precedent suggests this strategy has proven effective in similar contexts\n"
-                "- Cost-benefit analysis indicates significant potential for optimization"
-            )
-        else:
-            # Only add call tracking suffix if response_text is non-empty
-            if self._response_text:
-                response = f"{self._response_text} (call {self._call_count})"
-            else:
-                response = self._response_text
-
+        response = self._pick_response(prompt)
         return ModelResponse(
             content=response,
             cost=0.001,
             provider=self.provider,
         )
+
+    _DEFAULT_RESPONSE = "This is a comprehensive mock response with sufficient detail for knowledge bank validation"
+    _REFUSAL_KEYWORDS = ["sorry", "cannot", "can't", "unable", "apologize"]
+
+    def _pick_response(self, prompt: str) -> str:
+        prompt_lower = prompt.lower()
+        if "evaluate" in prompt_lower or "score" in prompt_lower:
+            return self._score_response(prompt)
+        if "improve" in prompt_lower or "refine" in prompt_lower:
+            return f"Improved: {self._response_text} (call {self._call_count})"
+        if "feedback" in prompt_lower:
+            return "Feedback: This answer could be improved by adding more detail."
+        if "extract" in prompt_lower or "insight" in prompt_lower:
+            return (
+                "- The primary consideration here is the long-term sustainability of the approach\n"
+                "- Historical precedent suggests this strategy has proven effective in similar contexts\n"
+                "- Cost-benefit analysis indicates significant potential for optimization"
+            )
+        if self._response_text:
+            return f"{self._response_text} (call {self._call_count})"
+        return self._response_text
+
+    def _score_response(self, prompt: str) -> str:
+        is_custom_refusal = (
+            self._response_text != self._DEFAULT_RESPONSE
+            and any(
+                kw in self._response_text.lower()
+                for kw in self._REFUSAL_KEYWORDS
+            )
+        )
+        if is_custom_refusal:
+            return self._response_text
+        model_names = re.findall(r"(LLM\d+|Model [A-Z]|Response \d+)", prompt)
+        unique_models = list(dict.fromkeys(model_names))
+        if unique_models:
+            scores = [
+                f"{model}: {8 - i}/10" for i, model in enumerate(unique_models)
+            ]
+            return "\n".join(scores)
+        return "Model A: 8/10\nModel B: 7/10"
 
     async def generate_with_retry(
         self,

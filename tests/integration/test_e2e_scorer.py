@@ -1,5 +1,7 @@
 """End-to-end tests for score extraction and normalization."""
 
+import pytest
+
 from certamen_core.domain.tournament.scoring import ScoreExtractor
 
 
@@ -19,9 +21,9 @@ class TestScoreExtraction:
         )
 
         assert len(scores) == 3
-        assert scores["Model A"] == 8.0
-        assert scores["Model B"] == 7.0
-        assert scores["Model C"] == 9.0
+        assert scores["Model A"] == pytest.approx(8.0)
+        assert scores["Model B"] == pytest.approx(7.0)
+        assert scores["Model C"] == pytest.approx(9.0)
 
     def test_extract_scores_with_colon_format(self) -> None:
         """Test extracting scores with colon separator."""
@@ -35,8 +37,8 @@ class TestScoreExtraction:
         )
 
         assert len(scores) == 2
-        assert scores["Model A"] == 8.5
-        assert scores["Model B"] == 7.2
+        assert scores["Model A"] == pytest.approx(8.5)
+        assert scores["Model B"] == pytest.approx(7.2)
 
     def test_extract_scores_with_alternative_names(self) -> None:
         """Test extracting scores using LLM1, LLM2 naming."""
@@ -76,8 +78,8 @@ class TestScoreExtraction:
             evaluation_text, ["Model A", "Model B"]
         )
 
-        assert scores["Model A"] == 8.5
-        assert scores["Model B"] == 7.25
+        assert scores["Model A"] == pytest.approx(8.5)
+        assert scores["Model B"] == pytest.approx(7.25)
 
     def test_extract_scores_with_text_around(self) -> None:
         """Test extracting scores when surrounded by explanatory text."""
@@ -95,8 +97,8 @@ class TestScoreExtraction:
             evaluation_text, ["Model A", "Model B"]
         )
 
-        assert scores["Model A"] == 9.0
-        assert scores["Model B"] == 6.0
+        assert scores["Model A"] == pytest.approx(9.0)
+        assert scores["Model B"] == pytest.approx(6.0)
 
     def test_partial_score_extraction(self) -> None:
         """Test extraction when only some scores are found."""
@@ -108,7 +110,7 @@ class TestScoreExtraction:
 
         # Should find Model A but not Model B
         assert "Model A" in scores
-        assert scores["Model A"] == 8.0
+        assert scores["Model A"] == pytest.approx(8.0)
         assert len(scores) == 1
 
     def test_no_scores_found(self) -> None:
@@ -134,8 +136,8 @@ class TestScoreExtractionFromEvaluation:
         )
 
         assert len(scores) == 2
-        assert scores["Model A"] == 8.0
-        assert scores["Model B"] == 7.0
+        assert scores["Model A"] == pytest.approx(8.0)
+        assert scores["Model B"] == pytest.approx(7.0)
 
     def test_reject_apology_response(self) -> None:
         """Test that apology responses are rejected."""
@@ -186,10 +188,10 @@ class TestScoreNormalization:
         """Test that valid scores pass through unchanged."""
         extractor = ScoreExtractor()
 
-        assert extractor.normalize_score(5.0, "Test") == 5.0
-        assert extractor.normalize_score(8.5, "Test") == 8.5
-        assert extractor.normalize_score(1.0, "Test") == 1.0
-        assert extractor.normalize_score(10.0, "Test") == 10.0
+        assert extractor.normalize_score(5.0, "Test") == pytest.approx(5.0)
+        assert extractor.normalize_score(8.5, "Test") == pytest.approx(8.5)
+        assert extractor.normalize_score(1.0, "Test") == pytest.approx(1.0)
+        assert extractor.normalize_score(10.0, "Test") == pytest.approx(10.0)
 
     def test_normalize_percentage_to_scale(self) -> None:
         """Test normalizing percentage (0-1) to 1-10 scale."""
@@ -197,11 +199,11 @@ class TestScoreNormalization:
 
         # 0.8 should normalize to 8.0
         normalized = extractor.normalize_score(0.8, "Test")
-        assert normalized == 8.0
+        assert normalized == pytest.approx(8.0)
 
         # 0.5 should normalize to 5.0
         normalized = extractor.normalize_score(0.5, "Test")
-        assert normalized == 5.0
+        assert normalized == pytest.approx(5.0)
 
     def test_normalize_oversized_score(self) -> None:
         """Test normalizing scores > 10."""
@@ -217,7 +219,7 @@ class TestScoreNormalization:
 
         # Scores between 10 and 10.5 are clamped to 10.0
         normalized = extractor.normalize_score(10.2, "Test")
-        assert normalized == 10.0
+        assert normalized == pytest.approx(10.0)
 
     def test_reject_invalid_scores(self) -> None:
         """Test rejecting completely invalid scores."""
@@ -238,16 +240,16 @@ class TestScoreNormalization:
         extractor = ScoreExtractor()
 
         # Just inside valid range
-        assert (
-            extractor.normalize_score(0.5, "Test") == 5.0
+        assert extractor.normalize_score(0.5, "Test") == pytest.approx(
+            5.0
         )  # Normalized (0.5 * 10)
-        assert (
-            extractor.normalize_score(10.5, "Test") == 10.0
+        assert extractor.normalize_score(10.5, "Test") == pytest.approx(
+            10.0
         )  # Clamped to 10.0
 
         # Exact boundaries
-        assert extractor.normalize_score(1.0, "Test") == 1.0
-        assert extractor.normalize_score(10.0, "Test") == 10.0
+        assert extractor.normalize_score(1.0, "Test") == pytest.approx(1.0)
+        assert extractor.normalize_score(10.0, "Test") == pytest.approx(10.0)
 
 
 class TestNumericScoreExtraction:
@@ -257,30 +259,30 @@ class TestNumericScoreExtraction:
         """Test extracting score from integer."""
         extractor = ScoreExtractor()
         score = extractor._extract_numeric_score(8)
-        assert score == 8.0
+        assert score == pytest.approx(8.0)
 
     def test_extract_from_float(self) -> None:
         """Test extracting score from float."""
         extractor = ScoreExtractor()
         score = extractor._extract_numeric_score(8.5)
-        assert score == 8.5
+        assert score == pytest.approx(8.5)
 
     def test_extract_from_string(self) -> None:
         """Test extracting score from string."""
         extractor = ScoreExtractor()
 
         score = extractor._extract_numeric_score("8/10")
-        assert score == 8.0
+        assert score == pytest.approx(8.0)
 
         score = extractor._extract_numeric_score("7.5")
-        assert score == 7.5
+        assert score == pytest.approx(7.5)
 
     def test_extract_from_list(self) -> None:
         """Test extracting score from list (takes first element)."""
         extractor = ScoreExtractor()
 
         score = extractor._extract_numeric_score([8.5, 9.0])
-        assert score == 8.5
+        assert score == pytest.approx(8.5)
 
         score = extractor._extract_numeric_score([])
         assert score is None
@@ -350,8 +352,8 @@ class TestComplexScoreFormats:
             evaluation_text, ["Model A", "Model B"]
         )
 
-        assert scores["Model A"] == 9.0
-        assert scores["Model B"] == 7.0
+        assert scores["Model A"] == pytest.approx(9.0)
+        assert scores["Model B"] == pytest.approx(7.0)
 
     def test_markdown_table_format(self) -> None:
         """Test extracting from markdown table."""
@@ -366,8 +368,8 @@ class TestComplexScoreFormats:
             evaluation_text, ["Model A", "Model B"]
         )
 
-        assert scores["Model A"] == 8.0
-        assert scores["Model B"] == 6.0
+        assert scores["Model A"] == pytest.approx(8.0)
+        assert scores["Model B"] == pytest.approx(6.0)
 
     def test_numbered_list_format(self) -> None:
         """Test extracting from numbered list."""
@@ -380,8 +382,8 @@ class TestComplexScoreFormats:
             evaluation_text, ["Model A", "Model B"]
         )
 
-        assert scores["Model A"] == 8.0
-        assert scores["Model B"] == 7.0
+        assert scores["Model A"] == pytest.approx(8.0)
+        assert scores["Model B"] == pytest.approx(7.0)
 
     def test_mixed_formats_in_same_text(self) -> None:
         """Test extracting when different models use different formats."""
@@ -394,7 +396,7 @@ class TestComplexScoreFormats:
             evaluation_text, ["Model A", "Model B"]
         )
 
-        assert scores["Model A"] == 8.0
+        assert scores["Model A"] == pytest.approx(8.0)
         # Model B might not be extracted due to format, but Model A should work
         assert "Model A" in scores
 
@@ -431,8 +433,8 @@ class TestEdgeCasesAndErrorHandling:
             evaluation_text, ["GPT-4", "Claude-3.5"]
         )
 
-        assert scores["GPT-4"] == 8.0
-        assert scores["Claude-3.5"] == 9.0
+        assert scores["GPT-4"] == pytest.approx(8.0)
+        assert scores["Claude-3.5"] == pytest.approx(9.0)
 
     def test_case_insensitive_matching(self) -> None:
         """Test case-insensitive model name matching."""

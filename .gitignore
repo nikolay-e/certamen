@@ -55,6 +55,7 @@ TODO*.md
 .venv
 env/
 venv/
+venv_check/
 ENV/
 VENV/
 .python-version

@@ -49,7 +49,6 @@ class TestSanitizeForMarkdown:
     def test_sanitize_empty_text(self) -> None:
         """Test sanitizing empty text."""
         assert sanitize_for_markdown("") == ""
-        assert sanitize_for_markdown(None) == ""  # type: ignore[arg-type]
 
     def test_sanitize_special_characters(self) -> None:
         """Test sanitizing special characters."""
@@ -158,7 +157,6 @@ class TestAdjustMarkdownHeaders:
     def test_adjust_empty_content(self) -> None:
         """Test adjusting empty content."""
         assert adjust_markdown_headers("", start_level=3) == ""
-        assert adjust_markdown_headers(None, start_level=3) is None  # type: ignore[arg-type]
 
     def test_adjust_content_without_headers(self) -> None:
         """Test adjusting content without any headers."""

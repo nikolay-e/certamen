@@ -188,7 +188,7 @@ class TestMockModelCreation:
         assert isinstance(model, MockModel)
         assert model.model_name == "test-full"
         assert model.display_name == "Full Config Model"
-        assert model.temperature == 0.9
+        assert model.temperature == pytest.approx(0.9)
         assert model.max_tokens == 2048
         assert model.context_window == 8192
 
@@ -410,8 +410,8 @@ class TestFactoryConfigVariations:
 
         models = await create_models_from_config(config)
 
-        assert models["conservative"].temperature == 0.1
-        assert models["creative"].temperature == 1.0
+        assert models["conservative"].temperature == pytest.approx(0.1)
+        assert models["creative"].temperature == pytest.approx(1.0)
 
     @pytest.mark.asyncio
     async def test_different_context_windows(self, tmp_output_dir) -> None:

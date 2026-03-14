@@ -65,7 +65,6 @@ def check_node_naming(root: Path) -> list[str]:
 
 
 def is_pure_reexport(filepath: Path) -> bool:
-    """Check if a Python file contains only imports and __all__."""
     try:
         content = filepath.read_text()
         tree = ast.parse(content)
@@ -73,22 +72,27 @@ def is_pure_reexport(filepath: Path) -> bool:
         return False
 
     for node in tree.body:
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            continue
-        if isinstance(node, ast.Assign):
-            if len(node.targets) == 1:
-                target = node.targets[0]
-                if isinstance(target, ast.Name) and target.id == "__all__":
-                    continue
+        if not _is_allowed_reexport_node(node):
             return False
-        if isinstance(node, ast.Expr):
-            if isinstance(node.value, ast.Constant):
-                continue
-        if isinstance(
-            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-        ):
-            return False
+    return True
 
+
+def _is_dunder_all_assignment(node: ast.Assign) -> bool:
+    if len(node.targets) != 1:
+        return False
+    target = node.targets[0]
+    return isinstance(target, ast.Name) and target.id == "__all__"
+
+
+def _is_allowed_reexport_node(node: ast.AST) -> bool:
+    if isinstance(node, (ast.Import, ast.ImportFrom)):
+        return True
+    if isinstance(node, ast.Assign):
+        return _is_dunder_all_assignment(node)
+    if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+        return True
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return False
     return True
 
 
@@ -147,38 +151,41 @@ def check_root_facades(root: Path) -> list[str]:
     return errors
 
 
+_SNAKE_CASE_FILE = re.compile(r"^[a-z][a-z0-9_]*\.py$")
+_SNAKE_CASE_PKG = re.compile(r"^[a-z][a-z0-9_]*$")
+_EXCLUDED_DIRS = {".egg-info", "__pycache__", ".mypy_cache"}
+_DUNDER_FILES = {"__init__.py", "__about__.py"}
+
+
 def check_snake_case(root: Path) -> list[str]:
-    """Check that Python modules under src/ use snake_case."""
     errors = []
     src_dir = root / "src"
     if not src_dir.exists():
         return []
 
-    snake_case_pattern = re.compile(r"^[a-z][a-z0-9_]*\.py$")
-    package_pattern = re.compile(r"^[a-z][a-z0-9_]*$")
-
-    excluded_dirs = {".egg-info", "__pycache__", ".mypy_cache"}
-
     for item in src_dir.rglob("*"):
-        if any(excl in str(item) for excl in excluded_dirs):
+        if any(excl in str(item) for excl in _EXCLUDED_DIRS):
             continue
-
         if item.is_file() and item.suffix == ".py":
-            if item.name == "__init__.py" or item.name == "__about__.py":
-                continue
-            if not snake_case_pattern.match(item.name):
-                errors.append(
-                    f"Non-snake_case module: {item.relative_to(root)}"
-                )
+            _check_snake_case_file(item, root, errors)
         elif item.is_dir():
-            if item.name.startswith("__") or item.name.startswith("."):
-                continue
-            if not package_pattern.match(item.name):
-                errors.append(
-                    f"Non-snake_case package: {item.relative_to(root)}"
-                )
+            _check_snake_case_dir(item, root, errors)
 
     return errors
+
+
+def _check_snake_case_file(item: Path, root: Path, errors: list[str]) -> None:
+    if item.name in _DUNDER_FILES:
+        return
+    if not _SNAKE_CASE_FILE.match(item.name):
+        errors.append(f"Non-snake_case module: {item.relative_to(root)}")
+
+
+def _check_snake_case_dir(item: Path, root: Path, errors: list[str]) -> None:
+    if item.name.startswith("__") or item.name.startswith("."):
+        return
+    if not _SNAKE_CASE_PKG.match(item.name):
+        errors.append(f"Non-snake_case package: {item.relative_to(root)}")
 
 
 def check_symlink_policy(root: Path) -> list[str]:
@@ -194,6 +201,9 @@ def check_symlink_policy(root: Path) -> list[str]:
             "-not",
             "-path",
             "*/venv/*",
+            "-not",
+            "-path",
+            "*/venv_check/*",
             "-not",
             "-path",
             "*/.venv/*",

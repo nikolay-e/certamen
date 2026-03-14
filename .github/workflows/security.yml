@@ -9,15 +9,14 @@ name: Security Scans
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  security-events: write
-
 jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v6
 
@@ -36,6 +35,9 @@ jobs:
     name: Bandit Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v6
 

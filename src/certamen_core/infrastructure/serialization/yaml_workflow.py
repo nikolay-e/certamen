@@ -89,90 +89,115 @@ class WorkflowLoader:
                 f"Supported: {WorkflowLoader.SUPPORTED_VERSIONS}"
             )
 
-        if not isinstance(data["nodes"], list):
+        node_ids = WorkflowLoader._validate_nodes(data["nodes"], source)
+        WorkflowLoader._validate_edges(data.get("edges", []), node_ids, source)
+        WorkflowLoader._validate_outputs(
+            data.get("outputs", []), node_ids, source
+        )
+
+    @staticmethod
+    def _validate_nodes(nodes: Any, source: str | Path) -> set[str]:
+        if not isinstance(nodes, list):
             raise WorkflowValidationError(
-                f"{source}: 'nodes' must be a list, got {type(data['nodes']).__name__}"
+                f"{source}: 'nodes' must be a list, got {type(nodes).__name__}"
             )
 
-        if len(data["nodes"]) == 0:
+        if len(nodes) == 0:
             raise WorkflowValidationError(
                 f"{source}: Workflow must have at least one node"
             )
 
-        node_ids = set()
-        for i, node in enumerate(data["nodes"]):
-            if not isinstance(node, dict):
-                raise WorkflowValidationError(
-                    f"{source}: Node {i} must be a dict, got {type(node).__name__}"
-                )
+        node_ids: set[str] = set()
+        for i, node in enumerate(nodes):
+            WorkflowLoader._validate_single_node(node, i, node_ids, source)
+        return node_ids
 
-            missing_node_fields = _check_missing_fields(
-                node, WorkflowLoader.NODE_REQUIRED_FIELDS
+    @staticmethod
+    def _validate_single_node(
+        node: Any, index: int, node_ids: set[str], source: str | Path
+    ) -> None:
+        if not isinstance(node, dict):
+            raise WorkflowValidationError(
+                f"{source}: Node {index} must be a dict, got {type(node).__name__}"
             )
-            if missing_node_fields:
-                raise WorkflowValidationError(
-                    f"{source}: Node {i} missing required fields: {missing_node_fields}"
-                )
 
-            node_id = node["id"]
-            if not isinstance(node_id, str) or not node_id.strip():
-                raise WorkflowValidationError(
-                    f"{source}: Node {i} has invalid id: {node_id}"
-                )
+        missing_node_fields = _check_missing_fields(
+            node, WorkflowLoader.NODE_REQUIRED_FIELDS
+        )
+        if missing_node_fields:
+            raise WorkflowValidationError(
+                f"{source}: Node {index} missing required fields: {missing_node_fields}"
+            )
 
-            if node_id in node_ids:
-                raise WorkflowValidationError(
-                    f"{source}: Duplicate node id: {node_id}"
-                )
-            node_ids.add(node_id)
+        node_id = node["id"]
+        if not isinstance(node_id, str) or not node_id.strip():
+            raise WorkflowValidationError(
+                f"{source}: Node {index} has invalid id: {node_id}"
+            )
 
-            if not isinstance(node["type"], str) or not node["type"].strip():
-                raise WorkflowValidationError(
-                    f"{source}: Node {node_id} has invalid type: {node.get('type')}"
-                )
+        if node_id in node_ids:
+            raise WorkflowValidationError(
+                f"{source}: Duplicate node id: {node_id}"
+            )
+        node_ids.add(node_id)
 
-            if "properties" in node and not isinstance(
-                node["properties"], dict
-            ):
-                raise WorkflowValidationError(
-                    f"{source}: Node {node_id} properties must be a dict, "
-                    f"got {type(node['properties']).__name__}"
-                )
+        if not isinstance(node["type"], str) or not node["type"].strip():
+            raise WorkflowValidationError(
+                f"{source}: Node {node_id} has invalid type: {node.get('type')}"
+            )
 
-        edges = data.get("edges", [])
+        if "properties" in node and not isinstance(node["properties"], dict):
+            raise WorkflowValidationError(
+                f"{source}: Node {node_id} properties must be a dict, "
+                f"got {type(node['properties']).__name__}"
+            )
+
+    @staticmethod
+    def _validate_edges(
+        edges: Any, node_ids: set[str], source: str | Path
+    ) -> None:
         if not isinstance(edges, list):
             raise WorkflowValidationError(
                 f"{source}: 'edges' must be a list, got {type(edges).__name__}"
             )
 
         for i, edge in enumerate(edges):
-            if not isinstance(edge, dict):
-                raise WorkflowValidationError(
-                    f"{source}: Edge {i} must be a dict, got {type(edge).__name__}"
-                )
+            WorkflowLoader._validate_single_edge(edge, i, node_ids, source)
 
-            missing_edge_fields = _check_missing_fields(
-                edge, WorkflowLoader.EDGE_REQUIRED_FIELDS
+    @staticmethod
+    def _validate_single_edge(
+        edge: Any, index: int, node_ids: set[str], source: str | Path
+    ) -> None:
+        if not isinstance(edge, dict):
+            raise WorkflowValidationError(
+                f"{source}: Edge {index} must be a dict, got {type(edge).__name__}"
             )
-            if missing_edge_fields:
-                raise WorkflowValidationError(
-                    f"{source}: Edge {i} missing required fields: {missing_edge_fields}"
-                )
 
-            source_id = edge["source"]
-            target_id = edge["target"]
+        missing_edge_fields = _check_missing_fields(
+            edge, WorkflowLoader.EDGE_REQUIRED_FIELDS
+        )
+        if missing_edge_fields:
+            raise WorkflowValidationError(
+                f"{source}: Edge {index} missing required fields: {missing_edge_fields}"
+            )
 
-            if source_id not in node_ids:
-                raise WorkflowValidationError(
-                    f"{source}: Edge {i} references unknown source node: {source_id}"
-                )
+        source_id = edge["source"]
+        target_id = edge["target"]
 
-            if target_id not in node_ids:
-                raise WorkflowValidationError(
-                    f"{source}: Edge {i} references unknown target node: {target_id}"
-                )
+        if source_id not in node_ids:
+            raise WorkflowValidationError(
+                f"{source}: Edge {index} references unknown source node: {source_id}"
+            )
 
-        outputs = data.get("outputs", [])
+        if target_id not in node_ids:
+            raise WorkflowValidationError(
+                f"{source}: Edge {index} references unknown target node: {target_id}"
+            )
+
+    @staticmethod
+    def _validate_outputs(
+        outputs: Any, node_ids: set[str], source: str | Path
+    ) -> None:
         if not isinstance(outputs, list):
             raise WorkflowValidationError(
                 f"{source}: 'outputs' must be a list, got {type(outputs).__name__}"

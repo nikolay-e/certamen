@@ -1,4 +1,5 @@
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from certamen_core.domain.disagreement.detector import Disagreement
@@ -51,7 +52,7 @@ class DisagreementInvestigator:
     async def investigate(
         self,
         disagreement: Disagreement,
-        models: dict[str, BaseModel],
+        models: Mapping[str, BaseModel],
         question: str,
     ) -> DisagreementReport:
         model_names = list(disagreement.positions.keys())
@@ -111,33 +112,18 @@ class DisagreementInvestigator:
 
     @staticmethod
     def _find_model(
-        model_name: str, models: dict[str, BaseModel]
+        model_name: str, models: Mapping[str, BaseModel]
     ) -> BaseModel | None:
         name_lower = model_name.lower().strip()
-
-        for key, model in models.items():
-            if key.lower() == name_lower:
-                return model
-            if model.display_name and model.display_name.lower() == name_lower:
-                return model
-
-        for _key, model in models.items():
-            if model.display_name and model.display_name.lower().startswith(
-                name_lower
-            ):
-                return model
-
-        for key, model in models.items():
-            if name_lower in key.lower():
-                return model
-            if model.display_name and name_lower in model.display_name.lower():
-                return model
-
-        return None
+        return (
+            _find_exact_match(name_lower, models)
+            or _find_prefix_match(name_lower, models)
+            or _find_substring_match(name_lower, models)
+        )
 
     @staticmethod
     def _pick_neutral_model(
-        disputant_names: list[str], models: dict[str, BaseModel]
+        disputant_names: list[str], models: Mapping[str, BaseModel]
     ) -> BaseModel | None:
         for key, model in models.items():
             if key not in disputant_names and (
@@ -158,9 +144,42 @@ class DisagreementInvestigator:
         elif re.search(r"\bresolved\b", text):
             status = "resolved"
         conf_match = re.search(
-            r"(?:confidence)[:\s]+([01]?\.\d+)", text, re.IGNORECASE
+            r"confidence[:\s]+([01]?\.\d+)", text, re.IGNORECASE
         )
         if not conf_match:
             conf_match = re.search(r"\b([01]\.\d+)\b", text)
         confidence = float(conf_match.group(1)) if conf_match else 0.5
         return status, min(1.0, max(0.0, confidence))
+
+
+def _find_exact_match(
+    name_lower: str, models: Mapping[str, BaseModel]
+) -> BaseModel | None:
+    for key, model in models.items():
+        if key.lower() == name_lower:
+            return model
+        if model.display_name and model.display_name.lower() == name_lower:
+            return model
+    return None
+
+
+def _find_prefix_match(
+    name_lower: str, models: Mapping[str, BaseModel]
+) -> BaseModel | None:
+    for _, model in models.items():
+        if model.display_name and model.display_name.lower().startswith(
+            name_lower
+        ):
+            return model
+    return None
+
+
+def _find_substring_match(
+    name_lower: str, models: Mapping[str, BaseModel]
+) -> BaseModel | None:
+    for key, model in models.items():
+        if name_lower in key.lower():
+            return model
+        if model.display_name and name_lower in model.display_name.lower():
+            return model
+    return None

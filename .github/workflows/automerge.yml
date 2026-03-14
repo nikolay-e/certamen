@@ -7,14 +7,13 @@ name: Dependabot auto-merge
       - synchronize
       - reopened
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   automerge:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    if: github.triggering_actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Enable auto-merge for Dependabot PRs
         run: gh pr merge --auto --squash "$PR_URL"

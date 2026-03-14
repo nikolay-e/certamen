@@ -3,7 +3,7 @@
 import asyncio
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import colorama
 
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from certamen_core.infrastructure.config.loader import Config
 
 CERTAMEN_NOT_INITIALIZED_MSG = "Certamen not initialized"
+_USER_INTERRUPTED_MSG = "\nInterrupted by user. Exiting..."
 
 
 class App:
@@ -33,7 +34,7 @@ class App:
         self.outputs_dir = self._get_outputs_dir()
         self.certamen: Certamen | None = None
 
-    def _fatal_error(self, message: str) -> None:
+    def _fatal_error(self, message: str) -> NoReturn:
         self.logger.error(message)
         raise FatalError(message)
 
@@ -55,8 +56,6 @@ class App:
             f"Please ensure the file exists and is valid YAML. "
             f"Use --config to specify a different config file."
         )
-
-        return config_obj
 
     async def _try_create_certamen_from_config_obj(
         self, config_obj: "Config", skip_secrets: bool
@@ -201,103 +200,129 @@ class App:
             _result, _metrics = await self.certamen.run_tournament(question)
         except KeyboardInterrupt:
             self.logger.info("Interrupted by user")
-            print("\nInterrupted by user. Exiting...")
+            print(_USER_INTERRUPTED_MSG)
         except Exception as err:
             self._fatal_error(f"Error during tournament: {err!s}")
 
         self.logger.info("Certamen Framework completed successfully")
 
 
-async def run_workflow(args: dict[str, object]) -> None:
-    from certamen_core.application.execution.sync_executor import SyncExecutor
+def _print_node_types() -> None:
     from certamen_core.application.workflow.schema import list_node_types
+
+    node_types = list_node_types()
+    cli_cyan("\nAvailable node types:")
+    for node_type in node_types:
+        print(f"  - {node_type}")
+    print(f"\nTotal: {len(node_types)} node types")
+
+
+def _validate_workflow_file(file_path: str) -> None:
     from certamen_core.infrastructure.serialization import (
         WorkflowLoader,
         WorkflowValidationError,
     )
+
+    try:
+        workflow = WorkflowLoader.load_from_file(file_path)
+        cli_success("Workflow is valid")
+        print(f"\nWorkflow: {workflow['name']}")
+        print(f"Description: {workflow.get('description', 'N/A')}")
+        print(f"Nodes: {len(workflow['nodes'])}")
+        print(f"Edges: {len(workflow.get('edges', []))}")
+    except WorkflowValidationError as e:
+        raise FatalError(f"Validation failed: {e}") from e
+    except FileNotFoundError:
+        raise FatalError(f"File not found: {file_path}") from None
+
+
+def _print_workflow_outputs(
+    outputs: dict[str, Any], output_nodes: list[str]
+) -> None:
+    if output_nodes:
+        for node_id in output_nodes:
+            if node_id in outputs:
+                cli_cyan(f"\n[{node_id}]")
+                for key, value in outputs[node_id].items():
+                    print(f"  {key}: {value}")
+    else:
+        for node_id, node_outputs in outputs.items():
+            cli_cyan(f"\n[{node_id}]")
+            for key, value in node_outputs.items():
+                print(f"  {key}: {value}")
+
+
+async def _execute_workflow_file(
+    file_path: str, verbose: bool, logger: Any
+) -> None:
+    from certamen_core.application.execution.sync_executor import SyncExecutor
+    from certamen_core.infrastructure.serialization import (
+        WorkflowLoader,
+        WorkflowValidationError,
+    )
+
+    try:
+        workflow = WorkflowLoader.load_from_file(file_path)
+        logger.info("Loaded workflow: %s", workflow["name"])
+
+        executor_data = WorkflowLoader.to_executor_format(workflow)
+        executor = SyncExecutor(verbose=verbose)
+
+        logger.info("Validating workflow...")
+        validation = executor.validate(
+            executor_data["nodes"], executor_data["edges"]
+        )
+
+        if not validation["valid"]:
+            errors = "; ".join(validation["errors"])
+            raise FatalError(f"Workflow validation failed: {errors}")
+
+        if validation["warnings"]:
+            cli_warning("Warnings:")
+            for warning in validation["warnings"]:
+                print(f"  {warning}")
+
+        logger.info("Executing workflow...")
+        result = await executor.execute(
+            executor_data["nodes"], executor_data["edges"]
+        )
+
+        if "error" in result:
+            raise FatalError(f"Workflow execution failed: {result['error']}")
+
+        cli_success("\n=== Workflow Results ===")
+        outputs = result.get("outputs", {})
+        output_nodes = executor_data["metadata"].get("outputs", [])
+        _print_workflow_outputs(outputs, output_nodes)
+
+    except WorkflowValidationError as e:
+        raise FatalError(f"Workflow error: {e}") from e
+    except FileNotFoundError:
+        raise FatalError(f"File not found: {file_path}") from None
+
+
+async def run_workflow(args: dict[str, object]) -> None:
     from certamen_core.shared.logging import get_contextual_logger
 
     logger = get_contextual_logger("certamen.workflow")
     workflow_command = args.get("workflow_command")
 
-    if workflow_command == "list-nodes" or workflow_command == "nodes":
-        node_types = list_node_types()
-        cli_cyan("\nAvailable node types:")
-        for node_type in node_types:
-            print(f"  - {node_type}")
-        print(f"\nTotal: {len(node_types)} node types")
+    if workflow_command in ("list-nodes", "nodes"):
+        _print_node_types()
         return
 
     file_path = str(args.get("file", ""))
     if not file_path:
         raise FatalError("No file specified for workflow command")
 
-    if workflow_command == "validate" or workflow_command == "check":
-        try:
-            workflow = WorkflowLoader.load_from_file(file_path)
-            cli_success("Workflow is valid")
-            print(f"\nWorkflow: {workflow['name']}")
-            print(f"Description: {workflow.get('description', 'N/A')}")
-            print(f"Nodes: {len(workflow['nodes'])}")
-            print(f"Edges: {len(workflow.get('edges', []))}")
-        except WorkflowValidationError as e:
-            raise FatalError(f"Validation failed: {e}") from e
-        except FileNotFoundError:
-            raise FatalError(f"File not found: {file_path}") from None
+    if workflow_command in ("validate", "check"):
+        _validate_workflow_file(file_path)
         return
 
     if workflow_command in ("execute", "run", "exec"):
-        try:
-            workflow = WorkflowLoader.load_from_file(file_path)
-            logger.info("Loaded workflow: %s", workflow["name"])
-
-            executor_data = WorkflowLoader.to_executor_format(workflow)
-            executor = SyncExecutor(verbose=bool(args.get("verbose", True)))
-
-            logger.info("Validating workflow...")
-            validation = executor.validate(
-                executor_data["nodes"], executor_data["edges"]
-            )
-
-            if not validation["valid"]:
-                errors = "; ".join(validation["errors"])
-                raise FatalError(f"Workflow validation failed: {errors}")
-
-            if validation["warnings"]:
-                cli_warning("Warnings:")
-                for warning in validation["warnings"]:
-                    print(f"  {warning}")
-
-            logger.info("Executing workflow...")
-            result = await executor.execute(
-                executor_data["nodes"], executor_data["edges"]
-            )
-
-            if "error" in result:
-                raise FatalError(
-                    f"Workflow execution failed: {result['error']}"
-                )
-
-            cli_success("\n=== Workflow Results ===")
-            outputs = result.get("outputs", {})
-            output_nodes = executor_data["metadata"].get("outputs", [])
-
-            if output_nodes:
-                for node_id in output_nodes:
-                    if node_id in outputs:
-                        cli_cyan(f"\n[{node_id}]")
-                        for key, value in outputs[node_id].items():
-                            print(f"  {key}: {value}")
-            else:
-                for node_id, node_outputs in outputs.items():
-                    cli_cyan(f"\n[{node_id}]")
-                    for key, value in node_outputs.items():
-                        print(f"  {key}: {value}")
-
-        except WorkflowValidationError as e:
-            raise FatalError(f"Workflow error: {e}") from e
-        except FileNotFoundError:
-            raise FatalError(f"File not found: {file_path}") from None
+        await _execute_workflow_file(
+            file_path, bool(args.get("verbose", True)), logger
+        )
         return
 
     raise FatalError(f"Unknown workflow command: {workflow_command}")
@@ -336,7 +361,7 @@ def run_from_cli() -> None:
             cli_error(str(e))
             sys.exit(1)
         except KeyboardInterrupt:
-            print("\nInterrupted by user. Exiting...")
+            print(_USER_INTERRUPTED_MSG)
             sys.exit(130)
         return
 
@@ -346,7 +371,7 @@ def run_from_cli() -> None:
     except FatalError:
         sys.exit(1)
     except KeyboardInterrupt:
-        print("\nInterrupted by user. Exiting...")
+        print(_USER_INTERRUPTED_MSG)
         sys.exit(130)
 
 

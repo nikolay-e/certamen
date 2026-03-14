@@ -48,60 +48,79 @@ class BaseExecutor(ABC):
                 f"Node {node.NODE_TYPE} timed out after {self.node_timeout}s"
             ) from err
 
+    def _build_adjacency_map(
+        self,
+        node_ids: set[str],
+        edges: list[dict[str, Any]],
+    ) -> dict[str, list[str]]:
+        adjacency: dict[str, list[str]] = {nid: [] for nid in node_ids}
+        for edge in edges:
+            source = edge["source"]
+            if source in adjacency:
+                adjacency[source].append(edge["target"])
+        return adjacency
+
+    def _has_path_excluding_edge(
+        self,
+        adjacency: dict[str, list[str]],
+        start: str,
+        end: str,
+        excluded_edge: dict[str, str],
+    ) -> bool:
+        from collections import deque
+
+        visited: set[str] = set()
+        queue = deque([start])
+        while queue:
+            current = queue.popleft()
+            if current == end:
+                return True
+            if current in visited:
+                continue
+            visited.add(current)
+            for neighbor in adjacency.get(current, []):
+                if (
+                    excluded_edge["source"] == current
+                    and excluded_edge["target"] == neighbor
+                ):
+                    continue
+                if neighbor not in visited:
+                    queue.append(neighbor)
+        return False
+
+    def _classify_edge(
+        self,
+        edge: dict[str, Any],
+        adjacency: dict[str, list[str]],
+    ) -> bool:
+        source = edge["source"]
+        target = edge["target"]
+        is_feedback = self._has_path_excluding_edge(
+            adjacency, target, source, edge
+        )
+        if is_feedback:
+            logger.info(
+                "Detected feedback edge: %s.%s -> %s.%s",
+                source,
+                edge.get("sourceHandle"),
+                target,
+                edge.get("targetHandle"),
+            )
+        return is_feedback
+
     def _detect_feedback_edges(
         self,
         node_ids: set[str],
         edges: list[dict[str, Any]],
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        from collections import deque
-
-        adjacency: dict[str, list[str]] = {nid: [] for nid in node_ids}
-        for edge in edges:
-            source = edge["source"]
-            target = edge["target"]
-            if source in adjacency:
-                adjacency[source].append(target)
-
-        def has_path(
-            start: str, end: str, excluded_edge: dict[str, str]
-        ) -> bool:
-            visited = set()
-            queue = deque([start])
-            while queue:
-                current = queue.popleft()
-                if current == end:
-                    return True
-                if current in visited:
-                    continue
-                visited.add(current)
-                for neighbor in adjacency.get(current, []):
-                    if (
-                        excluded_edge["source"] == current
-                        and excluded_edge["target"] == neighbor
-                    ):
-                        continue
-                    if neighbor not in visited:
-                        queue.append(neighbor)
-            return False
-
+        adjacency = self._build_adjacency_map(node_ids, edges)
         normal_edges = []
         feedback_edges = []
-
         for edge in edges:
-            source = edge["source"]
-            target = edge["target"]
-            if has_path(target, source, edge):
+            if self._classify_edge(edge, adjacency):
                 feedback_edges.append(edge)
-                logger.info(
-                    "Detected feedback edge: %s.%s -> %s.%s",
-                    source,
-                    edge.get("sourceHandle"),
-                    target,
-                    edge.get("targetHandle"),
-                )
             else:
                 normal_edges.append(edge)
-
         return normal_edges, feedback_edges
 
     def _build_graph(
@@ -215,17 +234,35 @@ class BaseExecutor(ABC):
 
         return result
 
+    def _compute_in_degrees(
+        self,
+        nodes: dict[str, BaseNode],
+        dependencies: dict[str, list[str]],
+    ) -> dict[str, int]:
+        in_degree: dict[str, int] = dict.fromkeys(nodes, 0)
+        for node_id, deps in dependencies.items():
+            if node_id in in_degree:
+                in_degree[node_id] = len(deps)
+        return in_degree
+
+    def _reduce_in_degrees_for_layer(
+        self,
+        layer: list[str],
+        dependencies: dict[str, list[str]],
+        in_degree: dict[str, int],
+        processed: set[str],
+    ) -> None:
+        for node_id in layer:
+            for other_id, deps in dependencies.items():
+                if node_id in deps and other_id not in processed:
+                    in_degree[other_id] -= 1
+
     def _build_execution_layers(
         self,
         nodes: dict[str, BaseNode],
         dependencies: dict[str, list[str]],
     ) -> list[list[str]]:
-        in_degree: dict[str, int] = dict.fromkeys(nodes, 0)
-
-        for node_id, deps in dependencies.items():
-            if node_id in in_degree:
-                in_degree[node_id] = len(deps)
-
+        in_degree = self._compute_in_degrees(nodes, dependencies)
         layers: list[list[str]] = []
         processed: set[str] = set()
 
@@ -243,11 +280,9 @@ class BaseExecutor(ABC):
 
             layers.append(current_layer)
             processed.update(current_layer)
-
-            for node_id in current_layer:
-                for other_id, deps in dependencies.items():
-                    if node_id in deps and other_id not in processed:
-                        in_degree[other_id] -= 1
+            self._reduce_in_degrees_for_layer(
+                current_layer, dependencies, in_degree, processed
+            )
 
         return layers
 
@@ -528,6 +563,209 @@ class BaseExecutor(ABC):
         execution_id: str,
     ) -> dict[str, Any]: ...
 
+    def _log_workflow_inputs(
+        self,
+        execution_id: str,
+        nodes: list[dict[str, Any]],
+        edges: list[dict[str, Any]],
+    ) -> None:
+        for node_data in nodes:
+            logger.debug(
+                "[%s] Workflow node: [%s] type=%s props=%s",
+                execution_id[:8],
+                node_data.get("id", "unknown"),
+                node_data.get("type", "unknown"),
+                _truncate_for_log(node_data.get("properties", {})),
+            )
+        for edge in edges:
+            logger.debug(
+                "[%s] Workflow edge: %s.%s -> %s.%s",
+                execution_id[:8],
+                edge.get("source"),
+                edge.get("sourceHandle"),
+                edge.get("target"),
+                edge.get("targetHandle"),
+            )
+
+    def _log_execution_plan(
+        self,
+        execution_id: str,
+        execution_layers: list[list[str]],
+        feedback_connections: list[tuple[str, str, str, str]],
+    ) -> None:
+        logger.info(
+            "[%s] Execution plan: %d layers, %d feedback edges",
+            execution_id[:8],
+            len(execution_layers),
+            len(feedback_connections),
+        )
+        for i, layer in enumerate(execution_layers):
+            logger.debug("[%s] Layer %d: %s", execution_id[:8], i, layer)
+
+    def _apply_feedback_inputs(
+        self,
+        node_id: str,
+        inputs: dict[str, Any],
+        feedback_connections: list[tuple[str, str, str, str]],
+        node_outputs: dict[str, dict[str, Any]],
+    ) -> None:
+        for src, tgt, src_h, tgt_h in feedback_connections:
+            if tgt == node_id and src in node_outputs:
+                src_outputs = node_outputs[src]
+                if src_h in src_outputs:
+                    inputs[tgt_h] = src_outputs[src_h]
+
+    def _inject_previous_state_inputs(
+        self,
+        node_id: str,
+        inputs: dict[str, Any],
+        node_outputs: dict[str, dict[str, Any]],
+    ) -> None:
+        if node_id not in node_outputs:
+            return
+        for key, value in node_outputs[node_id].items():
+            if key.startswith("_"):
+                inputs[f"_prev_{key.removeprefix('_')}"] = value
+
+    async def _run_layer(
+        self,
+        execution_id: str,
+        layer_index: int,
+        layer: list[str],
+        execution_layers: list[list[str]],
+        node_instances: dict[str, BaseNode],
+        connections: dict[str, list[tuple[str, str, str]]],
+        feedback_connections: list[tuple[str, str, str, str]],
+        node_outputs: dict[str, dict[str, Any]],
+        context: Any,
+    ) -> list[tuple[str, Any]]:
+        logger.info(
+            "[%s] Starting layer %d/%d with %d node(s): %s",
+            execution_id[:8],
+            layer_index,
+            len(execution_layers) - 1,
+            len(layer),
+            layer,
+        )
+        self._report_layer_start(
+            execution_id, layer_index, len(execution_layers), layer
+        )
+
+        tasks: list[tuple[str, Any]] = []
+        for node_id in layer:
+            node = node_instances[node_id]
+            inputs = self._gather_node_inputs(
+                node_id, connections, node_outputs
+            )
+            self._apply_feedback_inputs(
+                node_id, inputs, feedback_connections, node_outputs
+            )
+            self._inject_previous_state_inputs(node_id, inputs, node_outputs)
+            task = self._execute_single_node(
+                node_id, node, inputs, context, execution_id
+            )
+            tasks.append((node_id, task))
+
+        results = await asyncio.gather(
+            *[task for _, task in tasks], return_exceptions=True
+        )
+
+        for (node_id, _), result in zip(tasks, results, strict=True):
+            if isinstance(result, BaseException):
+                raise result
+            node_outputs[node_id] = result
+
+        logger.info(
+            "[%s] Completed layer %d/%d",
+            execution_id[:8],
+            layer_index,
+            len(execution_layers) - 1,
+        )
+        return tasks
+
+    def _check_termination(
+        self,
+        execution_id: str,
+        tasks: list[tuple[str, Any]],
+        node_outputs: dict[str, dict[str, Any]],
+        iteration: int,
+        max_iterations: int,
+    ) -> bool:
+        for node_id, _ in tasks:
+            if (
+                node_id in node_outputs
+                and node_outputs[node_id].get("done") is True
+            ):
+                logger.info(
+                    "[%s] Termination signal from node %s",
+                    execution_id[:8],
+                    node_id,
+                )
+                return True
+
+        if iteration >= max_iterations:
+            logger.warning(
+                "[%s] Max iterations (%d) reached",
+                execution_id[:8],
+                max_iterations,
+            )
+            return True
+
+        return False
+
+    async def _run_execution_loop(
+        self,
+        execution_id: str,
+        node_instances: dict[str, BaseNode],
+        connections: dict[str, list[tuple[str, str, str]]],
+        execution_layers: list[list[str]],
+        feedback_connections: list[tuple[str, str, str, str]],
+        context: Any,
+        node_outputs: dict[str, dict[str, Any]],
+    ) -> int:
+        has_feedback = len(feedback_connections) > 0
+        max_iterations = 20
+        iteration = 0
+
+        while True:
+            iteration += 1
+            context.round_num = iteration
+
+            if has_feedback:
+                logger.info(
+                    "[%s] === ITERATION %d START ===",
+                    execution_id[:8],
+                    iteration,
+                )
+
+            last_tasks: list[tuple[str, Any]] = []
+            for layer_index, layer in enumerate(execution_layers):
+                last_tasks = await self._run_layer(
+                    execution_id,
+                    layer_index,
+                    layer,
+                    execution_layers,
+                    node_instances,
+                    connections,
+                    feedback_connections,
+                    node_outputs,
+                    context,
+                )
+
+            if not has_feedback:
+                break
+
+            if self._check_termination(
+                execution_id,
+                last_tasks,
+                node_outputs,
+                iteration,
+                max_iterations,
+            ):
+                break
+
+        return iteration
+
     async def execute(
         self,
         nodes: list[dict[str, Any]],
@@ -543,30 +781,8 @@ class BaseExecutor(ABC):
             len(nodes),
             len(edges),
         )
-
         self._report_execution_start(execution_id, len(nodes), len(edges))
-
-        for node_data in nodes:
-            node_type = node_data.get("type", "unknown")
-            nid = node_data.get("id", "unknown")
-            props = node_data.get("properties", {})
-            logger.debug(
-                "[%s] Workflow node: [%s] type=%s props=%s",
-                execution_id[:8],
-                nid,
-                node_type,
-                _truncate_for_log(props),
-            )
-
-        for edge in edges:
-            logger.debug(
-                "[%s] Workflow edge: %s.%s -> %s.%s",
-                execution_id[:8],
-                edge.get("source"),
-                edge.get("sourceHandle"),
-                edge.get("target"),
-                edge.get("targetHandle"),
-            )
+        self._log_workflow_inputs(execution_id, nodes, edges)
 
         try:
             (
@@ -577,120 +793,24 @@ class BaseExecutor(ABC):
                 feedback_connections,
             ) = self._build_execution_graph(nodes, edges)
 
-            has_feedback = len(feedback_connections) > 0
-            max_iterations = 20
-
-            logger.info(
-                "[%s] Execution plan: %d layers, %d feedback edges",
-                execution_id[:8],
-                len(execution_layers),
-                len(feedback_connections),
+            self._log_execution_plan(
+                execution_id, execution_layers, feedback_connections
             )
-            for i, layer in enumerate(execution_layers):
-                logger.debug("[%s] Layer %d: %s", execution_id[:8], i, layer)
-
             self._validate_workflow(node_instances)
 
             context, node_outputs = self._initialize_execution_state(
                 execution_id
             )
 
-            iteration = 0
-            while True:
-                iteration += 1
-                context.round_num = iteration
-
-                if has_feedback:
-                    logger.info(
-                        "[%s] === ITERATION %d START ===",
-                        execution_id[:8],
-                        iteration,
-                    )
-
-                tasks: list[tuple[str, Any]] = []
-                for layer_index, layer in enumerate(execution_layers):
-                    logger.info(
-                        "[%s] Starting layer %d/%d with %d node(s): %s",
-                        execution_id[:8],
-                        layer_index,
-                        len(execution_layers) - 1,
-                        len(layer),
-                        layer,
-                    )
-
-                    self._report_layer_start(
-                        execution_id, layer_index, len(execution_layers), layer
-                    )
-
-                    tasks = []
-                    for node_id in layer:
-                        node = node_instances[node_id]
-                        inputs = self._gather_node_inputs(
-                            node_id, connections, node_outputs
-                        )
-                        for src, tgt, src_h, tgt_h in feedback_connections:
-                            if tgt == node_id and src in node_outputs:
-                                src_outputs = node_outputs[src]
-                                if src_h in src_outputs:
-                                    inputs[tgt_h] = src_outputs[src_h]
-                        # Inject node's own previous outputs (for state persistence)
-                        if node_id in node_outputs:
-                            prev_outputs = node_outputs[node_id]
-                            for key, value in prev_outputs.items():
-                                if key.startswith("_"):
-                                    base_key = key.removeprefix("_")
-                                    inputs[f"_prev_{base_key}"] = value
-                        task = self._execute_single_node(
-                            node_id, node, inputs, context, execution_id
-                        )
-                        tasks.append((node_id, task))
-
-                    results = await asyncio.gather(
-                        *[task for _, task in tasks], return_exceptions=True
-                    )
-
-                    for (node_id, _), result in zip(
-                        tasks, results, strict=True
-                    ):
-                        if isinstance(result, BaseException):
-                            raise result
-                        node_outputs[node_id] = result
-
-                    logger.info(
-                        "[%s] Completed layer %d/%d",
-                        execution_id[:8],
-                        layer_index,
-                        len(execution_layers) - 1,
-                    )
-
-                if not has_feedback:
-                    break
-
-                done = False
-                current_iteration_nodes = {node_id for node_id, _ in tasks}
-                for node_id in current_iteration_nodes:
-                    if (
-                        node_id in node_outputs
-                        and node_outputs[node_id].get("done") is True
-                    ):
-                        done = True
-                        logger.info(
-                            "[%s] Termination signal from node %s",
-                            execution_id[:8],
-                            node_id,
-                        )
-                        break
-
-                if done:
-                    break
-
-                if iteration >= max_iterations:
-                    logger.warning(
-                        "[%s] Max iterations (%d) reached",
-                        execution_id[:8],
-                        max_iterations,
-                    )
-                    break
+            iteration = await self._run_execution_loop(
+                execution_id,
+                node_instances,
+                connections,
+                execution_layers,
+                feedback_connections,
+                context,
+                node_outputs,
+            )
 
             context.node_outputs = node_outputs
 
@@ -700,7 +820,6 @@ class BaseExecutor(ABC):
                 iteration,
                 len(node_outputs),
             )
-
             self._report_execution_complete(execution_id, len(node_outputs))
 
             return {

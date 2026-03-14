@@ -6,10 +6,6 @@ name: CI
   pull_request:
     branches: ['**']
 
-permissions:
-  contents: read
-  security-events: write
-
 jobs:
   # ============================================================================
   # LAYER 1: Fast feedback (~1-2 min)
@@ -19,6 +15,8 @@ jobs:
     name: Pre-commit hooks
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -45,6 +43,8 @@ jobs:
     needs: [pre-commit]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -104,6 +104,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -140,6 +142,8 @@ jobs:
     name: Complexity & Maintainability
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -169,6 +173,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 

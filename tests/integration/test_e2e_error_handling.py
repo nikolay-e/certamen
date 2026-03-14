@@ -441,9 +441,8 @@ class TestConcurrency:
         # Should complete faster than sequential execution
         import time
 
-        start = time.time()
+        time.time()
         result, _metrics = await certamen.run_tournament("Test question?")
-        time.time() - start
 
         # If truly concurrent, should be much faster than 3 * 0.05 * N_calls
         # Just verify it completes

@@ -196,25 +196,31 @@ class DisagreementInvestigationNode(BaseNode):
         md_lines: list[str] = ["# Disagreement Investigation Report\n"]
 
         for report in valid_reports:
-            md_lines.append(f"## {report.topic}\n")
-            for model, pos in report.positions.items():
-                md_lines.append(f"**{model}**: {pos}\n")
-            if report.evidence:
-                md_lines.append("### Evidence\n")
-                for model, ev in report.evidence.items():
-                    md_lines.append(f"**{model}**: {ev[:400]}\n")
-                    new_knowledge.append(f"[{model}] {ev[:300]}")
-            if report.neutral_analysis:
-                md_lines.append(
-                    f"### Analysis\n{report.neutral_analysis[:600]}\n"
-                )
-            md_lines.append(
-                f"**Status**: {report.resolution_status} "
-                f"(confidence: {report.confidence:.0%})\n"
-            )
-            md_lines.append("---\n")
+            self._append_report_section(md_lines, new_knowledge, report)
 
         return {
             "investigation_report": "\n".join(md_lines),
             "new_knowledge": new_knowledge,
         }
+
+    @staticmethod
+    def _append_report_section(
+        md_lines: list[str],
+        new_knowledge: list[str],
+        report: Any,
+    ) -> None:
+        md_lines.append(f"## {report.topic}\n")
+        for model, pos in report.positions.items():
+            md_lines.append(f"**{model}**: {pos}\n")
+        if report.evidence:
+            md_lines.append("### Evidence\n")
+            for model, ev in report.evidence.items():
+                md_lines.append(f"**{model}**: {ev[:400]}\n")
+                new_knowledge.append(f"[{model}] {ev[:300]}")
+        if report.neutral_analysis:
+            md_lines.append(f"### Analysis\n{report.neutral_analysis[:600]}\n")
+        md_lines.append(
+            f"**Status**: {report.resolution_status} "
+            f"(confidence: {report.confidence:.0%})\n"
+        )
+        md_lines.append("---\n")
