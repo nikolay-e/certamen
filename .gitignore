@@ -149,6 +149,7 @@ certamen_*_complete_history.json
 
 # Response cache database (including SQLite WAL/SHM files)
 certamen_cache.db
+certamen_knowledge.db
 *.cache.db
 *.db-wal
 *.db-shm
