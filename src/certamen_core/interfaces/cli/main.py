@@ -116,13 +116,15 @@ class App:
         log_dir = self.outputs_dir
         if log_dir is None:
             try:
-                log_dir = self.certamen.config.config_data.get("outputs_dir")
+                raw_dir = self.certamen.config.config_data.get("outputs_dir")
+                if isinstance(raw_dir, (str, Path)):
+                    log_dir = str(raw_dir)
             except (AttributeError, TypeError):
                 pass
         setup_logging(
             debug=bool(self.args.get("debug", False)),
             verbose=bool(self.args.get("verbose", False)),
-            log_dir=str(log_dir) if log_dir else None,
+            log_dir=log_dir,
         )
 
     async def _initialize_certamen(self) -> None:

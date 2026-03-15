@@ -170,9 +170,7 @@ class ColorFormatter(logging.Formatter):
         original_msg = super().format(record)
 
         # Build context parts from record attributes (set by ContextFilter)
-        from certamen_core.shared.logging.structured import (
-            build_context_parts,
-        )
+        from certamen_core.shared.logging.structured import build_context_parts
 
         context_parts = build_context_parts(record)
 
@@ -449,6 +447,7 @@ def _reset_root_logger() -> logging.Logger:
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     for handler in root_logger.handlers[:]:
+        handler.close()
         root_logger.removeHandler(handler)
     return root_logger
 
