@@ -1,6 +1,7 @@
 """Integration test fixtures and utilities."""
 
 import asyncio
+import logging
 import re
 import tempfile
 from collections.abc import AsyncGenerator, Generator
@@ -223,7 +224,13 @@ def make_prompts(
 @pytest.fixture()
 def tmp_output_dir() -> Generator[Path, None, None]:
     with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+        try:
+            yield Path(tmpdir)
+        finally:
+            root_logger = logging.getLogger()
+            for handler in root_logger.handlers[:]:
+                handler.close()
+                root_logger.removeHandler(handler)
 
 
 @pytest.fixture()
