@@ -1,0 +1,28 @@
+[importlinter]
+root_package = certamen
+include_external_packages = False
+
+[importlinter:contract:config-independence]
+name = Config layer should not depend on application logic
+type = forbidden
+source_modules =
+    certamen.config
+forbidden_modules =
+    certamen.models
+    certamen.certamen
+
+[importlinter:contract:utils-independence]
+name = Utils should be reusable and not depend on domain logic
+type = forbidden
+source_modules =
+    certamen.utils
+forbidden_modules =
+    certamen.certamen
+
+[importlinter:contract:models-independence]
+name = Models should not depend on main application
+type = forbidden
+source_modules =
+    certamen.models
+forbidden_modules =
+    certamen.certamen

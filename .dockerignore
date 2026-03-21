@@ -1,0 +1,158 @@
+# Version control
+.git/
+.gitignore
+.gitattributes
+.github/
+.gitleaksignore
+.gitlint
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*id_rsa*
+*id_ed25519*
+credentials.json
+secrets.json
+.secrets.baseline
+.netrc
+.npmrc
+.yarnrc
+.age-key.txt
+
+# Cloud credentials
+.aws/
+.gcloud/
+.azure/
+
+# Private directory
+private/
+
+# Shell history
+.bash_history
+.zsh_history
+.sh_history
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Testing and coverage
+.coverage
+.coverage.*
+*.cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.import_linter_cache/
+test-results/
+coverage.xml
+
+# Mutation testing
+.mutmut-cache
+mutants/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude AI tools
+.claude/
+*.claude
+
+# Documentation
+/site/
+docs/
+*.md
+!README.md
+
+# Logs
+*.log
+logs/
+
+# Outputs and generated files
+outputs/
+my_reports/
+benchmark_results/
+benchmarks/
+*.benchmark.json
+certamen_logs*.log
+certamen_champion_*.md
+certamen_provenance*.md
+certamen_provenance*.json
+certamen_*_provenance.json
+certamen_*_champion_solution.md
+certamen_*_complete_history.json
+
+# Cache databases
+certamen_cache.db
+*.cache.db
+
+# Temporary files
+*.tmp
+*.bak
+.treemapperignore
+
+# Configuration (mount at runtime)
+config.yml
+!config.example.yml
+
+# CI/CD
+.pre-commit-config.yaml
+renovate.json
+
+# Docker (prevent recursive inclusion)
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Tree mapper output
+tree.tmp
+directory_tree.yaml
+
+# Makefile
+Makefile
+
+# Node modules (built in Docker)
+gui/node_modules/
+gui/dist/
