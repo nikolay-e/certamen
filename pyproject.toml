@@ -37,7 +37,7 @@ dependencies = [
     "aiofiles>=24.1,<25.2",
     "scikit-learn~=1.8.0",
     "markdown-it-py~=4.0",
-    "google-auth~=2.41",
+    "google-auth~=2.49",
     "pydantic~=2.12",
     "python-dotenv~=1.2",
 ]
