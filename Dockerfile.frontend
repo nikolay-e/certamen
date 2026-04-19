@@ -10,7 +10,8 @@ WORKDIR /app/frontend
 
 # Copy package files and install dependencies
 COPY frontend/package*.json frontend/.npmrc* ./
-RUN npm ci --prefer-offline --no-audit
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit
 
 # Copy source code and build
 COPY frontend/ ./
@@ -22,24 +23,18 @@ RUN npm run build
 # Stage 2: Serve with Nginx
 FROM nginx:1.27-alpine
 
-ARG VITE_APP_VERSION=0.0.0-placeholder
+RUN chown -R nginx:nginx /var/cache/nginx /var/run && \
+    chmod -R 755 /var/cache/nginx /var/run
 
-# Copy built React app to nginx html directory
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
-
-# Replace version placeholder with actual version in all built files
-RUN find /usr/share/nginx/html -type f \( -name '*.js' -o -name '*.json' -o -name '*.html' \) -exec \
-    sed -i "s/0\.0\.0-placeholder/${VITE_APP_VERSION}/g" {} +
-
-# Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Add healthcheck (using wget - curl not available in alpine)
+RUN chown -R nginx:nginx /usr/share/nginx/html
+
+USER nginx
+EXPOSE 80
+
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget -q --spider http://localhost/health || exit 1
 
-# Expose HTTP port
-EXPOSE 80
-
-# Run nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]
