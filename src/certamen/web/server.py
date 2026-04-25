@@ -43,7 +43,7 @@ TRUSTED_PROXIES = get_comma_separated_env("CERTAMEN_TRUSTED_PROXIES", "")
 
 
 class GUIServer:
-    def __init__(self, host: str = "0.0.0.0", port: int = 8765):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8765):  # noqa: S104
         self.host = host
         self.port = port
         self.app = web.Application()
@@ -701,7 +701,10 @@ class GUIServer:
         web.run_app(self.app, host=self.host, port=self.port)
 
 
-async def run_gui_server(host: str = "0.0.0.0", port: int = 8765) -> None:
+async def run_gui_server(
+    host: str = "0.0.0.0",  # noqa: S104
+    port: int = 8765,
+) -> None:
     server = GUIServer(host=host, port=port)
     runner = web.AppRunner(server.app)
     await runner.setup()

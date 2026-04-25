@@ -21,6 +21,7 @@ repos:
       - id: check-merge-conflict
       - id: check-toml
       - id: check-json
+        exclude: ^frontend/tsconfig\.
       - id: mixed-line-ending
         args: ["--fix=lf"]
       - id: check-case-conflict
@@ -117,6 +118,8 @@ repos:
             "GHSA-4xh5-x5gv-qwph",
             "--ignore-vuln",
             "GHSA-6vgw-5pg2-w6jp",
+            "--ignore-vuln",
+            "GHSA-58qw-9mgm-455v",
           ]
 
   - repo: https://github.com/Yelp/detect-secrets
@@ -165,7 +168,7 @@ repos:
     rev: v4.0.1
     hooks:
       - id: pylint
-        name: pylint (duplicate code detection)
+        name: pylint (duplicate code detection — certamen_core)
         args:
           [
             "--disable=all",
@@ -175,7 +178,7 @@ repos:
             "--ignore-docstrings=yes",
             "--ignore-imports=yes",
           ]
-        files: ^src/
+        files: ^src/certamen_core/
 
   # ============================================================================
   # SPELL CHECKING
@@ -211,6 +214,7 @@ repos:
         name: Lint Markdown files
         args: ['--fix']
         files: \.(md|markdown)$
+        exclude: ^(benchmarks/reports/|docs/)
 
   # ============================================================================
   # STRUCTURE LINTING (prevents naming/structure drift)

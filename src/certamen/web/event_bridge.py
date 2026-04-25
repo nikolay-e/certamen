@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from certamen_core.tournament import EventHandler
+from certamen_core.ports.tournament import EventHandler
 
 
 class WebSocketEventBridge(EventHandler):

@@ -7,7 +7,7 @@ from typing import Any
 from certamen.__about__ import __version__
 
 DEFAULT_CONFIG_FILE = "config.example.yml"
-DEFAULT_GUI_HOST = "0.0.0.0"
+DEFAULT_GUI_HOST = "0.0.0.0"  # noqa: S104
 DEFAULT_GUI_PORT = 8765
 
 

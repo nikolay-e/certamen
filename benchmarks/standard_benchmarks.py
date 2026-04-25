@@ -296,12 +296,12 @@ def load_bbh_questions(num_per_task: int = 5) -> list[dict[str, Any]]:
     questions = []
 
     # Trusted dataset source - hardcoded, not user input
-    BBH_DATASET = "lukaemon/bbh"
+    bbh_dataset = "lukaemon/bbh"
 
     for task in BBH_TASKS:
         try:
             dataset = load_dataset(
-                BBH_DATASET, task
+                bbh_dataset, task
             )  # nosec B615 - trusted source
 
             # Take subset
@@ -335,12 +335,12 @@ def load_gpqa_questions(num_questions: int = 20) -> list[dict[str, Any]]:
     logger.info("Loading GPQA dataset...")
 
     # Trusted dataset source - hardcoded, not user input
-    GPQA_DATASET = "Idavidrein/gpqa"
+    gpqa_dataset = "Idavidrein/gpqa"
 
     try:
         # GPQA Diamond subset (highest quality)
         dataset = load_dataset(
-            GPQA_DATASET, "gpqa_diamond"
+            gpqa_dataset, "gpqa_diamond"
         )  # nosec B615 - trusted source
 
         questions = []

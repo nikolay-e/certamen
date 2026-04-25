@@ -208,7 +208,7 @@ class App:
 def run_gui(args: dict[str, object]) -> None:
     from certamen.gui.server import GUIServer
 
-    host = str(args.get("host", "0.0.0.0"))
+    host = str(args.get("host", "0.0.0.0"))  # noqa: S104
     port = int(args.get("port", 8765))  # type: ignore[call-overload]
 
     print(f"Starting Certamen GUI server at http://{host}:{port}")

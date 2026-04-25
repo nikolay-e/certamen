@@ -80,7 +80,7 @@ Question:
 # --- Runner Functions for Each Condition ---
 
 
-async def run_condition_A(certamen: Certamen, question: str) -> dict[str, Any]:
+async def run_condition_a(certamen: Certamen, question: str) -> dict[str, Any]:
     """
     Runs Condition A: Single model responses (baseline).
 
@@ -121,7 +121,7 @@ async def run_condition_A(certamen: Certamen, question: str) -> dict[str, Any]:
     }
 
 
-async def run_condition_B(
+async def run_condition_b(
     certamen: Certamen, question: str, best_model_key: str
 ) -> dict[str, Any]:
     """
@@ -159,7 +159,7 @@ async def run_condition_B(
     }
 
 
-async def run_condition_C(model_family: str, question: str) -> dict[str, Any]:
+async def run_condition_c(model_family: str, question: str) -> dict[str, Any]:
     """
     Runs Condition C: Homogeneous tournament.
 
@@ -199,7 +199,7 @@ async def run_condition_C(model_family: str, question: str) -> dict[str, Any]:
     }
 
 
-async def run_condition_D(certamen: Certamen, question: str) -> dict[str, Any]:
+async def run_condition_d(certamen: Certamen, question: str) -> dict[str, Any]:
     """
     Runs Condition D: Heterogeneous tournament (standard Certamen).
 
@@ -558,25 +558,25 @@ async def main() -> None:
     # --- Run all conditions ---
 
     # Condition A: Single models
-    results_A = await run_condition_A(certamen_main, args.question)
-    all_results.append(results_A)
+    results_a = await run_condition_a(certamen_main, args.question)
+    all_results.append(results_a)
 
     # Select best baseline model using same judge as tournament
     best_model_key, baseline_scores = await select_best_baseline(
-        results_A, certamen_main, args.question
+        results_a, certamen_main, args.question
     )
 
     # Store baseline evaluation results
-    results_A["baseline_evaluation"] = {
+    results_a["baseline_evaluation"] = {
         "best_model": best_model_key,
         "scores": baseline_scores,
     }
 
     # Condition B: Best model + CoT (using properly evaluated best model)
-    results_B = await run_condition_B(
+    results_b = await run_condition_b(
         certamen_main, args.question, best_model_key
     )
-    all_results.append(results_B)
+    all_results.append(results_b)
 
     # Condition C: Homogeneous tournaments (only for families we have configs for)
     available_families = []
@@ -586,14 +586,14 @@ async def main() -> None:
 
     for family in available_families:
         try:
-            results_C = await run_condition_C(family, args.question)
-            all_results.append(results_C)
+            results_c = await run_condition_c(family, args.question)
+            all_results.append(results_c)
         except Exception as e:
             logger.warning(f"Skipping {family} homogeneous tournament: {e}")
 
     # Condition D: Heterogeneous tournament
-    results_D = await run_condition_D(certamen_main, args.question)
-    all_results.append(results_D)
+    results_d = await run_condition_d(certamen_main, args.question)
+    all_results.append(results_d)
 
     # --- Save raw results ---
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -260,9 +260,7 @@ class LiteLLMModel(BaseModel):
                     if "rate-limit" in k.lower() or "ratelimit" in k.lower()
                 }
                 if rate_limit_headers:
-                    rate_limit_info = " rate_limits={}".format(str(
-                        rate_limit_headers
-                    ))
+                    rate_limit_info = f" rate_limits={rate_limit_headers!s}"
 
         # Structured logging with all metrics
         # nosemgrep: python-logger-credential-disclosure (logging token counts, not secrets)
