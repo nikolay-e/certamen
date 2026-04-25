@@ -28,7 +28,7 @@ class DelimiterConfig:
 
 
 class PromptFormatter:
-    def __init__(self, delimiter_style: DelimiterStyle = "default") -> None:
+    def __init__(self, delimiter_style: DelimiterStyle = "compact") -> None:
         self.style_config: dict[str, Any] = DelimiterConfig.get_style(
             delimiter_style
         )

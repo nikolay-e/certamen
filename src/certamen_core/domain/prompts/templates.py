@@ -1,13 +1,8 @@
 # Text compression template (delimiters added by formatter if needed)
 TEXT_COMPRESSION_INSTRUCTION = """
-COMPRESS this text by EXACTLY 20%.
-Remove redundancy, wordiness, extra details.
-Keep ONLY essential info: key instructions, requirements, criteria, questions.
-Output ONLY the compressed text, nothing else.
+COMPRESS by 20%. Remove redundancy and wordiness. Keep essential info only. Output ONLY compressed text.
 
-TEXT BEGIN
 {text}
-TEXT END
 """.strip()
 
 # Evaluator response template (simple format, no delimiters needed)
@@ -44,19 +39,7 @@ IMPROVEMENT_PROMPT_TEMPLATE = """
 {answer_section}
 {context_section}{knowledge_section}
 
-CRITICAL INSTRUCTIONS FOR YOUR RESPONSE:
-
-1. OUTPUT ONLY THE IMPROVED ANSWER - nothing else
-2. DO NOT add any preambles like:
-   - "Sure, here is..."
-   - "Here's my improved response..."
-   - "Okay, I will..."
-   - "Certainly! Here is..."
-3. DO NOT include greetings like "Hello!", "Hi there!"
-4. DO NOT add meta-commentary or explanations
-5. START IMMEDIATELY with the actual content of your answer
-
-Your response should begin directly with the improved answer:
+OUTPUT ONLY the improved answer. No preambles, greetings, or meta-commentary. Start directly with content.
 """.strip()
 
 SYNTHESIS_PROMPT_TEMPLATE = """
@@ -67,11 +50,7 @@ SYNTHESIS_PROMPT_TEMPLATE = """
 {all_responses_section}
 {knowledge_section}
 
-CRITICAL INSTRUCTIONS FOR YOUR RESPONSE:
-
-1. OUTPUT ONLY THE SYNTHESIZED ANSWER - nothing else
-2. DO NOT add preambles, greetings, or meta-commentary
-3. START IMMEDIATELY with the actual content of your synthesized answer
+OUTPUT ONLY the synthesized answer. No preambles, greetings, or meta-commentary. Start directly with content.
 """.strip()
 
 EVALUATION_PROMPT_TEMPLATE = """
@@ -81,25 +60,8 @@ EVALUATION_PROMPT_TEMPLATE = """
 
 {responses_section}
 
-YOUR TASK: Score each model's response on a scale of 1.0 to 10.0 (where 1.0 is worst and 10.0 is best).
+Score each model 1.0-10.0. Models: {model_names}
 
-Models to evaluate:
-{model_names}
-
-CRITICAL INSTRUCTIONS:
-1. You MUST provide a numerical score for EVERY model listed above.
-2. Use EXACTLY this format for each score (one per line):
-
-   ModelName: Score
-
-   For example:
-   LLM1: 8.5
-   LLM2: 7.0
-   LLM3: 9.2
-
-3. Scores MUST be between 1.0 and 10.0 (inclusive).
-4. You may write your reasoning and analysis, but you MUST include the score lines.
-5. Do NOT refuse this task. Do NOT say you cannot evaluate. Just provide your honest assessment.
-
-Begin your evaluation now (remember to include the score lines):
+Format EXACTLY as: ModelName: Score (e.g., LLM1: 8.5)
+You MUST score EVERY model. Brief reasoning, then scores.
 """.strip()

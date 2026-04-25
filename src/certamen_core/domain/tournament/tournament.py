@@ -209,6 +209,9 @@ class TournamentRunner:
         default_instruction = (
             "Refine your answer." if round_num else "Improve your answer."
         )
+        default_prompt_type = (
+            "convergence" if round_num is not None else "improvement"
+        )
         responses = await self.comp.run_improvement(
             initial_question,
             source_answers,
@@ -221,6 +224,7 @@ class TournamentRunner:
                 if phase_config.get("share_responses", True)
                 else None
             ),
+            prompt_type=phase_config.get("prompt_type", default_prompt_type),
         )
 
         if not responses:
@@ -628,7 +632,7 @@ class TournamentRunner:
         return await self._run_improvement_phase(
             initial_question,
             config_key="improvement_phase",
-            phase_name="PHASE 2: Improvement Phase",
+            phase_name="DIVERGENCE PHASE: Independent Improvement",
             answer_index=0,
         )
 
@@ -764,7 +768,7 @@ class TournamentRunner:
         return await self._run_improvement_phase(
             initial_question,
             config_key="refinement_phase",
-            phase_name="Refinement Phase",
+            phase_name="Convergence Phase",
             answer_index=-1,
             round_num=round_num,
             evaluation_context=evaluation_context,
@@ -1643,6 +1647,7 @@ class ModelComparison:
         improvement_instruction: str,
         improvement_context: dict[str, dict[str, str]] | None = None,
         other_responses: dict[str, str] | None = None,
+        prompt_type: str = "improvement",
     ) -> dict[str, str]:
         self.logger.info(
             "Improvement Phase", extra={"display_type": "section_header"}
@@ -1676,6 +1681,7 @@ class ModelComparison:
                 other_responses=other_responses,
                 model=model,
                 display_name=display_name,
+                prompt_type=prompt_type,
             )
 
         improved_responses = await self._execute_parallel_model_tasks(

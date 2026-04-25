@@ -133,6 +133,7 @@ class PromptBuilder:
         other_responses: dict[str, str] | None,
         model: BaseModel,
         display_name: str,
+        prompt_type: str = "improvement",
     ) -> str:
         context_text = self._build_feedback_context(
             improvement_context, display_name
@@ -144,7 +145,7 @@ class PromptBuilder:
             context_text, other_responses_text
         )
 
-        base_prompt = self._format_prompt("improvement", context={})
+        base_prompt = self._format_prompt(prompt_type, context={})
         question_section = self.formatter.wrap_section(
             "QUESTION", initial_question
         )

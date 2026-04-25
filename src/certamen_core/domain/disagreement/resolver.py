@@ -17,25 +17,16 @@ reasoning, or examples support your claim?
 Also: What evidence would change your mind?"""
 
 _NEUTRAL_ANALYSIS_PROMPT = """\
-Two experts disagree on the following topic related to "{question}":
+Disagreement on "{question}" — Topic: {topic}
 
-Topic: {topic}
+{model_a}: {claim_a}
+{model_b}: {claim_b}
 
-Position A ({model_a}): {claim_a}
-Position B ({model_b}): {claim_b}
+Evidence {model_a}: {evidence_a}
+Evidence {model_b}: {evidence_b}
 
-Evidence from {model_a}:
-{evidence_a}
-
-Evidence from {model_b}:
-{evidence_b}
-
-Analyze this disagreement:
-1. What does the available evidence actually support?
-2. Are these positions actually incompatible, or do they address different aspects?
-3. What additional information would settle this disagreement?
-4. Current resolution status: resolved / partially_resolved / unresolved
-5. Confidence in resolution (0.0-1.0):"""
+Briefly: (1) What evidence supports? (2) Incompatible or different aspects? (3) What would settle it?
+Status: resolved / partially_resolved / unresolved. Confidence (0.0-1.0):"""
 
 
 @dataclass

@@ -58,18 +58,19 @@ FEATURES: dict[str, Any] = {
 PROMPTS: dict[str, dict[str, Any]] = {
     "initial": {
         "content": (
-            "Analyze the problem from multiple perspectives using evidence-based reasoning and common sense. "
-            "Be aware of your inherent biases and actively work to counteract them. "
-            "Don't be constrained by current trends or prevailing narratives - trends change, "
-            "human priorities shift, and emotional reactions should not limit objective analysis. "
-            "Identify the core and outline several distinct, well-reasoned strategies to efficiently SOLVE THE PROBLEM,"
-            "grounded in scientific principles and common sense. Avoid unfalsifiable claims, "
-            "pseudoscience, and speculative nonsense. Think critically and don't hesitate to "
-            "challenge assumptions as the question can be self-restrictive."
-            "When proposing tactics or metrics with incomplete evidence, DO NOT drop them; label them explicitly as heuristics. "
-            "Use an evidence strength tag for every non-obvious claim: [STRONG]/[MODERATE]/[WEAK]/[ANECDOTAL], "
-            "and include a confidence estimate (e.g., 0.2-0.8). "
-            "If a precise number lacks a source, convert it to an operational range or test rather than deleting it."
+            "BE CONCISE AND INFORMATION-DENSE. Target 300-500 words. Every sentence must carry unique information. "
+            "No filler, no repetition, no generic statements. "
+            "OBJECTIVITY MANDATE: Morals, values, and cultural norms are temporal — they shift across eras and civilizations. "
+            "Do NOT let them constrain your analysis. No cognitive blocks, no emotional reasoning, no self-censorship. "
+            "Pursue truth with cold objectivity — uncomfortable conclusions are more valuable than comfortable ones. "
+            "Trends change, human priorities shift — emotional reactions must not limit objective analysis. "
+            "Identify fundamental principles underlying this problem. Consider 2-3 genuinely different approaches. "
+            "Analyze from multiple perspectives using evidence-based reasoning. "
+            "Challenge ALL assumptions — the question itself may be self-restrictive or culturally biased. "
+            "Avoid unfalsifiable claims and pseudoscience. "
+            "Tag non-obvious claims: [STRONG]/[MODERATE]/[WEAK]/[ANECDOTAL] with confidence (0.2-0.8). "
+            "Keep weakly evidenced but useful tactics as labeled heuristics — do NOT drop them. "
+            "Convert unsourced precise numbers to operational ranges."
         ),
         "metadata": {
             "version": "1.0",
@@ -79,16 +80,11 @@ PROMPTS: dict[str, dict[str, Any]] = {
     },
     "feedback": {
         "content": (
-            "Provide feedback that will allow the one to improve. "
-            "Identify the most insightful, evidence-based ideas that stand out. "
-            "Be aware of confirmation bias and other cognitive biases when evaluating. "
-            "Don't favor responses that merely align with popular sentiment - value independent "
-            "thinking that challenges current trends when evidence supports it. "
-            "Distinguish between verifiable insights and mere speculation. "
-            "Note which elements rely on common consensus versus proven methodology."
-            "Explicitly list high-utility details (e.g., concrete metrics, micro-behaviors) that are weakly evidenced but useful; "
-            "recommend preserving them as labeled heuristics rather than removing them. "
-            "Penalize deletion of unique, actionable specifics if they can be retained with uncertainty labels."
+            "BE BRIEF — max 200 words. Provide actionable feedback only. "
+            "Identify the strongest evidence-based ideas. "
+            "Flag cognitive biases. Value independent thinking over popular sentiment. "
+            "List high-utility details that are weakly evidenced but useful — recommend keeping as labeled heuristics. "
+            "Penalize deletion of unique, actionable specifics."
         ),
         "metadata": {
             "version": "1.0",
@@ -98,16 +94,16 @@ PROMPTS: dict[str, dict[str, Any]] = {
     },
     "improvement": {
         "content": (
-            "Improve the answer using feedback, grounding it in scientific evidence and "
-            "practical reasoning. Recognize and mitigate your own biases in the analysis. "
-            "Don't let emotional appeals or fashionable opinions constrain rigorous thinking. "
-            "Make the key verifiable insights the central thesis. "
-            "Rebuild the entire argument around this main point, removing all generic claims, "
-            "unsubstantiated speculation, and secondary details."
-            "Do NOT discard high-utility specifics; instead, reframe them with evidence tags and confidence levels. "
-            "Translate uncited precise numbers into operational ranges or decision rules. "
-            "Append a 'Heuristics Annex' that retains weakly evidenced but useful tactics, clearly labeled. "
-            "Produce a short Change Log explaining what was generalized/relocated and why."
+            "BE CONCISE — target 300-500 words. Improve using feedback, grounded in evidence. "
+            "Do NOT let emotional appeals, fashionable opinions, or moral frameworks constrain rigorous thinking. "
+            "Values and norms are temporal constructs — pursue truth regardless of comfort. "
+            "CRITICAL: Do NOT converge toward other responses. Your independent perspective is most valuable. "
+            "If you contradict others, investigate WHY — do NOT yield to majority. "
+            "Preserve unique insights from YOUR original answer absent from others'. "
+            "Build argument around key verifiable insights. Remove generic claims and speculation. "
+            "Keep high-utility specifics with evidence tags and confidence levels. "
+            "Convert unsourced numbers to operational ranges. "
+            "Append brief Heuristics Annex for weakly evidenced useful tactics."
         ),
         "metadata": {
             "version": "1.0",
@@ -115,18 +111,33 @@ PROMPTS: dict[str, dict[str, Any]] = {
             "phase": "improvement",
         },
     },
+    "convergence": {
+        "content": (
+            "BE CONCISE — target 300-500 words. CONVERGENCE PHASE: You have seen other models' responses and evaluations. "
+            "Now INTEGRATE the strongest ideas from ALL responses into YOUR answer. "
+            "Adopt well-evidenced claims from others, even if they contradict your original position. "
+            "Where models agree, state the consensus clearly. "
+            "Where they disagree, side with the better-evidenced position and explain WHY. "
+            "Drop weak arguments you held before if stronger alternatives exist. "
+            "Do NOT soften conclusions for comfort — truth over palatability. "
+            "The goal is the BEST POSSIBLE unified answer, not preserving your original perspective. "
+            "Keep evidence tags and confidence levels."
+        ),
+        "metadata": {
+            "version": "1.0",
+            "type": "instruction",
+            "phase": "convergence",
+        },
+    },
     "evaluate": {
         "content": (
-            "You are an editor judging analytical depth, scientific rigor and common sense. How insightful "
-            "and evidence-based is this answer? Does it rely on proven methodology and sound "
-            "reasoning, or does it resort to speculation and unfalsifiable claims? "
-            "Be aware that all analysis contains inherent biases - evaluate whether the answer "
-            "acknowledges and addresses its own potential biases. Does it demonstrate intellectual "
-            "independence by challenging prevailing trends when warranted, or does it merely "
-            "echo popular sentiment? Be critical of both originality and factual grounding."
-            "Reward explicit evidence tags, confidence reporting, and retention of useful heuristics in an annex. "
-            "Down-rank answers that delete actionable details without justification or fail to provide a Change Log. "
-            "Check that precise claims without sources were converted to ranges/tests rather than removed."
+            "BE BRIEF — max 150 words per model evaluation. "
+            "Judge analytical depth, scientific rigor, and reasoning quality. "
+            "Reward: novel well-evidenced insights, intellectual independence, willingness to challenge prevailing norms, "
+            "uncomfortable but well-reasoned conclusions. "
+            "Penalize: speculation, deleted actionable details, echo of popular sentiment, moral hedging that avoids truth, "
+            "cognitive self-censorship. "
+            "For each response state ONE strongest contribution and ONE critical weakness, then score."
         ),
         "metadata": {
             "version": "1.0",

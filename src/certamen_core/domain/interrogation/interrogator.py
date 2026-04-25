@@ -4,39 +4,31 @@ import re
 from certamen_core.ports.llm import BaseModel
 
 _QUESTION_GENERATION_PROMPT = """\
-You are examining another AI's response. Your goal is NOT to criticize — \
-it is to extract knowledge they possess but did not share.
+Extract hidden knowledge from this AI's response. Ask {max_questions} specific questions targeting:
+evidence behind weak claims, avoided aspects, contradictions with other response, edge cases.
 
-Question being discussed: {question}
+Question: {question}
 
 Target response:
 {target_response}
 
-Other model's response:
+Other response:
 {other_response}
 
-Ask {max_questions} specific questions that would force them to reveal:
-1. Evidence or reasoning behind their weakest claims
-2. Their position on aspects they avoided mentioning
-3. What they know about points where they contradict the other response
-4. Edge cases or exceptions to their general statements
-
-Do NOT ask vague questions. Each question must target a specific claim or gap.
-Output ONLY the questions, one per line, numbered."""
+Each question must target a specific claim or gap. Output ONLY numbered questions."""
 
 _INTERROGATION_RESPONSE_PROMPT = """\
-Answer each of the following questions about your previous response.
-Be specific and reveal everything you know — this is about extracting maximum knowledge.
+Answer these questions about your previous response. Be specific — reveal all relevant knowledge concisely.
 
-Original question: {question}
+Question: {question}
 
-Your previous response:
+Your response:
 {own_response}
 
-Questions to answer:
+Questions:
 {questions}
 
-Answer each question directly, labeled with its number."""
+Answer each directly by number. Be brief but complete."""
 
 
 class AdversarialInterrogator:

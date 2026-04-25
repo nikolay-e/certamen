@@ -36,36 +36,16 @@ Only list genuinely unique insights, not just different phrasings of the same id
 _NONE_IDENTIFIED = "None identified"
 
 _EXPLORATION_PROMPT = """\
-Given this knowledge map about "{question}", identify 5-8 follow-up questions \
-that would extract the MOST additional knowledge.
+Identify 5-8 follow-up questions to extract maximum additional knowledge about "{question}".
 
-=== CONSENSUS (established facts) ===
-{consensus}
+CONSENSUS: {consensus}
+DISAGREEMENTS: {disagreements}
+UNKNOWNS: {known_unknowns}
+LOW-CONFIDENCE: {low_confidence}
+ASSUMPTIONS: {assumptions}
 
-=== UNRESOLVED DISAGREEMENTS (highest-value targets) ===
-{disagreements}
-
-=== KNOWN UNKNOWNS (gaps models identified) ===
-{known_unknowns}
-
-=== LOW-CONFIDENCE CLAIMS (need verification) ===
-{low_confidence}
-
-=== ASSUMPTIONS (untested premises) ===
-{assumptions}
-
-For each question:
-1. State the question
-2. Explain WHY answering it would yield high-value knowledge
-3. Indicate which category above it targets
-
-Prioritize questions that would:
-- Settle unresolved disagreements with evidence
-- Fill the most critical known unknowns
-- Test the riskiest assumptions
-- Verify low-confidence claims that, if true, would be highly significant
-
-Output numbered questions, one per line."""
+Prioritize: settling disagreements, filling unknowns, testing risky assumptions.
+Output numbered questions with brief WHY for each."""
 
 
 @dataclass

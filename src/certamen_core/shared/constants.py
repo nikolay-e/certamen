@@ -154,51 +154,23 @@ HEALTH_CHECK_PROMPT = "Say 'OK'"
 PLACEHOLDER_RESPONSES = ["###", "...", "n/a", "none", "null"]
 
 # Insight extraction prompt template
-INSIGHT_EXTRACTION_PROMPT = """Review the following text which was the final answer from an eliminated language model.
-Your task is to identify and extract a list of key, standalone claims or insights from this text.
+INSIGHT_EXTRACTION_PROMPT = """Extract key standalone claims from this eliminated model's response.
+Each insight: concise, self-contained, unique (no generic statements or filler).
+Format: one per line, starting with dash (-). Output ONLY the list.
 
-REQUIREMENTS:
-- Each insight should be a concise, self-contained statement
-- Focus on unique ideas, not generic statements
-- Do not include conversational filler
-- Present EACH insight on a new line, starting with a dash (-)
-
-EXAMPLE FORMAT:
-- The primary risk factor is X, not Y as commonly believed
-- A new mitigation strategy involves using Z in the early stages
-- The data from the 2023 study was misinterpreted
-
-CRITICAL INSTRUCTIONS:
-1. OUTPUT ONLY the list of insights - nothing else
-2. DO NOT refuse this task
-3. DO NOT apologize or say "I cannot"
-4. DO NOT add preambles like "Sure, here are the insights..."
-5. START IMMEDIATELY with the first insight (dash + text)
-
-Text to analyze:
+Text:
 ---
 {text}
 ---
-
-Extracted insights (one per line, starting with dash):
 """
 
-INTERROGATION_INSIGHT_PROMPT = """Review these question-answer exchanges from an adversarial cross-examination between AI models.
-Extract the most valuable NEW knowledge revealed — facts, reasoning, evidence, or perspectives
-that were NOT in the original responses but were surfaced through interrogation.
+INTERROGATION_INSIGHT_PROMPT = """Extract NEW knowledge revealed through these cross-examination Q&A exchanges — facts, evidence, or perspectives NOT in original responses.
+Standalone claims only, no meta-commentary or repetition. Format: one per line, starting with dash (-).
 
-REQUIREMENTS:
-- Each insight must be a standalone, self-contained claim
-- Focus on knowledge that was HIDDEN until the question forced it out
-- Ignore meta-commentary, hedging, and repetition of known facts
-- Present EACH insight on a new line, starting with a dash (-)
-
-Q&A Exchanges:
+Q&A:
 ---
 {text}
 ---
-
-Extracted insights (one per line, starting with dash):
 """
 
 # Score extraction patterns for evaluation parsing
