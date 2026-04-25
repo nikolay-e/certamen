@@ -236,16 +236,10 @@ def check_symlink_policy(root: Path) -> list[str]:
             f"Symlink not allowed: {rel_str} (ban policy - use real files)"
         )
 
-    # Verify README.md points to CLAUDE.md
+    # Verify README.md exists (symlink or real file both allowed)
     readme = root / "README.md"
-    claude = root / "CLAUDE.md"
-    if claude.exists() and readme.exists():
-        if not readme.is_symlink():
-            errors.append("README.md should be symlink to CLAUDE.md")
-        elif readme.resolve() != claude.resolve():
-            errors.append(
-                f"README.md points to wrong target: {readme.resolve()}"
-            )
+    if not readme.exists():
+        errors.append("README.md must exist (required for pyproject.toml)")
 
     return errors
 
