@@ -1,0 +1,229 @@
+from typing import Any
+
+from certamen.domain.prompts.formatter import PromptFormatter
+from certamen.domain.prompts.templates import (
+    EVALUATION_PROMPT_TEMPLATE,
+    FEEDBACK_PROMPT_TEMPLATE,
+    IMPROVEMENT_PROMPT_TEMPLATE,
+    INITIAL_PROMPT_TEMPLATE,
+    SYNTHESIS_PROMPT_TEMPLATE,
+)
+from certamen.ports.llm import BaseModel
+
+
+class PromptBuilder:
+    def __init__(
+        self,
+        prompts: dict[str, Any],
+        formatter: PromptFormatter | None = None,
+        reasoning_perspectives: list[str] | None = None,
+    ):
+        self.prompts = prompts
+        self.formatter = formatter or PromptFormatter()
+        self.reasoning_perspectives = reasoning_perspectives or []
+
+    def _format_prompt(self, prompt_type: str, context: dict[str, Any]) -> str:
+        prompt_config = self.prompts.get(prompt_type)
+        if not prompt_config:
+            raise ValueError(
+                f"Prompt type '{prompt_type}' not found in config. Available: {list(self.prompts.keys())}"
+            )
+
+        # Extract content from structured format
+        prompt_content = prompt_config.get("content", "")
+        if isinstance(prompt_content, str):
+            return prompt_content.format(**context)
+        return str(prompt_content)
+
+    def _build_feedback_context(
+        self,
+        improvement_context: dict[str, dict[str, str]] | None,
+        display_name: str,
+    ) -> str:
+        if not improvement_context:
+            return ""
+        feedbacks = improvement_context.get(display_name, {})
+        if not feedbacks:
+            return ""
+        return "\n\n".join(
+            self.formatter.format_feedback_wrapper(reviewer, text)
+            for reviewer, text in feedbacks.items()
+        )
+
+    def _build_other_responses_context(
+        self,
+        other_responses: dict[str, str] | None,
+        display_name: str,
+    ) -> str:
+        if not other_responses:
+            return ""
+        filtered = {
+            k: v for k, v in other_responses.items() if k != display_name
+        }
+        if not filtered:
+            return ""
+
+        responses = []
+        for name, resp in filtered.items():
+            responses.append(
+                self.formatter.format_response_wrapper(name, resp)
+            )
+
+        return "\n\n".join(responses)
+
+    def _build_full_improvement_context(
+        self, context_text: str, other_responses_text: str
+    ) -> str:
+        parts: list[str] = []
+        if context_text:
+            parts.append(self.formatter.wrap_section("FEEDBACK", context_text))
+        if other_responses_text:
+            parts.append(
+                self.formatter.wrap_section(
+                    "OTHER RESPONSES", other_responses_text
+                )
+            )
+        return "\n\n".join(parts)
+
+    def build_initial_prompt(
+        self, initial_question: str, perspective_index: int = -1
+    ) -> str:
+        base_prompt = self._format_prompt("initial", context={})
+
+        if self.reasoning_perspectives and perspective_index >= 0:
+            perspective = self.reasoning_perspectives[
+                perspective_index % len(self.reasoning_perspectives)
+            ]
+            base_prompt = f"{perspective}\n\n{base_prompt}"
+
+        question_section = self.formatter.wrap_section(
+            "QUESTION", initial_question
+        )
+
+        return INITIAL_PROMPT_TEMPLATE.format(
+            base_prompt=base_prompt, question_section=question_section
+        )
+
+    def build_feedback_prompt(
+        self,
+        initial_question: str,
+        target_answer: str,
+        feedback_instruction: str,
+    ) -> str:
+        base_prompt = self._format_prompt("feedback", context={})
+        question_section = self.formatter.wrap_section(
+            "QUESTION", initial_question
+        )
+        answer_section = self.formatter.wrap_section("ANSWER", target_answer)
+
+        return FEEDBACK_PROMPT_TEMPLATE.format(
+            feedback_instruction=feedback_instruction,
+            base_prompt=base_prompt,
+            question_section=question_section,
+            answer_section=answer_section,
+        )
+
+    def build_improvement_prompt(
+        self,
+        initial_question: str,
+        own_answer: str,
+        improvement_instruction: str,
+        kb_context: str,
+        improvement_context: dict[str, dict[str, str]] | None,
+        other_responses: dict[str, str] | None,
+        model: BaseModel,
+        display_name: str,
+        prompt_type: str = "improvement",
+    ) -> str:
+        context_text = self._build_feedback_context(
+            improvement_context, display_name
+        )
+        other_responses_text = self._build_other_responses_context(
+            other_responses, display_name
+        )
+        full_context = self._build_full_improvement_context(
+            context_text, other_responses_text
+        )
+
+        base_prompt = self._format_prompt(prompt_type, context={})
+        question_section = self.formatter.wrap_section(
+            "QUESTION", initial_question
+        )
+        answer_section = self.formatter.wrap_section("ANSWER", own_answer)
+
+        context_section = f"\n\n{full_context}" if full_context else ""
+        knowledge_section = (
+            f"\n\n{self.formatter.wrap_section('KNOWLEDGE BANK', kb_context)}"
+            if kb_context
+            else ""
+        )
+
+        return IMPROVEMENT_PROMPT_TEMPLATE.format(
+            improvement_instruction=improvement_instruction,
+            base_prompt=base_prompt,
+            question_section=question_section,
+            answer_section=answer_section,
+            context_section=context_section,
+            knowledge_section=knowledge_section,
+        )
+
+    def build_evaluation_prompt(
+        self,
+        initial_question: str,
+        formatted_responses: str,
+        model_names: list[str] | None = None,
+    ) -> str:
+        base_prompt = self._format_prompt("evaluate", context={})
+        question_section = self.formatter.wrap_section(
+            "QUESTION", initial_question
+        )
+        responses_section = self.formatter.wrap_section(
+            "RESPONSES", formatted_responses
+        )
+
+        # Generate a list of models that need to be scored (for clarity)
+        models_list = (
+            "\n".join([f"- {name}" for name in sorted(model_names)])
+            if model_names
+            else "- LLM1\n- LLM2\n- LLM3"
+        )
+
+        return EVALUATION_PROMPT_TEMPLATE.format(
+            base_prompt=base_prompt,
+            question_section=question_section,
+            responses_section=responses_section,
+            model_names=models_list,
+        )
+
+    def build_synthesis_prompt(
+        self,
+        initial_question: str,
+        all_responses: dict[str, str],
+        kb_context: str,
+    ) -> str:
+        synthesis_instruction = self._format_prompt("synthesis", context={})
+        question_section = self.formatter.wrap_section(
+            "QUESTION", initial_question
+        )
+
+        formatted_responses = []
+        for name, resp in all_responses.items():
+            formatted_responses.append(
+                self.formatter.format_response_wrapper(name, resp)
+            )
+        all_responses_section = self.formatter.wrap_section(
+            "ALL EXPERT RESPONSES", "\n\n".join(formatted_responses)
+        )
+
+        knowledge_section = (
+            f"\n\n{self.formatter.wrap_section('PRESERVED KNOWLEDGE', kb_context)}"
+            if kb_context
+            else ""
+        )
+
+        return SYNTHESIS_PROMPT_TEMPLATE.format(
+            synthesis_instruction=synthesis_instruction,
+            question_section=question_section,
+            all_responses_section=all_responses_section,
+            knowledge_section=knowledge_section,
+        )

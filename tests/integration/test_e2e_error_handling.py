@@ -2,8 +2,8 @@
 
 import pytest
 
-from certamen_core import Certamen
-from certamen_core.application.bootstrap import health_check_models
+from certamen import Certamen
+from certamen.application.bootstrap import health_check_models
 from tests.integration.conftest import MockModel
 
 

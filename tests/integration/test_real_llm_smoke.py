@@ -2,7 +2,7 @@
 
 import pytest
 
-from certamen_core.infrastructure.llm.litellm_adapter import (
+from certamen.infrastructure.llm.litellm_adapter import (
     LiteLLMModel,
     LiteLLMModelOptions,
 )
@@ -39,7 +39,7 @@ async def test_ollama_basic_generation():
 @pytest.mark.asyncio
 async def test_ollama_with_cache():
     """Test that response caching works with real LLM."""
-    from certamen_core.infrastructure.cache.sqlite_cache import ResponseCache
+    from certamen.infrastructure.cache.sqlite_cache import ResponseCache
 
     cache = ResponseCache(enabled=True)
 

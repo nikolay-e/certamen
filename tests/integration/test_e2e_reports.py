@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from certamen_core.domain.tournament.report import ReportGenerator
+from certamen.domain.tournament.report import ReportGenerator
 
 
 class MockHost:

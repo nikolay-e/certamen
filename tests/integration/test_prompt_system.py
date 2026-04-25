@@ -10,9 +10,9 @@ Tests the refactored prompt management:
 
 import pytest
 
-from certamen_core import Certamen
-from certamen_core.domain.prompts import PromptBuilder, PromptFormatter
-from certamen_core.infrastructure.config.defaults import (
+from certamen import Certamen
+from certamen.domain.prompts import PromptBuilder, PromptFormatter
+from certamen.infrastructure.config.defaults import (
     PROMPTS,
     select_model_with_highest_context,
 )
@@ -361,7 +361,7 @@ class TestDelimiterConsistency:
 
     def test_no_hardcoded_delimiters_in_template_content(self) -> None:
         """Template content should not have hardcoded ========== delimiters."""
-        from certamen_core.domain.prompts.templates import (
+        from certamen.domain.prompts.templates import (
             EVALUATION_PROMPT_TEMPLATE,
             FEEDBACK_PROMPT_TEMPLATE,
             IMPROVEMENT_PROMPT_TEMPLATE,

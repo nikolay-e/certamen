@@ -168,7 +168,7 @@ repos:
     rev: v4.0.1
     hooks:
       - id: pylint
-        name: pylint (duplicate code detection — certamen_core)
+        name: pylint (duplicate code detection — certamen)
         args:
           [
             "--disable=all",
@@ -178,7 +178,7 @@ repos:
             "--ignore-docstrings=yes",
             "--ignore-imports=yes",
           ]
-        files: ^src/certamen_core/
+        files: ^src/certamen/
 
   # ============================================================================
   # SPELL CHECKING

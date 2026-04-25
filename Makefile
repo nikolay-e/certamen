@@ -24,7 +24,7 @@ lint:  ## Run all linters
 
 test:  ## Run tests with coverage
 	@echo "Running tests..."
-	python -m pytest tests/ -v --cov=src/certamen_core --cov-report=term-missing --cov-branch
+	python -m pytest tests/ -v --cov=src/certamen --cov-report=term-missing --cov-branch
 
 test-quick:  ## Run tests without coverage
 	python -m pytest tests/ -v
@@ -32,8 +32,8 @@ test-quick:  ## Run tests without coverage
 test-coverage-enforce:  ## Run tests with strict coverage requirements for core modules
 	@echo "Running tests with strict coverage enforcement..."
 	python -m pytest tests/ -v \
-		--cov=src/certamen_core/domain/tournament/tournament.py \
-		--cov=src/certamen_core/ports/llm.py \
+		--cov=src/certamen/domain/tournament/tournament.py \
+		--cov=src/certamen/ports/llm.py \
 		--cov-report=term-missing \
 		--cov-branch \
 		--cov-fail-under=60

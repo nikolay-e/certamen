@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from certamen_core.domain.reporting.provenance import ProvenanceReport
+from certamen.domain.reporting.provenance import ProvenanceReport
 
 
 @pytest.mark.asyncio

@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import yaml
 
-from certamen_core.domain.errors import FatalError
-from certamen_core.interfaces.cli.main import App
+from certamen.domain.errors import FatalError
+from certamen.interfaces.cli.main import App
 from tests.integration.conftest import MockModel
 
 
@@ -456,7 +456,7 @@ class TestQuestionHandling:
         await app._initialize_certamen()
 
         with patch(
-            "certamen_core.interfaces.cli.main.async_input",
+            "certamen.interfaces.cli.main.async_input",
             new_callable=AsyncMock,
             return_value="Interactive question?",
         ):
@@ -486,7 +486,7 @@ class TestQuestionHandling:
         await app._initialize_certamen()
 
         with patch(
-            "certamen_core.interfaces.cli.main.async_input",
+            "certamen.interfaces.cli.main.async_input",
             new_callable=AsyncMock,
             return_value="Fallback question?",
         ):
@@ -548,11 +548,9 @@ class TestAppRunMethod:
             side_effect=KeyboardInterrupt()
         )
 
-        with patch(
-            "certamen_core.interfaces.cli.main.App._initialize_certamen"
-        ):
+        with patch("certamen.interfaces.cli.main.App._initialize_certamen"):
             with patch(
-                "certamen_core.interfaces.cli.main.App._get_app_question",
+                "certamen.interfaces.cli.main.App._get_app_question",
                 new_callable=AsyncMock,
                 return_value="Test",
             ):
@@ -583,11 +581,9 @@ class TestAppRunMethod:
             side_effect=Exception("Tournament error")
         )
 
-        with patch(
-            "certamen_core.interfaces.cli.main.App._initialize_certamen"
-        ):
+        with patch("certamen.interfaces.cli.main.App._initialize_certamen"):
             with patch(
-                "certamen_core.interfaces.cli.main.App._get_app_question",
+                "certamen.interfaces.cli.main.App._get_app_question",
                 new_callable=AsyncMock,
                 return_value="Test",
             ):
@@ -604,7 +600,7 @@ class TestRunFromCliFunction:
         self, basic_config: dict, tmp_output_dir: Path
     ) -> None:
         """Test run_from_cli() successfully runs tournament."""
-        from certamen_core.interfaces.cli.main import run_from_cli
+        from certamen.interfaces.cli.main import run_from_cli
 
         config_file = tmp_output_dir / "config.yml"
         basic_config["question"] = "Test question?"
@@ -623,19 +619,17 @@ class TestRunFromCliFunction:
         }
 
         with patch(
-            "certamen_core.interfaces.cli.main.parse_arguments",
+            "certamen.interfaces.cli.main.parse_arguments",
             return_value=args,
         ):
-            with patch("certamen_core.shared.logging.setup.setup_logging"):
-                with patch("certamen_core.interfaces.cli.main.colorama.init"):
-                    with patch(
-                        "certamen_core.interfaces.cli.main.asyncio.run"
-                    ):
+            with patch("certamen.shared.logging.setup.setup_logging"):
+                with patch("certamen.interfaces.cli.main.colorama.init"):
+                    with patch("certamen.interfaces.cli.main.asyncio.run"):
                         run_from_cli()
 
     def test_run_from_cli_fatal_error_handling(self) -> None:
         """Test run_from_cli() handles FatalError gracefully."""
-        from certamen_core.interfaces.cli.main import run_from_cli
+        from certamen.interfaces.cli.main import run_from_cli
 
         args = {
             "config": "config.yml",
@@ -645,13 +639,13 @@ class TestRunFromCliFunction:
         }
 
         with patch(
-            "certamen_core.interfaces.cli.main.parse_arguments",
+            "certamen.interfaces.cli.main.parse_arguments",
             return_value=args,
         ):
-            with patch("certamen_core.shared.logging.setup.setup_logging"):
-                with patch("certamen_core.interfaces.cli.main.colorama.init"):
+            with patch("certamen.shared.logging.setup.setup_logging"):
+                with patch("certamen.interfaces.cli.main.colorama.init"):
                     with patch(
-                        "certamen_core.interfaces.cli.main.asyncio.run",
+                        "certamen.interfaces.cli.main.asyncio.run",
                         side_effect=FatalError("Fatal error"),
                     ):
                         with patch("sys.exit") as mock_exit:
@@ -660,7 +654,7 @@ class TestRunFromCliFunction:
 
     def test_run_from_cli_keyboard_interrupt_handling(self) -> None:
         """Test run_from_cli() handles KeyboardInterrupt with exit code 130."""
-        from certamen_core.interfaces.cli.main import run_from_cli
+        from certamen.interfaces.cli.main import run_from_cli
 
         args = {
             "config": "config.yml",
@@ -670,13 +664,13 @@ class TestRunFromCliFunction:
         }
 
         with patch(
-            "certamen_core.interfaces.cli.main.parse_arguments",
+            "certamen.interfaces.cli.main.parse_arguments",
             return_value=args,
         ):
-            with patch("certamen_core.shared.logging.setup.setup_logging"):
-                with patch("certamen_core.interfaces.cli.main.colorama.init"):
+            with patch("certamen.shared.logging.setup.setup_logging"):
+                with patch("certamen.interfaces.cli.main.colorama.init"):
                     with patch(
-                        "certamen_core.interfaces.cli.main.asyncio.run",
+                        "certamen.interfaces.cli.main.asyncio.run",
                         side_effect=KeyboardInterrupt(),
                     ):
                         with patch("sys.exit") as mock_exit:

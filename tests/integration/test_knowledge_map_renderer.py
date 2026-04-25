@@ -1,8 +1,8 @@
-from certamen_core.domain.knowledge_map.builder import (
+from certamen.domain.knowledge_map.builder import (
     ConsensusItem,
     KnowledgeMap,
 )
-from certamen_core.domain.knowledge_map.renderer import KnowledgeMapRenderer
+from certamen.domain.knowledge_map.renderer import KnowledgeMapRenderer
 
 
 def _make_km() -> KnowledgeMap:

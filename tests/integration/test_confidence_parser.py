@@ -1,4 +1,4 @@
-from certamen_core.domain.confidence.parser import ConfidenceParser
+from certamen.domain.confidence.parser import ConfidenceParser
 
 
 def test_parse_confidence_tags():

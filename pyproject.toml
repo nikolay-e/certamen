@@ -72,16 +72,16 @@ dev = [
 "Changelog" = "https://github.com/nikolay-e/certamen-core/blob/main/CHANGELOG.md"
 
 [project.scripts]
-certamen = "certamen_core.interfaces.cli.main:run_from_cli"
+certamen = "certamen.interfaces.cli.main:run_from_cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "certamen_core.__about__.__version__"}
+version = {attr = "certamen.__about__.__version__"}
 
 [tool.setuptools.package-data]
-certamen_core = ["*.yml", "*.yaml", "py.typed"]
+certamen = ["*.yml", "*.yaml", "py.typed"]
 
 [tool.black]
 line-length = 79
@@ -138,7 +138,7 @@ markers = [
 [tool.coverage.run]
 # Evidence: Branch coverage better predicts defect exposure than line coverage
 branch = true
-source = ["src/certamen_core"]
+source = ["src/certamen"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
@@ -207,7 +207,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["certamen_core"]
+known-first-party = ["certamen"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S108"]  # Allow assert and /tmp usage in tests
@@ -240,7 +240,7 @@ ignore_missing_imports = true
 disable_error_code = ["attr-defined"]
 
 [[tool.mypy.overrides]]
-module = "certamen_core.infrastructure.config.models"
+module = "certamen.infrastructure.config.models"
 disable_error_code = ["misc"]
 
 # Mutation testing configuration
@@ -248,57 +248,57 @@ disable_error_code = ["misc"]
 # Note: mutmut 3.x creates mutants/ dir, needs editable install
 [tool.mutmut]
 paths_to_mutate = [
-    "src/certamen_core/domain/",
+    "src/certamen/domain/",
 ]
 backup = false
 
 # Import Linter - Enforce clean architecture layer boundaries
 # Dependency direction: interfaces -> application -> infrastructure -> domain -> ports -> shared
 [tool.importlinter]
-root_package = "certamen_core"
+root_package = "certamen"
 include_external_packages = false
 
 [[tool.importlinter.contracts]]
 name = "Domain layer independence"
 type = "forbidden"
-source_modules = ["certamen_core.domain"]
+source_modules = ["certamen.domain"]
 forbidden_modules = [
-    "certamen_core.infrastructure",
-    "certamen_core.interfaces",
-    "certamen_core.application",
+    "certamen.infrastructure",
+    "certamen.interfaces",
+    "certamen.application",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Ports layer independence"
 type = "forbidden"
-source_modules = ["certamen_core.ports"]
+source_modules = ["certamen.ports"]
 forbidden_modules = [
-    "certamen_core.infrastructure",
-    "certamen_core.interfaces",
-    "certamen_core.application",
-    "certamen_core.domain",
+    "certamen.infrastructure",
+    "certamen.interfaces",
+    "certamen.application",
+    "certamen.domain",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Shared layer independence"
 type = "forbidden"
-source_modules = ["certamen_core.shared"]
+source_modules = ["certamen.shared"]
 forbidden_modules = [
-    "certamen_core.infrastructure",
-    "certamen_core.interfaces",
-    "certamen_core.application",
-    "certamen_core.domain",
-    "certamen_core.ports",
+    "certamen.infrastructure",
+    "certamen.interfaces",
+    "certamen.application",
+    "certamen.domain",
+    "certamen.ports",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Clean Architecture layer boundaries"
 type = "layers"
 layers = [
-    "certamen_core.interfaces",
-    "certamen_core.application",
-    "certamen_core.infrastructure",
-    "certamen_core.domain",
-    "certamen_core.ports",
-    "certamen_core.shared",
+    "certamen.interfaces",
+    "certamen.application",
+    "certamen.infrastructure",
+    "certamen.domain",
+    "certamen.ports",
+    "certamen.shared",
 ]

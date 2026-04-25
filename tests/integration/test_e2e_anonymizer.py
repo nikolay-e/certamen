@@ -2,8 +2,8 @@
 
 import pytest
 
-from certamen_core import Certamen
-from certamen_core.domain.tournament.anonymizer import ModelAnonymizer
+from certamen import Certamen
+from certamen.domain.tournament.anonymizer import ModelAnonymizer
 from tests.integration.conftest import MockModel
 
 

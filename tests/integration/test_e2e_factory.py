@@ -2,7 +2,7 @@
 
 import pytest
 
-from certamen_core.application.bootstrap import (
+from certamen.application.bootstrap import (
     create_models as create_models_from_config,
 )
 from tests.integration.conftest import MockModel
@@ -333,7 +333,7 @@ class TestFactoryIntegration:
         self,
         basic_config: dict,
     ) -> None:
-        from certamen_core import Certamen
+        from certamen import Certamen
 
         certamen = await Certamen.from_settings(
             settings=basic_config,
@@ -348,7 +348,7 @@ class TestFactoryIntegration:
         self,
         tmp_output_dir,
     ) -> None:
-        from certamen_core import Certamen
+        from certamen import Certamen
 
         config = {
             "models": {

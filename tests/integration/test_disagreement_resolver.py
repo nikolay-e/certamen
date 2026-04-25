@@ -1,6 +1,6 @@
 import pytest
 
-from certamen_core.domain.disagreement.resolver import DisagreementInvestigator
+from certamen.domain.disagreement.resolver import DisagreementInvestigator
 from tests.integration.conftest import MockModel
 
 

@@ -81,4 +81,4 @@ EXPOSE 8765
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8765/health || exit 1
 
-CMD ["python", "-m", "certamen_core.interfaces.cli.main", "gui", "--host", "0.0.0.0", "--port", "8765"]
+CMD ["python", "-m", "certamen.interfaces.cli.main", "gui", "--host", "0.0.0.0", "--port", "8765"]

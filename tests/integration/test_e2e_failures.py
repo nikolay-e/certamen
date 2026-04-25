@@ -2,7 +2,7 @@
 
 import pytest
 
-from certamen_core import Certamen
+from certamen import Certamen
 from tests.integration.conftest import MockModel
 
 
@@ -62,7 +62,7 @@ class TestTournamentFailureScenarios:
                 self._call_count += 1
                 # First call (initial) succeeds, subsequent (improvement) fail
                 if self._call_count > 2:  # After initial responses
-                    from certamen_core.ports.llm import ModelResponse
+                    from certamen.ports.llm import ModelResponse
 
                     return ModelResponse.create_error("Improvement failed")
                 return await super().generate(prompt)
@@ -102,7 +102,7 @@ class TestTournamentFailureScenarios:
             async def generate(self, prompt: str):
                 # Fail if it's an evaluation prompt
                 if "evaluate" in prompt.lower() or "score" in prompt.lower():
-                    from certamen_core.ports.llm import ModelResponse
+                    from certamen.ports.llm import ModelResponse
 
                     return ModelResponse.create_error("Evaluation failed")
                 return await super().generate(prompt)
@@ -151,7 +151,7 @@ class TestTournamentFailureScenarios:
                 if (
                     self._call_count > 6
                 ):  # After initial + improvement + some evaluations
-                    from certamen_core.ports.llm import ModelResponse
+                    from certamen.ports.llm import ModelResponse
 
                     return ModelResponse.create_error("Refinement failed")
                 return await super().generate(prompt)
@@ -321,7 +321,7 @@ class TestFeedbackPhaseFailures:
         # Model that returns error response for feedback
         class ErrorFeedbackModel(MockModel):
             async def generate(self, prompt: str):
-                from certamen_core.ports.llm import ModelResponse
+                from certamen.ports.llm import ModelResponse
 
                 if "feedback" in prompt.lower():
                     return ModelResponse.create_error(
@@ -360,7 +360,7 @@ class TestFeedbackPhaseFailures:
         # All models fail at feedback
         class NoFeedbackModel(MockModel):
             async def generate(self, prompt: str):
-                from certamen_core.ports.llm import ModelResponse
+                from certamen.ports.llm import ModelResponse
 
                 if "feedback" in prompt.lower():
                     return ModelResponse.create_error("No feedback")

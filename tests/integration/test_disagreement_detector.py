@@ -1,4 +1,4 @@
-from certamen_core.domain.disagreement.detector import DisagreementDetector
+from certamen.domain.disagreement.detector import DisagreementDetector
 
 _SAMPLE_TEXT = """\
 DISAGREEMENT: Whether microservices reduce deployment time

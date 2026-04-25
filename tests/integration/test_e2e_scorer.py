@@ -2,7 +2,7 @@
 
 import pytest
 
-from certamen_core.domain.tournament.scoring import ScoreExtractor
+from certamen.domain.tournament.scoring import ScoreExtractor
 
 
 class TestScoreExtraction:

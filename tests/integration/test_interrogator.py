@@ -1,4 +1,4 @@
-from certamen_core.domain.interrogation.interrogator import (
+from certamen.domain.interrogation.interrogator import (
     AdversarialInterrogator,
 )
 

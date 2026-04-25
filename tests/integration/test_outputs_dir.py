@@ -13,15 +13,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import yaml
 
-from certamen_core.interfaces.cli.main import App
+from certamen.interfaces.cli.main import App
 
 
 class TestOutputsDirBehavior:
     """Test outputs_dir priority and override behavior."""
 
     @pytest.mark.asyncio
-    @patch("certamen_core.interfaces.cli.main.parse_arguments")
-    @patch("certamen_core.interfaces.cli.main.Certamen")
+    @patch("certamen.interfaces.cli.main.parse_arguments")
+    @patch("certamen.interfaces.cli.main.Certamen")
     async def test_config_outputs_dir_not_overridden_when_cli_not_specified(
         self, mock_certamen_class: MagicMock, mock_parse: MagicMock
     ) -> None:
@@ -84,8 +84,8 @@ class TestOutputsDirBehavior:
             Path(config_path).unlink(missing_ok=True)
 
     @pytest.mark.asyncio
-    @patch("certamen_core.interfaces.cli.main.parse_arguments")
-    @patch("certamen_core.interfaces.cli.main.Certamen")
+    @patch("certamen.interfaces.cli.main.parse_arguments")
+    @patch("certamen.interfaces.cli.main.Certamen")
     async def test_cli_outputs_dir_overrides_config(
         self, mock_certamen_class: MagicMock, mock_parse: MagicMock
     ) -> None:
@@ -142,8 +142,8 @@ class TestOutputsDirBehavior:
             Path(config_path).unlink(missing_ok=True)
 
     @pytest.mark.asyncio
-    @patch("certamen_core.interfaces.cli.main.parse_arguments")
-    @patch("certamen_core.interfaces.cli.main.Certamen")
+    @patch("certamen.interfaces.cli.main.parse_arguments")
+    @patch("certamen.interfaces.cli.main.Certamen")
     async def test_none_outputs_dir_uses_current_directory(
         self, mock_certamen_class: MagicMock, mock_parse: MagicMock
     ) -> None:

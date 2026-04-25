@@ -2,8 +2,8 @@
 
 import pytest
 
-from certamen_core import Certamen
-from certamen_core.ports.llm import ModelResponse
+from certamen import Certamen
+from certamen.ports.llm import ModelResponse
 from tests.integration.conftest import MockModel
 
 

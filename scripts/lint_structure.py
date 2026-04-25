@@ -49,9 +49,7 @@ def check_sqlite_artifacts(files: list[Path]) -> list[str]:
 
 def check_node_naming(root: Path) -> list[str]:
     errors = []
-    nodes_dir = (
-        root / "src" / "certamen_core" / "domain" / "workflow" / "nodes"
-    )
+    nodes_dir = root / "src" / "certamen" / "domain" / "workflow" / "nodes"
     if not nodes_dir.exists():
         return []
 
@@ -97,7 +95,7 @@ def _is_allowed_reexport_node(node: ast.AST) -> bool:
 def check_nodes_compat_layer(root: Path) -> list[str]:
     """Check that nodes/ directory contains only allowed re-export stubs."""
     errors = []
-    nodes_dir = root / "src" / "certamen_core" / "nodes"
+    nodes_dir = root / "src" / "certamen" / "nodes"
     if not nodes_dir.exists():
         return []
 
@@ -124,7 +122,7 @@ def check_root_facades(root: Path) -> list[str]:
     structural ambiguity.
     """
     errors = []
-    pkg = root / "src" / "certamen_core"
+    pkg = root / "src" / "certamen"
     if not pkg.exists():
         return []
 

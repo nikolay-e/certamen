@@ -2,7 +2,7 @@
 
 import pytest
 
-from certamen_core import Certamen
+from certamen import Certamen
 from tests.integration.conftest import MockModel
 
 

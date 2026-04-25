@@ -10,7 +10,7 @@ import yaml
 
 # Use centralized constant if package is available, otherwise fallback
 try:
-    from certamen_core.shared.constants import DEFAULT_OLLAMA_URL
+    from certamen.shared.constants import DEFAULT_OLLAMA_URL
 except ImportError:
     DEFAULT_OLLAMA_URL = "http://localhost:11434"
 

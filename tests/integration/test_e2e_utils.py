@@ -2,7 +2,7 @@
 
 import pytest
 
-from certamen_core.domain.errors import (
+from certamen.domain.errors import (
     APIError,
     AuthenticationError,
     CertamenError,
@@ -14,8 +14,8 @@ from certamen_core.domain.errors import (
     ModelResponseError,
     RateLimitError,
 )
-from certamen_core.shared.text import indent_text, strip_meta_commentary
-from certamen_core.shared.validation.response import detect_apology_or_refusal
+from certamen.shared.text import indent_text, strip_meta_commentary
+from certamen.shared.validation.response import detect_apology_or_refusal
 
 
 class TestExceptionHierarchy:
@@ -419,7 +419,7 @@ class TestUtilsInTournamentContext:
     @pytest.mark.asyncio
     async def test_apology_detection_prevents_scoring(self) -> None:
         """Test that apology detection prevents invalid scoring."""
-        from certamen_core.domain.tournament.scoring import ScoreExtractor
+        from certamen.domain.tournament.scoring import ScoreExtractor
 
         extractor = ScoreExtractor()
 
@@ -435,7 +435,7 @@ class TestUtilsInTournamentContext:
     @pytest.mark.asyncio
     async def test_valid_response_passes_apology_check(self) -> None:
         """Test that valid responses pass apology check."""
-        from certamen_core.domain.tournament.scoring import ScoreExtractor
+        from certamen.domain.tournament.scoring import ScoreExtractor
 
         extractor = ScoreExtractor()
 

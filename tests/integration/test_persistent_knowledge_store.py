@@ -1,10 +1,10 @@
 import pytest
 
-from certamen_core.domain.knowledge_map.builder import (
+from certamen.domain.knowledge_map.builder import (
     ConsensusItem,
     KnowledgeMap,
 )
-from certamen_core.infrastructure.persistence.knowledge_store import (
+from certamen.infrastructure.persistence.knowledge_store import (
     PersistentKnowledgeStore,
 )
 

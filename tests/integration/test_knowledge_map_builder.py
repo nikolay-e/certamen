@@ -1,4 +1,4 @@
-from certamen_core.domain.knowledge_map.builder import (
+from certamen.domain.knowledge_map.builder import (
     KnowledgeMapBuilder,
 )
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from certamen_core.shared.text.markdown import (
+from certamen.shared.text.markdown import (
     adjust_markdown_headers,
     sanitize_content_dict,
     sanitize_for_markdown,
@@ -314,7 +314,7 @@ class TestMarkdownIntegration:
     @pytest.mark.asyncio
     async def test_report_uses_sanitization(self) -> None:
         """Test that report generation uses sanitization."""
-        from certamen_core.shared.text.markdown import sanitize_content_dict
+        from certamen.shared.text.markdown import sanitize_content_dict
 
         # Simulate report content
         content = {

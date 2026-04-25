@@ -49,7 +49,7 @@ pre-commit run -a     # all quality checks
 ### Python API
 
 ```python
-from certamen_core import Certamen
+from certamen import Certamen
 
 async def main():
     arb = await Certamen.from_settings({
