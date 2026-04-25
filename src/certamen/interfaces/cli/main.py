@@ -303,6 +303,111 @@ async def _execute_workflow_file(
         raise FatalError(f"File not found: {file_path}") from None
 
 
+async def _execute_tournament_workflow(
+    file_path: str,
+    outputs_dir: str | None,
+    verbose: bool,
+    logger: Any,
+) -> None:
+    import json
+    from pathlib import Path
+
+    from certamen.application.execution.async_executor import AsyncExecutor
+    from certamen.infrastructure.events import (
+        JsonlEventHandler,
+        generate_run_id,
+    )
+    from certamen.infrastructure.serialization import (
+        WorkflowLoader,
+        WorkflowValidationError,
+    )
+
+    try:
+        workflow = WorkflowLoader.load_from_file(file_path)
+        logger.info("Loaded workflow: %s", workflow["name"])
+        executor_data = WorkflowLoader.to_executor_format(workflow)
+    except WorkflowValidationError as e:
+        raise FatalError(f"Workflow error: {e}") from e
+    except FileNotFoundError as exc:
+        raise FatalError(f"File not found: {file_path}") from exc
+
+    base_dir = Path(outputs_dir) if outputs_dir else Path(".")
+    run_id = generate_run_id()
+    run_dir = base_dir / "runs" / run_id
+
+    with JsonlEventHandler(run_dir, run_id) as event_handler:
+        event_handler.publish(
+            "tournament_started",
+            {
+                "run_id": run_id,
+                "workflow_name": workflow.get("name", file_path),
+                "workflow_path": file_path,
+                "node_count": len(executor_data["nodes"]),
+                "edge_count": len(executor_data["edges"]),
+            },
+        )
+
+        async def broadcast_event(message_str: str) -> None:
+            try:
+                msg = json.loads(message_str)
+            except (json.JSONDecodeError, TypeError):
+                return
+            event_handler.publish(
+                msg.get("type", "node_event"),
+                {
+                    "node_id": msg.get("node_id"),
+                    "data": msg.get("data"),
+                },
+            )
+
+        executor = AsyncExecutor(broadcast_fn=broadcast_event)
+        validation = executor.validate(
+            executor_data["nodes"], executor_data["edges"]
+        )
+        if not validation["valid"]:
+            errors = "; ".join(validation["errors"])
+            event_handler.publish(
+                "tournament_ended",
+                {"error": f"Validation failed: {errors}"},
+            )
+            raise FatalError(f"Workflow validation failed: {errors}")
+
+        if validation.get("warnings"):
+            cli_warning("Warnings:")
+            for warning in validation["warnings"]:
+                print(f"  {warning}")
+
+        cli_cyan(f"\n=== Tournament Run: {run_id} ===")
+        if verbose:
+            print(f"Output dir: {run_dir}")
+
+        result = await executor.execute(
+            executor_data["nodes"], executor_data["edges"]
+        )
+
+        outputs = result.get("outputs", {})
+        output_nodes = executor_data["metadata"].get("outputs", [])
+
+        if "error" in result:
+            event_handler.publish(
+                "tournament_ended", {"error": result["error"]}
+            )
+            raise FatalError(f"Workflow execution failed: {result['error']}")
+
+        event_handler.publish(
+            "tournament_ended",
+            {
+                "run_id": run_id,
+                "completed_nodes": len(outputs),
+                "output_nodes": output_nodes,
+            },
+        )
+
+        cli_success("\n=== Workflow Results ===")
+        _print_workflow_outputs(outputs, output_nodes)
+        print(f"\nEvents log: {run_dir / 'events.jsonl'}")
+
+
 async def run_workflow(args: dict[str, object]) -> None:
     from certamen.shared.logging import get_contextual_logger
 
@@ -398,6 +503,33 @@ def run_from_cli() -> None:
 
         try:
             asyncio.run(run_workflow(args))
+        except FatalError as e:
+            cli_error(str(e))
+            sys.exit(1)
+        except KeyboardInterrupt:
+            print(_USER_INTERRUPTED_MSG)
+            sys.exit(130)
+        return
+
+    workflow_path = args.get("workflow")
+    if workflow_path:
+        from certamen.application.workflow.nodes import register_all
+        from certamen.shared.logging import get_contextual_logger
+
+        register_all()
+        logger = get_contextual_logger("certamen.tournament_workflow")
+        tw_outputs = args.get("outputs_dir")
+        outputs_dir_str = str(tw_outputs) if tw_outputs is not None else None
+
+        try:
+            asyncio.run(
+                _execute_tournament_workflow(
+                    str(workflow_path),
+                    outputs_dir_str,
+                    bool(args.get("verbose", False)),
+                    logger,
+                )
+            )
         except FatalError as e:
             cli_error(str(e))
             sys.exit(1)

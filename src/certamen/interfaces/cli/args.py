@@ -31,6 +31,15 @@ def _add_tournament_args(parser: argparse.ArgumentParser) -> None:
         help=f"Path to config file (CLI default: {DEFAULT_CONFIG_FILE})",
         default=DEFAULT_CONFIG_FILE,
     )
+    parser.add_argument(
+        "-w",
+        "--workflow",
+        default=None,
+        help=(
+            "Path to YAML workflow file (e.g., examples/workflows/diamond-tournament.yml). "
+            "When provided, runs YAML workflow via the executor and bypasses the legacy ModelComparison engine."
+        ),
+    )
     parser.add_argument("-q", "--question", help="Path to question file")
     parser.add_argument(
         "-o",

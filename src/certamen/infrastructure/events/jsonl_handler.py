@@ -29,6 +29,8 @@ class JsonlEventHandler(EventHandler):
 
     def publish(self, event_name: str, data: dict[str, Any]) -> None:
         with self._lock:
+            if self._fh.closed:
+                return
             self._seq += 1
             event = {
                 "schema_version": EVENT_SCHEMA_VERSION,
