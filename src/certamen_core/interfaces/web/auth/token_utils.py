@@ -1,11 +1,13 @@
 from aiohttp import web
 
-from certamen.api.schemas import TokenResponse, UserResponse
-from certamen.gui.auth.database import execute_write_transaction
-from certamen.gui.auth.security import (
+from certamen_core.interfaces.web.auth.database import (
+    execute_write_transaction,
+)
+from certamen_core.interfaces.web.auth.security import (
     create_access_token,
     create_refresh_token,
 )
+from certamen_core.interfaces.web.schemas import TokenResponse, UserResponse
 
 
 def create_auth_tokens_and_save(

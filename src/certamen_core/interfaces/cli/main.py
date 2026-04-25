@@ -352,6 +352,19 @@ def run_from_cli() -> None:
 
     command = args.get("command", "tournament")
 
+    if command in ("gui", "web"):
+        from certamen_core.interfaces.web.server import run_gui_server
+
+        host = str(args.get("host", "0.0.0.0"))  # noqa: S104
+        port = int(args.get("port", 8765))  # type: ignore[arg-type]
+
+        try:
+            asyncio.run(run_gui_server(host=host, port=port))
+        except KeyboardInterrupt:
+            print("\nServer stopped.")
+            sys.exit(0)
+        return
+
     if command == "workflow":
         from certamen_core.application.workflow.nodes import register_all
 

@@ -1,1 +1,0 @@
-# Certamen Framework utilities package

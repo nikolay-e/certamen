@@ -2,7 +2,7 @@ from typing import Any
 
 from aiohttp import web
 
-from certamen.logging import get_contextual_logger
+from certamen_core.shared.logging import get_contextual_logger
 
 logger = get_contextual_logger(__name__)
 

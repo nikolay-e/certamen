@@ -6,7 +6,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
 
-from certamen.gui.auth.config import (
+from certamen_core.interfaces.web.auth.config import (
     DB_HOST,
     DB_NAME,
     DB_PASSWORD,
@@ -16,7 +16,7 @@ from certamen.gui.auth.config import (
     DB_USER,
     SKIP_DB_INIT,
 )
-from certamen.logging import get_contextual_logger
+from certamen_core.shared.logging import get_contextual_logger
 
 logger = get_contextual_logger(__name__)
 

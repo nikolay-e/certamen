@@ -5,13 +5,11 @@ from aiohttp import web
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ValidationError
 
-from certamen.api.schemas import (
-    RefreshTokenRequest,
-    UserLogin,
-    UserRegistration,
+from certamen_core.interfaces.web.auth.database import (
+    execute_write_transaction,
+    query_db,
 )
-from certamen.gui.auth.database import execute_write_transaction, query_db
-from certamen.gui.auth.security import (
+from certamen_core.interfaces.web.auth.security import (
     DUMMY_HASH_FOR_TIMING_ATTACK_PREVENTION,
     auth_rate_limiter,
     get_current_user_from_request,
@@ -19,11 +17,16 @@ from certamen.gui.auth.security import (
     verify_password,
     verify_refresh_token,
 )
-from certamen.gui.auth.token_utils import (
+from certamen_core.interfaces.web.auth.token_utils import (
     build_token_response,
     create_auth_tokens_and_save,
 )
-from certamen.logging import get_contextual_logger
+from certamen_core.interfaces.web.schemas import (
+    RefreshTokenRequest,
+    UserLogin,
+    UserRegistration,
+)
+from certamen_core.shared.logging import get_contextual_logger
 
 logger = get_contextual_logger(__name__)
 

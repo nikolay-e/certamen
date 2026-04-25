@@ -128,6 +128,23 @@ def parse_arguments() -> dict[str, Any]:
     )
     _add_common_args(list_nodes_parser)
 
+    gui_parser = subparsers.add_parser(
+        "gui",
+        aliases=["web"],
+        help="Start the visual workflow editor server",
+    )
+    gui_parser.add_argument(
+        "--host",
+        default="0.0.0.0",  # noqa: S104
+        help="Host to bind the GUI server (default: 0.0.0.0)",
+    )
+    gui_parser.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+        help="Port for the GUI server (default: 8765)",
+    )
+
     if len(sys.argv) == 1:
         args_dict = {"command": "tournament"}
         args_dict.update(vars(tournament_parser.parse_args([])))

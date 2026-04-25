@@ -53,8 +53,6 @@ def check_node_naming(root: Path) -> list[str]:
         root / "src" / "certamen_core" / "domain" / "workflow" / "nodes"
     )
     if not nodes_dir.exists():
-        nodes_dir = root / "src" / "certamen" / "domain" / "workflow" / "nodes"
-    if not nodes_dir.exists():
         return []
 
     for f in nodes_dir.glob("*_node.py"):

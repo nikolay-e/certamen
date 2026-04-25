@@ -11,14 +11,14 @@ import bcrypt
 import jwt
 from aiohttp import web
 
-from certamen.gui.auth.config import (
+from certamen_core.interfaces.web.auth.config import (
     JWT_ACCESS_TOKEN_EXPIRES_MINUTES,
     JWT_REFRESH_TOKEN_EXPIRES_DAYS,
     JWT_SECRET,
     SKIP_AUTH,
 )
-from certamen.gui.auth.database import query_db
-from certamen.logging import get_contextual_logger
+from certamen_core.interfaces.web.auth.database import query_db
+from certamen_core.shared.logging import get_contextual_logger
 
 logger = get_contextual_logger(__name__)
 

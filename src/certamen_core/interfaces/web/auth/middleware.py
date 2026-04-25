@@ -2,9 +2,11 @@ from collections.abc import Awaitable, Callable
 
 from aiohttp import web
 
-from certamen.gui.auth.config import SKIP_AUTH
-from certamen.gui.auth.security import get_current_user_from_request
-from certamen.logging import get_contextual_logger
+from certamen_core.interfaces.web.auth.config import SKIP_AUTH
+from certamen_core.interfaces.web.auth.security import (
+    get_current_user_from_request,
+)
+from certamen_core.shared.logging import get_contextual_logger
 
 logger = get_contextual_logger(__name__)
 

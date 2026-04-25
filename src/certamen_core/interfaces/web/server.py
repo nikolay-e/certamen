@@ -10,19 +10,23 @@ from weakref import WeakSet
 
 from aiohttp import web
 
-import certamen_core.nodes.evaluation
-import certamen_core.nodes.flow
-import certamen_core.nodes.generation
-import certamen_core.nodes.input
-import certamen_core.nodes.knowledge
-import certamen_core.nodes.llm
-import certamen_core.nodes.output  # noqa: F401
-from certamen.config.defaults import get_defaults
-from certamen.config.env_utils import get_comma_separated_env, get_int_env
-from certamen.gui.websocket_utils import send_ws_error, send_ws_json
-from certamen.logging import get_contextual_logger
-from certamen_core.executor import AsyncExecutor
-from certamen_core.nodes.registry import registry
+from certamen_core.application.execution.async_executor import AsyncExecutor
+from certamen_core.application.workflow.nodes import (
+    register_all as _register_all_nodes,
+)
+from certamen_core.application.workflow.registry import registry
+from certamen_core.infrastructure.config.defaults import get_defaults
+from certamen_core.infrastructure.config.env import (
+    get_comma_separated_env,
+    get_int_env,
+)
+from certamen_core.interfaces.web.websocket_utils import (
+    send_ws_error,
+    send_ws_json,
+)
+from certamen_core.shared.logging import get_contextual_logger
+
+_register_all_nodes()
 
 logger = get_contextual_logger(__name__)
 
@@ -76,7 +80,10 @@ class GUIServer:
         self.app.on_shutdown.append(self._on_shutdown)
 
     def _setup_auth(self) -> None:
-        from certamen.gui.auth import auth_middleware, register_auth_routes
+        from certamen_core.interfaces.web.auth import (
+            auth_middleware,
+            register_auth_routes,
+        )
 
         self.app.middlewares.append(self._security_headers_middleware)
         self.app.middlewares.append(auth_middleware)
@@ -142,7 +149,7 @@ class GUIServer:
                 )
 
     async def _on_shutdown(self, _app: web.Application) -> None:
-        from certamen.gui.auth.database import cleanup_db_pool
+        from certamen_core.interfaces.web.auth.database import cleanup_db_pool
 
         # Cancel cleanup task
         if self._cleanup_task:
@@ -309,8 +316,10 @@ class GUIServer:
     async def websocket_handler(
         self, request: web.Request
     ) -> web.WebSocketResponse:
-        from certamen.gui.auth.config import SKIP_AUTH
-        from certamen.gui.auth.security import verify_access_token
+        from certamen_core.interfaces.web.auth.config import SKIP_AUTH
+        from certamen_core.interfaces.web.auth.security import (
+            verify_access_token,
+        )
 
         client_ip = self._get_client_ip(request)
 
@@ -526,7 +535,9 @@ class GUIServer:
         logger.debug("WebSocket message received: type=%s", msg_type)
 
         if msg_type == "get_models":
-            from certamen_core.nodes.llm import get_models_by_provider
+            from certamen_core.application.workflow.nodes.llm import (
+                get_models_by_provider,
+            )
 
             # Get Ollama models dynamically from local Ollama server
             ollama_models = await get_models_by_provider("ollama")
@@ -628,7 +639,9 @@ class GUIServer:
 
     async def get_models(self, request: web.Request) -> web.Response:
         """Get available models - queries Ollama dynamically."""
-        from certamen_core.nodes.llm import get_models_by_provider
+        from certamen_core.application.workflow.nodes.llm import (
+            get_models_by_provider,
+        )
 
         ollama_models = await get_models_by_provider("ollama")
         models_data = {}
@@ -642,7 +655,9 @@ class GUIServer:
         return web.json_response(models_data)
 
     async def get_provider_models(self, request: web.Request) -> web.Response:
-        from certamen_core.nodes.llm import get_models_by_provider
+        from certamen_core.application.workflow.nodes.llm import (
+            get_models_by_provider,
+        )
 
         provider = request.match_info.get("provider", "")
         models = await get_models_by_provider(provider)
