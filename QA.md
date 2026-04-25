@@ -34,3 +34,7 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 - JSONC files (tsconfig) with comments must be excluded from `check-json` hook
 - pylint duplicate-code across legacy/core packages: scope to `certamen/` only, not `src/`
 - markdownlint on generated reports/docs: exclude `benchmarks/reports/` and `docs/` dirs
+- After package rename, search BOTH `.github/workflows/` and `Makefile` for stale source paths — `--cov=src/<old_name>` causes "0.00% coverage" failure on CI while passing locally
+- GUI server requires `OLLAMA_BASE_URL` env to actually run workflows that include Ollama models; `CERTAMEN_SKIP_AUTH=true` for dev (skips bcrypt + DB init)
+- Workflow Editor's WebSocket connects to `/ws` for live execution events; if backend uses lazy auth import path it must also bypass when `CERTAMEN_SKIP_AUTH=true`
+- React error #31: rendering an object as a child — wrap any `data.error` in a string check before rendering (errors come from backend as `{type, message, node_id, node_type}` objects, not strings)
