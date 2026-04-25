@@ -11,7 +11,7 @@ Expected cost: ~$0.50-2.00 (scales with models and rounds)
 
 import asyncio
 
-from certamen_core import Certamen
+from certamen import Certamen
 
 
 async def main():

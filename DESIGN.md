@@ -8,7 +8,7 @@ This document defines the canonical naming conventions and directory structure f
 
 | Layer | Convention | Examples |
 |-------|------------|----------|
-| Python packages under `src/` | `snake_case` | `certamen_core`, `certamen` |
+| Python packages under `src/` | `snake_case` | `certamen`, `certamen` |
 | Python modules | `snake_case.py` | `tournament.py`, `web_server.py` |
 | TypeScript/frontend code | `kebab-case` or `PascalCase` | `use-websocket.ts`, `App.tsx` |
 | Workflow templates | `kebab-case.yml` | `tournament-elimination.yml` |
@@ -19,13 +19,13 @@ This document defines the canonical naming conventions and directory structure f
 
 | Concept | certamen-core | certamen-framework |
 |---------|---------------|---------------------|
-| Business logic | `src/certamen_core/domain/` | `src/certamen/` |
-| Workflow nodes | `src/certamen_core/domain/workflow/nodes/` | Uses core nodes |
-| LLM adapters | `src/certamen_core/adapters/llm/` | `src/certamen/models/` |
+| Business logic | `src/certamen/domain/` | `src/certamen/` |
+| Workflow nodes | `src/certamen/domain/workflow/nodes/` | Uses core nodes |
+| LLM adapters | `src/certamen/adapters/llm/` | `src/certamen/models/` |
 | Web server | N/A | `src/certamen/web/` |
 | Frontend SPA | N/A | `frontend/` |
-| CLI | `src/certamen_core/interfaces/cli/` | `src/certamen/cli/` |
-| Configuration | `src/certamen_core/adapters/config/` | `src/certamen/config/` |
+| CLI | `src/certamen/interfaces/cli/` | `src/certamen/cli/` |
+| Configuration | `src/certamen/adapters/config/` | `src/certamen/config/` |
 | Tests | `tests/integration/` | `tests/integration/` |
 
 ### Architecture Vocabulary
@@ -47,7 +47,7 @@ Both packages export minimal public APIs via `__init__.py`:
 
 ```python
 # certamen-core
-from certamen_core import Certamen, __version__
+from certamen import Certamen, __version__
 
 # certamen-framework
 from certamen import Certamen, __version__

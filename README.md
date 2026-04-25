@@ -21,7 +21,7 @@ certamen --config config.yml
 ## Python API
 
 ```python
-from certamen_core import Certamen
+from certamen import Certamen
 
 async def main():
     arb = await Certamen.from_settings({

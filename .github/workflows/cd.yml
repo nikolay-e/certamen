@@ -41,10 +41,10 @@ jobs:
           python -c "
           import re
           ver = '${{ github.event.inputs.version }}'
-          with open('src/certamen_core/__about__.py', 'r') as f:
+          with open('src/certamen/__about__.py', 'r') as f:
               content = f.read()
           content = re.sub(r'__version__\s*=\s*[\"'\''].*?[\"'\'']', f'__version__ = \"{ver}\"', content, count=1)
-          with open('src/certamen_core/__about__.py', 'w') as f:
+          with open('src/certamen/__about__.py', 'w') as f:
               f.write(content)
           "
 
@@ -62,7 +62,7 @@ jobs:
           if [ "$LAST_COMMIT_MSG" = "$COMMIT_MSG" ]; then
             echo "Version bump commit already exists, skipping"
           else
-            git add src/certamen_core/__about__.py
+            git add src/certamen/__about__.py
             if ! git diff --staged --quiet; then
               git commit -m "$COMMIT_MSG"
             fi
@@ -131,7 +131,7 @@ jobs:
         run: uv pip install -e ".[dev]" --system
 
       - name: Run tests
-        run: pytest tests/ -v --cov=src/certamen_core --cov-report=term-missing
+        run: pytest tests/ -v --cov=src/certamen --cov-report=term-missing
 
   build:
     name: Build Distributions

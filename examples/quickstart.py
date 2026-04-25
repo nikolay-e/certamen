@@ -11,7 +11,7 @@ Expected cost: ~$0.50 (with 3 models)
 
 import asyncio
 
-from certamen_core import Certamen
+from certamen import Certamen
 
 
 async def main():

@@ -22,7 +22,7 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 ## Known Pre-existing Issues
 
 - S104 (ruff/bandit) in web server/CLI — intentional bind to 0.0.0.0, suppressed with `# noqa: S104`
-- pylint duplicate-code between `certamen` (legacy) and `certamen_core` — scoped to `certamen_core/` only in pre-commit
+- pylint duplicate-code between `certamen` (legacy) and `certamen` — scoped to `certamen/` only in pre-commit
 - pip-audit may flag pip itself — transient CVE, added to ignore list
 
 ## Effective Strategies
@@ -32,5 +32,5 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 - `treemapper . --diff` useful for reviewing prompt/config changes across many files
 - Docker builds don't follow symlinks — always use real files for anything copied in Dockerfile
 - JSONC files (tsconfig) with comments must be excluded from `check-json` hook
-- pylint duplicate-code across legacy/core packages: scope to `certamen_core/` only, not `src/`
+- pylint duplicate-code across legacy/core packages: scope to `certamen/` only, not `src/`
 - markdownlint on generated reports/docs: exclude `benchmarks/reports/` and `docs/` dirs

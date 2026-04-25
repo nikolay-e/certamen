@@ -12,7 +12,7 @@ Expected cost: ~$1-3 (compares multiple approaches)
 import asyncio
 import time
 
-from certamen_core import Certamen
+from certamen import Certamen
 
 
 async def main():

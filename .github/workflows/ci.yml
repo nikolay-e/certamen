@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           pytest tests/ -v \
-            --cov=src/certamen_core \
+            --cov=src/certamen \
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-branch \
@@ -156,16 +156,16 @@ jobs:
       - name: Check cyclomatic complexity
         run: |
           echo "=== Cyclomatic Complexity Report ==="
-          radon cc src/certamen_core/ --min B --show-complexity --total-average
+          radon cc src/certamen/ --min B --show-complexity --total-average
 
       - name: Check maintainability index
         run: |
           echo "=== Maintainability Index Report ==="
-          radon mi src/certamen_core/ --min B --show
+          radon mi src/certamen/ --min B --show
 
       - name: Fail on high complexity
         run: |
-          radon cc src/certamen_core/ --min C --total-average || \
+          radon cc src/certamen/ --min C --total-average || \
             (echo "::warning::High complexity detected (grade C or worse)" && exit 0)
 
   architecture-checks:
