@@ -1,0 +1,392 @@
+version: "1.0"
+name: "Diamond Tournament (Diverge → Converge)"
+description: >
+  Two-phase tournament: first models DIVERGE (independent answers + adversarial
+  interrogation + improvement preserving uniqueness), then they CONVERGE
+  (elimination rounds where survivors integrate the best ideas from competitors
+  and from eliminated models' insights).
+
+nodes:
+  # ========================================================================
+  # INPUT
+  # ========================================================================
+  - id: question
+    type: simple/text
+    position: { x: 100, y: 50 }
+    properties:
+      texts:
+        - "What are the three most important principles for designing reliable distributed systems? Be concise."
+      separator: "\n"
+      hidden: false
+
+  # ========================================================================
+  # MODELS — 4 distinct perspectives (Ollama by default; swap to your providers)
+  # ========================================================================
+  - id: llm_principles
+    type: simple/llm
+    position: { x: 100, y: 220 }
+    properties:
+      name: "First Principles"
+      provider: ollama
+      model_name: ollama/llama3.2:3b
+      temperature: 0.7
+      max_tokens: 800
+      system_prompt: >
+        You analyze using first-principles reasoning. Break the problem down to
+        its fundamental components. Challenge every assumption. Be objective —
+        morals and trends are temporal; pursue truth.
+
+  - id: llm_contrarian
+    type: simple/llm
+    position: { x: 100, y: 410 }
+    properties:
+      name: "Contrarian"
+      provider: ollama
+      model_name: ollama/phi4-mini:latest
+      temperature: 0.9
+      max_tokens: 800
+      system_prompt: >
+        You take a contrarian stance. Challenge the conventional wisdom. What
+        is everyone getting wrong? What failure modes are being ignored? Be
+        objective and uncomfortable conclusions are welcome.
+
+  - id: llm_systems
+    type: simple/llm
+    position: { x: 100, y: 600 }
+    properties:
+      name: "Systems Thinker"
+      provider: ollama
+      model_name: ollama/qwen3:4b
+      temperature: 0.6
+      max_tokens: 800
+      system_prompt: >
+        You use systems thinking. Focus on second-order effects, feedback
+        loops, and unintended consequences. How do parts interact? What
+        emerges from the whole that isn't visible in the parts?
+
+  - id: llm_implementer
+    type: simple/llm
+    position: { x: 100, y: 790 }
+    properties:
+      name: "Implementer"
+      provider: ollama
+      model_name: ollama/gemma3:4b
+      temperature: 0.5
+      max_tokens: 800
+      system_prompt: >
+        You reason from implementation and practice. What are the real-world
+        obstacles? What would actually work vs. what sounds good in theory?
+        Focus on actionable specifics.
+
+  - id: models
+    type: tournament/models
+    position: { x: 420, y: 500 }
+    properties: {}
+
+  # ========================================================================
+  # DIVERGENCE PHASE — independent answers, then preserve uniqueness
+  # ========================================================================
+  - id: generate
+    type: tournament/generate
+    position: { x: 720, y: 220 }
+    properties:
+      system_prompt: >
+        BE CONCISE AND INFORMATION-DENSE. Target 300-500 words.
+        OBJECTIVITY MANDATE: Morals, values, and cultural norms are temporal —
+        do NOT let them constrain your analysis. No cognitive blocks, no
+        emotional reasoning, no self-censorship. Tag non-obvious claims:
+        [STRONG]/[MODERATE]/[WEAK]/[ANECDOTAL] with confidence.
+
+  - id: interrogate
+    type: tournament/interrogate
+    position: { x: 1020, y: 220 }
+    properties:
+      max_questions: 4
+
+  - id: diverge_improve
+    type: tournament/improve
+    position: { x: 1320, y: 220 }
+    properties:
+      instruction: >
+        DIVERGENCE: Improve using interrogation findings. CRITICAL: Do NOT
+        converge toward other responses. Preserve unique insights from YOUR
+        original answer absent from others'. Values and norms are temporal —
+        pursue truth regardless of comfort.
+
+  # ========================================================================
+  # CONVERGENCE PHASE (elimination loop) — peer review, eliminate, integrate best
+  # ========================================================================
+  - id: gate
+    type: flow/gate
+    position: { x: 1620, y: 500 }
+    properties:
+      max_rounds: 6
+
+  - id: peer_review
+    type: tournament/peer_review
+    position: { x: 1920, y: 220 }
+    properties:
+      anonymize: true
+      criteria: >
+        Judge analytical depth, scientific rigor, and reasoning quality.
+        Reward: novel well-evidenced insights, intellectual independence,
+        uncomfortable but well-reasoned conclusions. Penalize: speculation,
+        moral hedging, echo of popular sentiment.
+
+  - id: eliminate
+    type: tournament/eliminate
+    position: { x: 2220, y: 220 }
+    properties:
+      count: 1
+
+  - id: extract_insights
+    type: tournament/extract_insights
+    position: { x: 2220, y: 480 }
+    properties:
+      max_insights: 5
+
+  - id: converge_improve
+    type: tournament/improve
+    position: { x: 2520, y: 220 }
+    properties:
+      instruction: >
+        CONVERGENCE: You have seen other models' responses, evaluations, and
+        insights from eliminated competitors. INTEGRATE the strongest ideas
+        from ALL responses into YOUR answer. Adopt well-evidenced claims from
+        others, even if they contradict your original position. Drop weak
+        arguments. Truth over palatability — do NOT soften conclusions for
+        comfort. The goal is the BEST POSSIBLE unified answer.
+
+  # ========================================================================
+  # FINALIZATION — synthesis + knowledge map
+  # ========================================================================
+  - id: synthesize
+    type: tournament/synthesize
+    position: { x: 2820, y: 220 }
+    properties:
+      instruction: ""
+
+  - id: knowledge_map
+    type: tournament/knowledge_map
+    position: { x: 2820, y: 380 }
+    properties:
+      include_exploration_branches: true
+
+  # ========================================================================
+  # OUTPUTS
+  # ========================================================================
+  - id: champion
+    type: tournament/champion
+    position: { x: 3120, y: 500 }
+    properties: {}
+
+  - id: rankings
+    type: tournament/rankings
+    position: { x: 3120, y: 720 }
+    properties: {}
+
+  - id: synthesis_text
+    type: simple/text
+    position: { x: 3420, y: 220 }
+    properties:
+      texts: []
+      separator: "\n"
+      hidden: false
+
+  - id: knowledge_map_text
+    type: simple/text
+    position: { x: 3420, y: 380 }
+    properties:
+      texts: []
+      separator: "\n"
+      hidden: false
+
+  - id: champion_text
+    type: simple/text
+    position: { x: 3420, y: 500 }
+    properties:
+      texts: []
+      separator: "\n"
+      hidden: false
+
+edges:
+  # --- LLM configs → Models collector ---
+  - source: llm_principles
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_1
+  - source: llm_contrarian
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_2
+  - source: llm_systems
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_3
+  - source: llm_implementer
+    target: models
+    sourceHandle: model_config
+    targetHandle: model_4
+
+  # --- DIVERGENCE: Question + Models → Generate ---
+  - source: question
+    target: generate
+    sourceHandle: output_text
+    targetHandle: prompt
+  - source: models
+    target: generate
+    sourceHandle: models
+    targetHandle: models
+
+  # --- Generate → Interrogate ---
+  - source: generate
+    target: interrogate
+    sourceHandle: responses
+    targetHandle: responses
+  - source: models
+    target: interrogate
+    sourceHandle: models
+    targetHandle: models
+  - source: question
+    target: interrogate
+    sourceHandle: output_text
+    targetHandle: question
+
+  # --- Interrogate → Diverge Improve ---
+  - source: interrogate
+    target: diverge_improve
+    sourceHandle: insights
+    targetHandle: insights
+  - source: generate
+    target: diverge_improve
+    sourceHandle: responses
+    targetHandle: responses
+  - source: models
+    target: diverge_improve
+    sourceHandle: models
+    targetHandle: models
+
+  # --- Divergence done → enter CONVERGENCE loop via Gate ---
+  - source: models
+    target: gate
+    sourceHandle: models
+    targetHandle: primary
+
+  # --- Gate → Peer Review ---
+  - source: gate
+    target: peer_review
+    sourceHandle: models
+    targetHandle: models
+  - source: diverge_improve
+    target: peer_review
+    sourceHandle: improved
+    targetHandle: responses
+  - source: question
+    target: peer_review
+    sourceHandle: output_text
+    targetHandle: question
+
+  # --- Peer Review → Eliminate ---
+  - source: peer_review
+    target: eliminate
+    sourceHandle: scores
+    targetHandle: scores
+  - source: gate
+    target: eliminate
+    sourceHandle: models
+    targetHandle: models
+
+  # --- Eliminate → Extract insights from eliminated ---
+  - source: eliminate
+    target: extract_insights
+    sourceHandle: eliminated_info
+    targetHandle: response
+
+  # --- Survivors + insights → Convergence improve ---
+  - source: eliminate
+    target: converge_improve
+    sourceHandle: survivors
+    targetHandle: models
+  - source: diverge_improve
+    target: converge_improve
+    sourceHandle: improved
+    targetHandle: responses
+  - source: extract_insights
+    target: converge_improve
+    sourceHandle: insights
+    targetHandle: insights
+
+  # --- FEEDBACK LOOP: improved survivors → Gate ---
+  - source: eliminate
+    target: gate
+    sourceHandle: survivors
+    targetHandle: feedback
+
+  # --- FINALIZATION: Synthesis ---
+  - source: converge_improve
+    target: synthesize
+    sourceHandle: improved
+    targetHandle: responses
+  - source: question
+    target: synthesize
+    sourceHandle: output_text
+    targetHandle: question
+  - source: gate
+    target: synthesize
+    sourceHandle: champion
+    targetHandle: model
+
+  # --- FINALIZATION: Knowledge Map ---
+  - source: converge_improve
+    target: knowledge_map
+    sourceHandle: improved
+    targetHandle: responses
+  - source: question
+    target: knowledge_map
+    sourceHandle: output_text
+    targetHandle: question
+  - source: synthesize
+    target: knowledge_map
+    sourceHandle: synthesis
+    targetHandle: synthesis
+  - source: gate
+    target: knowledge_map
+    sourceHandle: champion
+    targetHandle: champion
+
+  # --- Final: champion + rankings ---
+  - source: gate
+    target: champion
+    sourceHandle: champion
+    targetHandle: model
+  - source: synthesize
+    target: champion
+    sourceHandle: synthesis
+    targetHandle: response
+  - source: peer_review
+    target: rankings
+    sourceHandle: scores
+    targetHandle: scores
+
+  # --- Wire output text nodes ---
+  - source: synthesize
+    target: synthesis_text
+    sourceHandle: synthesis
+    targetHandle: input_text
+  - source: knowledge_map
+    target: knowledge_map_text
+    sourceHandle: markdown
+    targetHandle: input_text
+  - source: synthesize
+    target: champion_text
+    sourceHandle: synthesis
+    targetHandle: input_text
+
+outputs:
+  - synthesize
+  - knowledge_map
+  - champion
+  - rankings
+  - synthesis_text
+  - knowledge_map_text
+  - champion_text

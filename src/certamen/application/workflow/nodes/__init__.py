@@ -16,6 +16,7 @@ def register_all() -> None:
     import certamen.application.workflow.nodes.knowledge
     import certamen.application.workflow.nodes.llm
     import certamen.application.workflow.nodes.output
+    import certamen.application.workflow.nodes.synthesis
 
     del (
         certamen.application.workflow.nodes.disagreement,
@@ -27,6 +28,7 @@ def register_all() -> None:
         certamen.application.workflow.nodes.knowledge,
         certamen.application.workflow.nodes.llm,
         certamen.application.workflow.nodes.output,
+        certamen.application.workflow.nodes.synthesis,
     )
 
 

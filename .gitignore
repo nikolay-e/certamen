@@ -15,6 +15,8 @@ benchmarks/config.strategy_benchmark.yml
 *~
 *.bak
 .import_linter_cache
+.playwright-mcp/
+qa/
 # --- Operating System Files ---
 # System-specific metadata files that should not be in version control.
 .DS_Store

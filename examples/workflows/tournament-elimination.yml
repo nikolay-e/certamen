@@ -1,3 +1,4 @@
+version: "1.0"
 name: Tournament Elimination with Feedback Loop
 description: 'Multi-round tournament where models compete until one champion remains'
 nodes:

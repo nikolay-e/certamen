@@ -4,6 +4,7 @@ from typing import Any
 
 from certamen.domain.tournament.tournament import ModelComparison
 from certamen.infrastructure.config.loader import Config
+from certamen.infrastructure.events import JsonlEventHandler, generate_run_id
 from certamen.infrastructure.similarity import TfidfSimilarityEngine
 from certamen.ports.llm import BaseModel, ModelResponse
 from certamen.ports.similarity import SimilarityEngine
@@ -13,9 +14,9 @@ from certamen.shared.logging import get_contextual_logger
 logger = get_contextual_logger(__name__)
 
 
-class _InternalEventHandler(EventHandler):
+class _NoopEventHandler(EventHandler):
     def publish(self, _event_name: str, _data: dict[str, Any]) -> None:
-        pass  # intentional no-op
+        pass
 
 
 class _InternalHost(HostEnvironment):
@@ -70,10 +71,13 @@ class Certamen:
         self._last_comparison: ModelComparison | None = None
         self._similarity_engine = similarity_engine or TfidfSimilarityEngine()
 
-        self._event_handler = _InternalEventHandler()
+        self._event_handler: EventHandler = _NoopEventHandler()
         self._host = _InternalHost(
             base_dir=str(outputs_dir) if outputs_dir else None
         )
+        self._outputs_dir = Path(outputs_dir) if outputs_dir else Path(".")
+        self.last_run_id: str | None = None
+        self.last_run_dir: Path | None = None
 
     @classmethod
     async def from_settings(
@@ -153,14 +157,51 @@ class Certamen:
 
         logger.info("Starting tournament with %d models", len(models))
 
-        comparison = self._create_comparison(models)
-        self._last_comparison = comparison
-        result = await comparison.run(question)
+        run_id = generate_run_id()
+        run_dir = self._outputs_dir / "runs" / run_id
+        self.last_run_id = run_id
+        self.last_run_dir = run_dir
 
-        logger.info("Tournament completed successfully")
+        previous_handler = self._event_handler
+        with JsonlEventHandler(run_dir, run_id) as jsonl_handler:
+            self._event_handler = jsonl_handler
+            jsonl_handler.publish(
+                "tournament_started",
+                {
+                    "run_id": run_id,
+                    "question": question,
+                    "models": list(models.keys()),
+                    "config_features": self.config_data.get("features", {}),
+                },
+            )
+            try:
+                comparison = self._create_comparison(models)
+                self._last_comparison = comparison
+                result = await comparison.run(question)
+                jsonl_handler.publish(
+                    "tournament_ended",
+                    {
+                        "champion": (
+                            comparison.active_model_keys[0]
+                            if comparison.active_model_keys
+                            else None
+                        ),
+                        "total_cost": comparison.total_cost,
+                        "eliminated": [
+                            e.get("model")
+                            for e in comparison.eliminated_models
+                        ],
+                    },
+                )
+            finally:
+                self._event_handler = previous_handler
+
+        logger.info("Tournament completed successfully (run_id=%s)", run_id)
 
         # Build metrics dictionary
         metrics: dict[str, Any] = {
+            "run_id": run_id,
+            "run_dir": str(run_dir),
             "total_cost": comparison.total_cost,
             "champion_model": (
                 comparison.active_model_keys[0]

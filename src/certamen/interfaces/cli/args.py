@@ -128,6 +128,26 @@ def parse_arguments() -> dict[str, Any]:
     )
     _add_common_args(list_nodes_parser)
 
+    render_parser = subparsers.add_parser(
+        "render",
+        help="Generate self-contained HTML report from a tournament run",
+    )
+    render_parser.add_argument(
+        "run_dir",
+        help="Path to the run directory (containing events.jsonl) or its run_id",
+    )
+    render_parser.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Output HTML path (default: <run_dir>/report.html)",
+    )
+    render_parser.add_argument(
+        "--outputs-dir",
+        default="outputs",
+        help="Workspace outputs dir to resolve run_id (default: outputs)",
+    )
+
     gui_parser = subparsers.add_parser(
         "gui",
         aliases=["web"],

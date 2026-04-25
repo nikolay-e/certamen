@@ -80,12 +80,25 @@ class GUIServer:
         self.app.on_shutdown.append(self._on_shutdown)
 
     def _setup_auth(self) -> None:
+        self.app.middlewares.append(self._security_headers_middleware)
+
+        skip_auth = os.environ.get("CERTAMEN_SKIP_AUTH", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if skip_auth:
+            logger.warning(
+                "Authentication is DISABLED (CERTAMEN_SKIP_AUTH=true). "
+                "Skipping auth module load."
+            )
+            return
+
         from certamen.interfaces.web.auth import (
             auth_middleware,
             register_auth_routes,
         )
 
-        self.app.middlewares.append(self._security_headers_middleware)
         self.app.middlewares.append(auth_middleware)
         register_auth_routes(self.app)
 
@@ -220,6 +233,8 @@ class GUIServer:
             return True
 
     def _setup_routes(self) -> None:
+        from certamen.interfaces.web.runs import register_runs_routes
+
         self.app.router.add_get("/ws", self.websocket_handler)
         self.app.router.add_get("/api/models", self.get_models)
         self.app.router.add_get(
@@ -229,15 +244,21 @@ class GUIServer:
         self.app.router.add_post("/api/validate", self.validate_workflow)
         self.app.router.add_post("/api/execute", self.execute_workflow)
         self.app.router.add_get("/health", self.health_check)
+        register_runs_routes(self.app)
 
-        # Try multiple paths for gui/dist (handles both dev and installed package)
+        # Try multiple paths for frontend dist (handles both dev and installed package)
         gui_dir = None
         candidate_paths = [
             Path(os.environ.get("CERTAMEN_GUI_DIR", "")) / "dist",
-            Path("/app/gui/dist"),  # Docker container path
+            Path("/app/frontend/dist"),  # Docker container path
+            Path("/app/gui/dist"),  # Legacy Docker path
+            Path(__file__).parent.parent.parent.parent.parent
+            / "frontend"
+            / "dist",  # Dev path
+            Path(__file__).parent.parent.parent.parent / "frontend" / "dist",
             Path(__file__).parent.parent.parent.parent
             / "gui"
-            / "dist",  # Dev path
+            / "dist",  # Legacy dev path
         ]
         for path in candidate_paths:
             if path.exists() and (path / "index.html").exists():
@@ -316,14 +337,28 @@ class GUIServer:
     async def websocket_handler(
         self, request: web.Request
     ) -> web.WebSocketResponse:
-        from certamen.interfaces.web.auth.config import SKIP_AUTH
-        from certamen.interfaces.web.auth.security import (
-            verify_access_token,
+        skip_auth_env = os.environ.get("CERTAMEN_SKIP_AUTH", "").lower() in (
+            "1",
+            "true",
+            "yes",
         )
+        if skip_auth_env:
+            skip_auth = True
+            verify_access_token = None
+        else:
+            from certamen.interfaces.web.auth.config import (
+                SKIP_AUTH as _SKIP_AUTH,
+            )
+            from certamen.interfaces.web.auth.security import (
+                verify_access_token as _verify_access_token,
+            )
+
+            skip_auth = _SKIP_AUTH
+            verify_access_token = _verify_access_token
 
         client_ip = self._get_client_ip(request)
 
-        if not SKIP_AUTH and not self._check_origin(request):
+        if not skip_auth and not self._check_origin(request):
             logger.warning(
                 "WebSocket connection rejected: invalid origin from %s",
                 client_ip,
@@ -351,7 +386,7 @@ class GUIServer:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
-        if not SKIP_AUTH:
+        if not skip_auth:
             try:
                 auth_msg = await asyncio.wait_for(
                     ws.receive_json(), timeout=10.0
@@ -363,6 +398,10 @@ class GUIServer:
                 if not token:
                     raise ValueError("Missing token")
 
+                if verify_access_token is None:
+                    raise ValueError(
+                        "Auth disabled but token-based path reached"
+                    )
                 user_info = verify_access_token(token)
                 user_id = user_info.get("user_id")
                 if not user_id:

@@ -170,7 +170,14 @@ function BaseNodeComponent({ id, data, selected }: BaseNodeProps) {
           </div>
         ))}
 
-        {hasError && <div className="node-error-message">{data.error}</div>}
+        {hasError && (
+          <div className="node-error-message">
+            {typeof data.error === "string"
+              ? data.error
+              : (data.error as unknown as { message?: string })?.message ||
+                JSON.stringify(data.error)}
+          </div>
+        )}
       </div>
     </div>
   );

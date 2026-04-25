@@ -1,19 +1,25 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Sidebar } from "./components/Sidebar";
 import { Toolbar } from "./components/Toolbar";
 import { Canvas } from "./components/Canvas";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { ErrorToast } from "./components/ErrorToast";
+import { TournamentView } from "./components/TournamentView";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useWorkflowStore } from "./store/workflowStore";
 import type { ErrorInfo } from "./types";
+import diamondTournamentYaml from "./templates/diamond-tournament.yml?raw";
 import "./App.css";
+
+type Tab = "workflow" | "results";
 
 const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
 const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws`;
 
 function App() {
+  const [activeTab, setActiveTab] = useState<Tab>("workflow");
+
   const {
     connected,
     models,
@@ -61,10 +67,24 @@ function App() {
   );
 
   useEffect(() => {
-    if (Object.keys(nodeDefinitions).length > 0 && nodes.length === 0) {
-      loadStartupWorkflow(nodeDefinitions);
-    }
-  }, [nodeDefinitions, nodes.length, loadStartupWorkflow]);
+    if (Object.keys(nodeDefinitions).length === 0 || nodes.length > 0) return;
+    (async () => {
+      try {
+        const yaml = await import("js-yaml");
+        const data = yaml.load(diamondTournamentYaml) as {
+          nodes: unknown[];
+          edges: unknown[];
+        };
+        loadWorkflow(data, nodeDefinitions);
+      } catch (err) {
+        console.error(
+          "Failed to load Diamond Tournament template, falling back",
+          err,
+        );
+        loadStartupWorkflow(nodeDefinitions);
+      }
+    })();
+  }, [nodeDefinitions, nodes.length, loadStartupWorkflow, loadWorkflow]);
 
   useEffect(() => {
     if (Object.keys(models).length > 0) {
@@ -154,28 +174,50 @@ function App() {
 
   return (
     <div className="app">
-      <Toolbar
-        onExecute={handleExecute}
-        onCancel={cancelExecution}
-        onClear={handleClear}
-        onLoadWorkflow={handleLoadWorkflow}
-        onSaveWorkflow={handleSaveWorkflow}
-        executing={isExecuting}
-        hasNodes={nodes.length > 0}
-      />
-      <div className="main-content">
-        <Sidebar nodeDefinitions={nodeDefinitions} connected={connected} />
-        <Canvas executionMessages={executionMessages} />
-        <PropertiesPanel
-          node={selectedNodeData}
-          models={models}
-          onPropertyChange={handlePropertyChange}
-        />
+      <div className="tab-bar">
+        <button
+          type="button"
+          className={activeTab === "workflow" ? "active" : ""}
+          onClick={() => setActiveTab("workflow")}
+        >
+          Workflow Editor
+        </button>
+        <button
+          type="button"
+          className={activeTab === "results" ? "active" : ""}
+          onClick={() => setActiveTab("results")}
+        >
+          Tournament Results
+        </button>
       </div>
-      <ErrorToast
-        error={currentError}
-        onClose={() => clearExecutionMessages()}
-      />
+      {activeTab === "workflow" ? (
+        <>
+          <Toolbar
+            onExecute={handleExecute}
+            onCancel={cancelExecution}
+            onClear={handleClear}
+            onLoadWorkflow={handleLoadWorkflow}
+            onSaveWorkflow={handleSaveWorkflow}
+            executing={isExecuting}
+            hasNodes={nodes.length > 0}
+          />
+          <div className="main-content">
+            <Sidebar nodeDefinitions={nodeDefinitions} connected={connected} />
+            <Canvas executionMessages={executionMessages} />
+            <PropertiesPanel
+              node={selectedNodeData}
+              models={models}
+              onPropertyChange={handlePropertyChange}
+            />
+          </div>
+          <ErrorToast
+            error={currentError}
+            onClose={() => clearExecutionMessages()}
+          />
+        </>
+      ) : (
+        <TournamentView />
+      )}
     </div>
   );
 }

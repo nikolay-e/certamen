@@ -365,6 +365,32 @@ def run_from_cli() -> None:
             sys.exit(0)
         return
 
+    if command == "render":
+        from pathlib import Path
+
+        from certamen.interfaces.render import write_run_report
+
+        raw = str(args.get("run_dir", ""))
+        outputs_dir = Path(str(args.get("outputs_dir", "outputs")))
+        run_path = Path(raw)
+        if not run_path.is_dir():
+            candidate = outputs_dir / "runs" / raw
+            if candidate.is_dir():
+                run_path = candidate
+            else:
+                cli_error(f"Run directory not found: {raw}")
+                sys.exit(1)
+
+        out = args.get("output")
+        out_path = Path(str(out)) if out else None
+        try:
+            written = write_run_report(run_path, out_path)
+        except Exception as e:
+            cli_error(f"Render failed: {e}")
+            sys.exit(1)
+        print(f"Wrote report: {written}")
+        return
+
     if command == "workflow":
         from certamen.application.workflow.nodes import register_all
 

@@ -88,6 +88,10 @@ class TournamentRunner:
             "PHASE 1: Initial Answers - Each model answers independently"
         )
         self.logger.info("=" * 80)
+        self.event_handler.publish(
+            "phase_started",
+            {"phase": "INITIAL", "active_models": self.comp.active_model_keys},
+        )
         initial_responses = await self.comp.run_initial_round(initial_question)
         if not initial_responses:
             return False
@@ -95,6 +99,10 @@ class TournamentRunner:
         self.logger.info(
             "PHASE 1 COMPLETE: Got %s initial responses",
             len(initial_responses),
+        )
+        self.event_handler.publish(
+            "phase_completed",
+            {"phase": "INITIAL", "response_count": len(initial_responses)},
         )
         return True
 
@@ -381,6 +389,13 @@ class TournamentRunner:
             "INTERROGATION PHASE: Cross-examining models for hidden knowledge"
         )
         self.logger.info("=" * 80)
+        self.event_handler.publish(
+            "phase_started",
+            {
+                "phase": "INTERROGATION",
+                "active_models": list(current_responses.keys()),
+            },
+        )
 
         interrogator = AdversarialInterrogator(self.comp.semaphore)
         max_q = int(self.comp.features.get("interrogation_max_questions", 4))
@@ -629,12 +644,23 @@ class TournamentRunner:
             self.logger.warning("Failed to load prior knowledge: %s", e)
 
     async def _run_phase_2(self, initial_question: str) -> bool:
-        return await self._run_improvement_phase(
+        self.event_handler.publish(
+            "phase_started",
+            {
+                "phase": "DIVERGENCE",
+                "active_models": self.comp.active_model_keys,
+            },
+        )
+        result = await self._run_improvement_phase(
             initial_question,
             config_key="improvement_phase",
             phase_name="DIVERGENCE PHASE: Independent Improvement",
             answer_index=0,
         )
+        self.event_handler.publish(
+            "phase_completed", {"phase": "DIVERGENCE", "success": result}
+        )
+        return result
 
     async def _store_disagreement_insights(
         self, disagreement_reports: list[object]
@@ -687,6 +713,14 @@ class TournamentRunner:
             self.logger.info("\n" + "-" * 80)
             self.logger.info("ROUND %s: Cross-Evaluation Phase", round_num)
             self.logger.info("-" * 80)
+            self.event_handler.publish(
+                "phase_started",
+                {
+                    "phase": f"ELIMINATION_R{round_num}",
+                    "round": round_num,
+                    "active_models": list(self.comp.active_model_keys),
+                },
+            )
 
             disagreement_reports = await self._run_disagreement_phase(
                 initial_question, self.comp.previous_answers[-1]
@@ -851,6 +885,19 @@ class TournamentRunner:
             len(self.comp.active_model_keys),
         )
         self.logger.info("   Reason: %s", elimination_info["reason"])
+        self.event_handler.publish(
+            "model_eliminated",
+            {
+                "anon": eliminated_model,
+                "round": round_num,
+                "reason": elimination_info["reason"],
+                "score": elimination_info["score"],
+                "score_variance": score_variance,
+                "elimination_confidence": elimination_confidence,
+                "insights_preserved_count": len(insights_preserved),
+                "models_remaining": len(self.comp.active_model_keys),
+            },
+        )
 
     def _determine_elimination_confidence(self, score_variance: float) -> str:
         if score_variance < VARIANCE_HIGH_CONFIDENCE_THRESHOLD:
@@ -892,6 +939,14 @@ class TournamentRunner:
         self.logger.info(
             "SYNTHESIS PHASE: Combining insights from all participants",
             extra={"display_type": "section_header"},
+        )
+        self.event_handler.publish(
+            "phase_started",
+            {
+                "phase": "SYNTHESIS",
+                "champion_model": champion_model_key,
+                "perspectives_count": len(all_responses),
+            },
         )
 
         kb_context = await self.comp.get_knowledge_bank_context()
@@ -1260,6 +1315,18 @@ class ModelComparison:
         from certamen.shared.constants import DEFAULT_MODEL_TIMEOUT
 
         model = self.models[model_key]
+        anon_name = self.anon_mapping.get(model_key, model_key)
+
+        self.event_handler.publish(
+            "llm_request",
+            {
+                "phase": context_for_logging,
+                "model": model_key,
+                "anon": anon_name,
+                "prompt": prompt,
+                "prompt_chars": len(prompt),
+            },
+        )
 
         # Use task context for correlation IDs
         with self.logger.task_context(
@@ -1354,6 +1421,25 @@ class ModelComparison:
                     label, response.content
                 )
                 self.logger.info(indent_text(log_message))
+
+            self.event_handler.publish(
+                "llm_response",
+                {
+                    "phase": context_for_logging,
+                    "model": model_key,
+                    "anon": anon_name,
+                    "content": getattr(response, "content", ""),
+                    "is_error": (
+                        response.is_error()
+                        if hasattr(response, "is_error")
+                        else False
+                    ),
+                    "error": getattr(response, "error", None),
+                    "cost": getattr(response, "cost", 0.0),
+                    "tokens_in": getattr(response, "tokens_in", None),
+                    "tokens_out": getattr(response, "tokens_out", None),
+                },
+            )
 
             return response
 
