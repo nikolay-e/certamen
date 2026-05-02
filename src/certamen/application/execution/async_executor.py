@@ -379,15 +379,13 @@ class AsyncExecutor(BaseExecutor):
 
     def _is_iteration_done(
         self,
-        tasks: list[tuple[str, Any]],
         node_outputs: dict[str, dict[str, Any]],
         execution_id: str,
         iteration: int,
         max_iterations: int,
     ) -> bool:
-        current_iteration_nodes = {node_id for node_id, _ in tasks}
-        for node_id in current_iteration_nodes:
-            if node_outputs.get(node_id, {}).get("done") is True:
+        for node_id, outputs in node_outputs.items():
+            if outputs.get("done") is True:
                 logger.info(
                     "[%s] Termination signal from node %s",
                     execution_id[:8],
@@ -480,7 +478,7 @@ class AsyncExecutor(BaseExecutor):
         iteration = 0
         while True:
             iteration += 1
-            last_tasks = await self._run_iteration(
+            await self._run_iteration(
                 iteration,
                 execution_layers,
                 node_instances,
@@ -496,7 +494,6 @@ class AsyncExecutor(BaseExecutor):
                 break
 
             if self._is_iteration_done(
-                last_tasks,
                 node_outputs,
                 execution_id,
                 iteration,
