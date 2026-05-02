@@ -1,6 +1,6 @@
 import type { PortDefinition } from "../types";
 
-const TEXT_COMPATIBLE_TYPES = [
+const TEXT_COMPATIBLE_TYPES: readonly string[] = [
   "string",
   "string_matrix",
   "responses",

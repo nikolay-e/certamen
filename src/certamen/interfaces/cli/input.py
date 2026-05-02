@@ -162,7 +162,7 @@ def _check_non_interactive_environment(
 async def async_input(
     prompt: str = "",
     default: str = "",
-    timeout: int = DEFAULT_INPUT_TIMEOUT,
+    timeout: int = DEFAULT_INPUT_TIMEOUT,  # NOSONAR - caller-provided timeout for interactive CLI
     validation_func: Callable[[str], bool] | None = None,
     min_length: int = 0,
     max_length: int | None = None,

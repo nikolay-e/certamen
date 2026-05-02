@@ -13,7 +13,7 @@ export function NumberField({
   value,
   definition,
   onChange,
-}: NumberFieldProps) {
+}: Readonly<NumberFieldProps>) {
   const isInteger = definition?.type === "integer";
   const min = definition?.min;
   const max = definition?.max;

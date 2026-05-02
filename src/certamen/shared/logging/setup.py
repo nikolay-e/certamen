@@ -31,9 +31,7 @@ class SensitiveDataFilter(logging.Filter):
         ),
         # Generic API keys in common formats
         (
-            re.compile(
-                r"\b[A-Za-z0-9]{32,64}\b(?=.*(?:key|token|secret))", re.I
-            ),
+            re.compile(r"\b[A-Z0-9]{32,64}\b(?=.*(?:key|token|secret))", re.I),
             "[REDACTED_KEY]",
         ),
         # JWT tokens (header.payload.signature)
@@ -45,7 +43,7 @@ class SensitiveDataFilter(logging.Filter):
         ),
         # Bearer tokens in headers
         (
-            re.compile(r"(?i)bearer\s+[A-Za-z0-9_.+-]+"),
+            re.compile(r"(?i)bearer\s+[A-Z0-9_.+\-]+"),
             "Bearer [REDACTED_TOKEN]",
         ),
         # Password patterns in key=value, key:value, "key":"value"

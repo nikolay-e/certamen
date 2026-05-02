@@ -23,9 +23,9 @@ function getLogLevel(): LogLevel {
 function sanitizeSecrets(value: unknown): unknown {
   if (typeof value === 'string') {
     return value
-      .replace(/sk-[a-zA-Z0-9]{20,}/g, '[REDACTED]')
-      .replace(/key[=:]\s*["']?[a-zA-Z0-9-_]{20,}["']?/gi, 'key=[REDACTED]')
-      .replace(/token[=:]\s*["']?[a-zA-Z0-9-_.]{20,}["']?/gi, 'token=[REDACTED]')
+      .replaceAll(/sk-[a-zA-Z0-9]{20,}/g, '[REDACTED]')
+      .replaceAll(/key[=:]\s*["']?[a-z0-9_-]{20,}["']?/gi, 'key=[REDACTED]')
+      .replaceAll(/token[=:]\s*["']?[a-z0-9._-]{20,}["']?/gi, 'token=[REDACTED]')
   }
   if (typeof value === 'object' && value !== null) {
     const sanitized: Record<string, unknown> = {}

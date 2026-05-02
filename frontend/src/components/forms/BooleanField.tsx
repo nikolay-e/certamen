@@ -13,7 +13,7 @@ export function BooleanField({
   value,
   definition,
   onChange,
-}: BooleanFieldProps) {
+}: Readonly<BooleanFieldProps>) {
   return (
     <FormField label={label} description={definition?.description}>
       <input

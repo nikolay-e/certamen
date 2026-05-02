@@ -18,7 +18,7 @@ export function Toolbar({
   onSaveWorkflow,
   executing,
   hasNodes,
-}: ToolbarProps) {
+}: Readonly<ToolbarProps>) {
   return (
     <div className="toolbar">
       <div className="toolbar-left">

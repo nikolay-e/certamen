@@ -1,4 +1,4 @@
-import { PortType, NodeCategory, PropertyType, NodeStatus } from "./enums";
+import { NodeCategory, PropertyType, NodeStatus } from "./enums";
 
 // Property values - typed union вместо unknown
 export type PropertyValue = string | number | boolean | string[] | null;
@@ -6,7 +6,7 @@ export type PropertyValue = string | number | boolean | string[] | null;
 // Port definition
 export interface PortDefinition {
   name: string;
-  port_type: PortType | string; // Allow both enum and string for compatibility
+  port_type: string;
   required: boolean;
   description: string;
 }
@@ -54,7 +54,7 @@ export interface NodeDefinition {
 export interface NodeData extends Record<string, unknown> {
   label: string;
   nodeType: string;
-  category: NodeCategory | string; // Allow both enum and string for compatibility
+  category: string;
   inputs: PortDefinition[];
   outputs: PortDefinition[];
   properties: Record<string, unknown>; // Keep unknown for backward compatibility

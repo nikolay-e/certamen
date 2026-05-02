@@ -14,7 +14,7 @@ const categoryIcons: Record<string, string> = {
   Knowledge: "📚",
 };
 
-export function Sidebar({ nodeDefinitions, connected }: SidebarProps) {
+export function Sidebar({ nodeDefinitions, connected }: Readonly<SidebarProps>) {
   const onDragStart = (event: DragEvent, nodeDefinition: NodeDefinition) => {
     event.dataTransfer.setData(
       "application/reactflow",
@@ -60,9 +60,9 @@ export function Sidebar({ nodeDefinitions, connected }: SidebarProps) {
                       )}
                     </span>
                     <div className="port-markers-group">
-                      {(nodeDef.inputs || []).map((port, idx) => (
+                      {(nodeDef.inputs || []).map((port) => (
                         <span
-                          key={`in-${idx}`}
+                          key={`in-${port.name}`}
                           className="port-marker"
                           style={{
                             backgroundColor: getPortColor(port.port_type),
@@ -74,9 +74,9 @@ export function Sidebar({ nodeDefinitions, connected }: SidebarProps) {
                         (nodeDef.outputs || []).length > 0 && (
                           <span className="port-arrow">→</span>
                         )}
-                      {(nodeDef.outputs || []).map((port, idx) => (
+                      {(nodeDef.outputs || []).map((port) => (
                         <span
-                          key={`out-${idx}`}
+                          key={`out-${port.name}`}
                           className="port-marker"
                           style={{
                             backgroundColor: getPortColor(port.port_type),

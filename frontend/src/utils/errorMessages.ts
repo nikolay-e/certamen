@@ -165,5 +165,5 @@ export function mapTechnicalError(
 }
 
 function sanitizeErrorMessage(message: string): string {
-  return message.length > 200 ? message.substring(0, 200) + "..." : message;
+  return message.length > 200 ? message.slice(0, 200) + "..." : message;
 }

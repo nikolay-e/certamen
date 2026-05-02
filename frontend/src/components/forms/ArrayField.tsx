@@ -13,13 +13,11 @@ export function ArrayField({
   value,
   definition,
   onChange,
-}: ArrayFieldProps) {
-  // Ensure there's always at least one field (even if empty array)
+}: Readonly<ArrayFieldProps>) {
   const displayValue = value.length === 0 ? [""] : value;
 
-  // Ensure last item is always empty (placeholder for adding new items)
   const itemsToDisplay =
-    displayValue[displayValue.length - 1] === ""
+    displayValue.at(-1) === ""
       ? displayValue
       : [...displayValue, ""];
 
@@ -53,7 +51,7 @@ export function ArrayField({
       <div className="array-field">
         {itemsToDisplay.map((item, index) => (
           <div
-            key={index}
+            key={index /* NOSONAR - no stable id for string[] items */}
             className={`array-item${isPlaceholder(index) ? " placeholder" : ""}`}
           >
             <input

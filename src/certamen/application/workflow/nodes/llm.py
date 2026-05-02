@@ -139,40 +139,42 @@ class TextNode(BaseNode):
         },
     }
 
+    def _get_pages(self, inputs: dict[str, Any]) -> list[list[str]]:
+        if "_prev_pages" in inputs:
+            return list(inputs["_prev_pages"])
+        return list(self.node_properties.get("pages", []))
+
+    def _process_input_page(
+        self, inputs: dict[str, Any], pages: list[list[str]]
+    ) -> dict[str, Any]:
+        new_page = self._to_page(inputs["input_text"])
+        if new_page:
+            pages.append(new_page)
+        current_page_idx = len(pages) - 1 if pages else 0
+        current_content = pages[current_page_idx] if pages else []
+        output_text = (
+            "\n---\n".join(current_content) if current_content else ""
+        )
+        return {
+            "output_text": output_text,
+            "_pages": pages,
+            "_total_pages": len(pages),
+            "_current_page": current_page_idx,
+        }
+
     async def execute(
         self, inputs: dict[str, Any], context: ExecutionContext
     ) -> dict[str, Any]:
-        # Read pages from previous execution output if available,
-        # otherwise fall back to properties (for first execution)
-        if "_prev_pages" in inputs:
-            pages: list[list[str]] = list(inputs["_prev_pages"])
-        else:
-            pages = list(self.node_properties.get("pages", []))
+        pages = self._get_pages(inputs)
 
         if "input_text" in inputs and inputs["input_text"] is not None:
-            input_data = inputs["input_text"]
-            new_page = self._to_page(input_data)
-            if new_page:
-                pages.append(new_page)
+            return self._process_input_page(inputs, pages)
 
-            current_page_idx = len(pages) - 1 if pages else 0
-            current_content = pages[current_page_idx] if pages else []
-            output_text = (
-                "\n---\n".join(current_content) if current_content else ""
-            )
-
-            return {
-                "output_text": output_text,
-                "_pages": pages,
-                "_total_pages": len(pages),
-                "_current_page": current_page_idx,
-            }
-        else:
-            texts_array = self.node_properties.get("texts", [])
-            non_empty_texts = [t for t in texts_array if t and t.strip()]
-            separator = self.node_properties.get("separator", "\n")
-            text = separator.join(non_empty_texts) if non_empty_texts else ""
-            return {"output_text": text}
+        texts_array = self.node_properties.get("texts", [])
+        non_empty_texts = [t for t in texts_array if t and t.strip()]
+        separator = self.node_properties.get("separator", "\n")
+        text = separator.join(non_empty_texts) if non_empty_texts else ""
+        return {"output_text": text}
 
     def _to_page(self, data: Any) -> list[str]:
         if data is None:

@@ -16,7 +16,7 @@ export function SelectField({
   definition,
   dependentValue,
   onChange,
-}: SelectFieldProps) {
+}: Readonly<SelectFieldProps>) {
   const [options, setOptions] = useState<string[]>(definition?.options || []);
   const [loading, setLoading] = useState(false);
 
@@ -58,11 +58,11 @@ export function SelectField({
         onChange={(e) => onChange(e.target.value)}
         disabled={isDisabled}
       >
-        {loading ? (
-          <option>Loading options...</option>
-        ) : options.length === 0 ? (
+        {loading && <option>Loading options...</option>}
+        {!loading && options.length === 0 && (
           <option>No options available</option>
-        ) : (
+        )}
+        {!loading && options.length > 0 && (
           <>
             {!options.includes(value) && value && (
               <option value={value}>{value}</option>

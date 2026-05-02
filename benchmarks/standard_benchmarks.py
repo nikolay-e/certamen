@@ -59,33 +59,205 @@ BBH_TASKS = [
 ]
 
 
-def extract_answer(response: str, choices: list[str]) -> str:
-    """Extract answer from model response."""
-    response_lower = response.lower().strip()
-
-    # Try to find exact choice match
-    for choice in choices:
-        if choice.lower() in response_lower:
-            return choice
-
-    # Try to find answer markers
+def _find_first_marker_choice(
+    choices: list[str], response_lower: str
+) -> str | None:
     for marker in ["answer:", "answer is:", "the answer is", "therefore,"]:
         if marker in response_lower:
             after_marker = response_lower.split(marker, 1)[1].strip()
-            # Get first word/letter after marker
             first_word = (
                 after_marker.split()[0] if after_marker.split() else ""
             )
             for choice in choices:
                 if choice.lower().startswith(first_word[:1]):
                     return choice
+    return None
 
-    # Default: return first choice mentioned
+
+def extract_answer(response: str, choices: list[str]) -> str:
+    response_lower = response.lower().strip()
+
     for choice in choices:
         if choice.lower() in response_lower:
             return choice
 
-    return choices[0]  # Fallback
+    marker_choice = _find_first_marker_choice(choices, response_lower)
+    if marker_choice:
+        return marker_choice
+
+    return choices[0]
+
+
+def _compute_benchmark_stats(
+    baseline_results_list: list[dict[str, Any]],
+    tournament_results: dict[str, Any],
+) -> dict[str, Any]:
+    if not baseline_results_list:
+        return {}
+    from benchmarks.stats import (
+        cohens_h,
+        compute_cost_normalized_metrics,
+        mcnemar,
+        paired_bootstrap_delta_acc,
+    )
+
+    best_baseline = max(baseline_results_list, key=lambda x: x["accuracy"])
+    y_true = tournament_results["actuals"]
+    y_arb = tournament_results["preds"]
+    y_base = best_baseline["preds"]
+
+    b01 = sum(
+        (y_base[i] == y_true[i]) and (y_arb[i] != y_true[i])
+        for i in range(len(y_true))
+    )
+    b10 = sum(
+        (y_base[i] != y_true[i]) and (y_arb[i] == y_true[i])
+        for i in range(len(y_true))
+    )
+    chi2, p_value = mcnemar(b01, b10)
+    mean_diff, (ci_low, ci_high) = paired_bootstrap_delta_acc(
+        y_true, y_arb, y_base, iters=10000, seed=123
+    )
+    h = cohens_h(
+        tournament_results["accuracy"] / 100.0,
+        best_baseline["accuracy"] / 100.0,
+    )
+    arb_norm = compute_cost_normalized_metrics(
+        tournament_results["accuracy"],
+        tournament_results["cost_actual"],
+        tournament_results["duration_seconds"],
+    )
+    base_norm = compute_cost_normalized_metrics(
+        best_baseline["accuracy"],
+        best_baseline["cost_estimate"],
+        best_baseline["duration_seconds"],
+    )
+    return {
+        "best_baseline_model": best_baseline["model"],
+        "best_baseline_accuracy": best_baseline["accuracy"],
+        "certamen_accuracy": tournament_results["accuracy"],
+        "delta_accuracy": mean_diff * 100,
+        "bootstrap_ci_95": {"low": ci_low * 100, "high": ci_high * 100},
+        "mcnemar": {"b01": b01, "b10": b10, "chi2": chi2, "p_value": p_value},
+        "cohens_h": h,
+        "certamen_normalized": arb_norm,
+        "baseline_normalized": base_norm,
+    }
+
+
+def _write_benchmark_json(
+    output_path: Path,
+    benchmark: str,
+    config_path: str,
+    questions_count: int,
+    baseline_results_list: list[dict[str, Any]],
+    tournament_results: dict[str, Any],
+    stats: dict[str, Any],
+) -> None:
+    with open(output_path, "w") as f:
+        json.dump(
+            {
+                "benchmark": benchmark,
+                "date": datetime.now().isoformat(),
+                "config": config_path,
+                "num_questions": questions_count,
+                "baselines": baseline_results_list,
+                "tournament": tournament_results,
+                "statistics": stats,
+            },
+            f,
+            indent=2,
+        )
+
+
+def _write_per_question_csv(
+    csv_path: Path,
+    tournament_results: dict[str, Any],
+    baseline_results_list: list[dict[str, Any]],
+) -> None:
+    import csv
+
+    best_baseline_csv: dict[str, Any] | None = (
+        max(baseline_results_list, key=lambda x: x["accuracy"])
+        if baseline_results_list
+        else None
+    )
+    with open(csv_path, "w", newline="", encoding="utf-8") as cf:
+        writer = csv.writer(cf)
+        writer.writerow(
+            [
+                "qid",
+                "task",
+                "gold",
+                "baseline_pred",
+                "certamen_pred",
+                "baseline_correct",
+                "certamen_correct",
+            ]
+        )
+        for idx, tr in enumerate(tournament_results["results"]):
+            gold = tr["actual"]
+            arb_pred = tr["predicted"]
+            arb_corr = int(arb_pred == gold) if arb_pred else 0
+            task = tr.get("task", "")
+            if best_baseline_csv:
+                base_pred = (
+                    best_baseline_csv["preds"][idx]
+                    if idx < len(best_baseline_csv["preds"])
+                    else ""
+                )
+                base_corr = int(base_pred == gold) if base_pred else 0
+            else:
+                base_pred, base_corr = "", 0
+            writer.writerow(
+                [idx, task, gold, base_pred, arb_pred, base_corr, arb_corr]
+            )
+
+
+def _print_benchmark_stats_summary(
+    stats: dict[str, Any],
+    tournament_results: dict[str, Any],
+) -> None:
+    if not stats:
+        return
+    print("\n" + "=" * 80)
+    print("STATISTICAL SIGNIFICANCE (Certamen vs Best Single)")
+    print("=" * 80)
+    print(f"Best Single:          {stats['best_baseline_accuracy']:.2f}%")
+    print(f"Certamen:            {stats['certamen_accuracy']:.2f}%")
+    print(f"Δ Accuracy:           {stats['delta_accuracy']:.2f}%")
+    print(
+        f"95% CI (bootstrap):   [{stats['bootstrap_ci_95']['low']:.2f}%, "
+        f"{stats['bootstrap_ci_95']['high']:.2f}%]"
+    )
+    print(
+        f"McNemar:              b01={stats['mcnemar']['b01']}, "
+        f"b10={stats['mcnemar']['b10']}, "
+        f"χ²={stats['mcnemar']['chi2']:.3f}, "
+        f"p≈{stats['mcnemar']['p_value']:.4f}"
+    )
+    print(f"Cohen's h:            {stats['cohens_h']:.3f}")
+    print()
+    print("Cost-Normalized Metrics:")
+    print(
+        f"Certamen:  {stats['certamen_normalized']['accuracy_per_dollar']:.2f} acc/$, "
+        f"{stats['certamen_normalized']['accuracy_per_minute']:.2f} acc/min"
+    )
+    print(
+        f"Baseline:   {stats['baseline_normalized']['accuracy_per_dollar']:.2f} acc/$, "
+        f"{stats['baseline_normalized']['accuracy_per_minute']:.2f} acc/min"
+    )
+    print()
+    if stats["mcnemar"]["p_value"] < 0.05 and stats["delta_accuracy"] > 0:
+        print(
+            "✅ Certamen shows STATISTICALLY SIGNIFICANT improvement (p < 0.05)"
+        )
+    elif tournament_results["accuracy"] > stats["best_baseline_accuracy"]:
+        print(
+            "⚠️  Certamen shows improvement but not statistically significant"
+        )
+    else:
+        print("❌ No improvement over best baseline")
 
 
 async def run_single_model_on_benchmark(
@@ -375,13 +547,11 @@ async def run_benchmark_suite(
     config_path: str,
     num_questions: int = 20,
 ) -> None:
-    """Run complete benchmark comparison."""
     print("=" * 80)
     print(f"STANDARD BENCHMARK: {benchmark.upper()}")
     print("=" * 80)
     print()
 
-    # Load questions
     if benchmark == "bbh":
         questions = load_bbh_questions(num_per_task=5)
     elif benchmark == "gpqa":
@@ -399,29 +569,23 @@ async def run_benchmark_suite(
         "Running baseline (single model) and Certamen Framework tournament...\n"
     )
 
-    # Load config
     config_obj = Config(config_path)
     config_obj.load()
-    config = config_obj.config_data
-    models = config["models"]
+    models = config_obj.config_data["models"]
     baseline_results_list = []
 
-    # Run baselines
     for model_name in models:
         print("=" * 80)
         print(f"BASELINE: Single Model ({model_name})")
         print("=" * 80 + "\n")
-
         baseline_results = await run_single_model_on_benchmark(
             questions, model_name, config_path
         )
         baseline_results_list.append(baseline_results)
-
         print(
             f"\n✅ Baseline Complete: {baseline_results['accuracy']:.1f}% accuracy"
         )
 
-    # Run Certamen Framework
     print("\n" + "=" * 80)
     print("CERTAMEN TOURNAMENT")
     print("=" * 80 + "\n")
@@ -429,148 +593,36 @@ async def run_benchmark_suite(
     tournament_results = await run_certamen_on_benchmark(
         questions, config_path
     )
-
     print(
         f"\n✅ Tournament Complete: {tournament_results['accuracy']:.1f}% accuracy"
     )
 
-    # Compute statistical significance
-    from benchmarks.stats import (
-        cohens_h,
-        compute_cost_normalized_metrics,
-        mcnemar,
-        paired_bootstrap_delta_acc,
+    stats = _compute_benchmark_stats(baseline_results_list, tournament_results)
+
+    output_path = Path(__file__).parent / f"{benchmark}_benchmark_results.json"
+    await asyncio.to_thread(
+        _write_benchmark_json,
+        output_path,
+        benchmark,
+        config_path,
+        len(questions),
+        baseline_results_list,
+        tournament_results,
+        stats,
     )
 
-    stats = {}
-    if baseline_results_list:
-        best_baseline = max(baseline_results_list, key=lambda x: x["accuracy"])
-
-        y_true = tournament_results["actuals"]
-        y_arb = tournament_results["preds"]
-        y_base = best_baseline["preds"]
-
-        # McNemar test
-        b01 = sum(
-            (y_base[i] == y_true[i]) and (y_arb[i] != y_true[i])
-            for i in range(len(y_true))
-        )
-        b10 = sum(
-            (y_base[i] != y_true[i]) and (y_arb[i] == y_true[i])
-            for i in range(len(y_true))
-        )
-
-        chi2, p_value = mcnemar(b01, b10)
-
-        # Bootstrap CI
-        mean_diff, (ci_low, ci_high) = paired_bootstrap_delta_acc(
-            y_true, y_arb, y_base, iters=10000, seed=123
-        )
-
-        # Cohen's h
-        h = cohens_h(
-            tournament_results["accuracy"] / 100.0,
-            best_baseline["accuracy"] / 100.0,
-        )
-
-        # Cost-normalized metrics
-        arb_norm = compute_cost_normalized_metrics(
-            tournament_results["accuracy"],
-            tournament_results["cost_actual"],
-            tournament_results["duration_seconds"],
-        )
-        base_norm = compute_cost_normalized_metrics(
-            best_baseline["accuracy"],
-            best_baseline["cost_estimate"],
-            best_baseline["duration_seconds"],
-        )
-
-        stats = {
-            "best_baseline_model": best_baseline["model"],
-            "best_baseline_accuracy": best_baseline["accuracy"],
-            "certamen_accuracy": tournament_results["accuracy"],
-            "delta_accuracy": mean_diff * 100,
-            "bootstrap_ci_95": {"low": ci_low * 100, "high": ci_high * 100},
-            "mcnemar": {
-                "b01": b01,
-                "b10": b10,
-                "chi2": chi2,
-                "p_value": p_value,
-            },
-            "cohens_h": h,
-            "certamen_normalized": arb_norm,
-            "baseline_normalized": base_norm,
-        }
-
-    # Save results (JSON)
-    output_path = Path(__file__).parent / f"{benchmark}_benchmark_results.json"
-
-    with open(output_path, "w") as f:
-        json.dump(
-            {
-                "benchmark": benchmark,
-                "date": datetime.now().isoformat(),
-                "config": config_path,
-                "num_questions": len(questions),
-                "baselines": baseline_results_list,
-                "tournament": tournament_results,
-                "statistics": stats,
-            },
-            f,
-            indent=2,
-        )
-
-    # Save per-question CSV (raw predictions)
+    csv_path = Path(__file__).parent / f"{benchmark}_per_question.csv"
     try:
-        import csv
-
-        csv_path = Path(__file__).parent / f"{benchmark}_per_question.csv"
-        # Select best single baseline for comparison in CSV
-        best_baseline_csv: dict[str, Any] | None = (
-            max(baseline_results_list, key=lambda x: x["accuracy"])
-            if baseline_results_list
-            else None
+        await asyncio.to_thread(
+            _write_per_question_csv,
+            csv_path,
+            tournament_results,
+            baseline_results_list,
         )
-
-        with open(csv_path, "w", newline="", encoding="utf-8") as cf:
-            writer = csv.writer(cf)
-            writer.writerow(
-                [
-                    "qid",
-                    "task",
-                    "gold",
-                    "baseline_pred",
-                    "certamen_pred",
-                    "baseline_correct",
-                    "certamen_correct",
-                ]
-            )
-
-            for idx, tr in enumerate(tournament_results["results"]):
-                gold = tr["actual"]
-                arb_pred = tr["predicted"]
-                arb_corr = int(arb_pred == gold) if arb_pred else 0
-                task = tr.get("task", "")
-
-                if best_baseline_csv:
-                    base_pred = (
-                        best_baseline_csv["preds"][idx]
-                        if idx < len(best_baseline_csv["preds"])
-                        else ""
-                    )
-                    base_corr = int(base_pred == gold) if base_pred else 0
-                else:
-                    base_pred, base_corr = "", 0
-
-                writer.writerow(
-                    [idx, task, gold, base_pred, arb_pred, base_corr, arb_corr]
-                )
-
         logger.info(f"Per-question CSV saved to: {csv_path}")
     except Exception as e:
         logger.warning(f"Could not write CSV: {e}")
 
-    # Print summary
     print("\n" + "=" * 80)
     print("RESULTS SUMMARY")
     print("=" * 80)
@@ -579,54 +631,16 @@ async def run_benchmark_suite(
     print()
     for baseline_results in baseline_results_list:
         print(
-            f"Baseline Accuracy ({baseline_results['model']}):    {baseline_results['accuracy']:.1f}%"
+            f"Baseline Accuracy ({baseline_results['model']}):    "
+            f"{baseline_results['accuracy']:.1f}%"
         )
     print(f"Tournament Accuracy:  {tournament_results['accuracy']:.1f}%")
     print()
 
-    if stats:
-        print("\n" + "=" * 80)
-        print("STATISTICAL SIGNIFICANCE (Certamen vs Best Single)")
-        print("=" * 80)
-        print(f"Best Single:          {stats['best_baseline_accuracy']:.2f}%")
-        print(f"Certamen:            {stats['certamen_accuracy']:.2f}%")
-        print(f"Δ Accuracy:           {stats['delta_accuracy']:.2f}%")
-        print(
-            f"95% CI (bootstrap):   [{stats['bootstrap_ci_95']['low']:.2f}%, {stats['bootstrap_ci_95']['high']:.2f}%]"
-        )
-        print(
-            f"McNemar:              b01={stats['mcnemar']['b01']}, b10={stats['mcnemar']['b10']}, "
-            f"χ²={stats['mcnemar']['chi2']:.3f}, p≈{stats['mcnemar']['p_value']:.4f}"
-        )
-        print(f"Cohen's h:            {stats['cohens_h']:.3f}")
-        print()
-        print("Cost-Normalized Metrics:")
-        print(
-            f"Certamen:  {stats['certamen_normalized']['accuracy_per_dollar']:.2f} acc/$, "
-            f"{stats['certamen_normalized']['accuracy_per_minute']:.2f} acc/min"
-        )
-        print(
-            f"Baseline:   {stats['baseline_normalized']['accuracy_per_dollar']:.2f} acc/$, "
-            f"{stats['baseline_normalized']['accuracy_per_minute']:.2f} acc/min"
-        )
-
-        # Interpret results
-        print()
-        if stats["mcnemar"]["p_value"] < 0.05 and stats["delta_accuracy"] > 0:
-            print(
-                "✅ Certamen shows STATISTICALLY SIGNIFICANT improvement (p < 0.05)"
-            )
-        elif tournament_results["accuracy"] > stats["best_baseline_accuracy"]:
-            print(
-                "⚠️  Certamen shows improvement but not statistically significant"
-            )
-        else:
-            print("❌ No improvement over best baseline")
+    _print_benchmark_stats_summary(stats, tournament_results)
 
     print(f"\n📄 Detailed results saved to: {output_path}")
-    print(
-        f"📎 Per-question CSV saved to: {Path(__file__).parent / f'{benchmark}_per_question.csv'}"
-    )
+    print(f"📎 Per-question CSV saved to: {csv_path}")
     print()
     print("NEXT STEPS:")
     print("1. Review statistical analysis in JSON output")

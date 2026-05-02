@@ -41,7 +41,7 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(4)}`;
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: Readonly<{ status: string }>) {
   const colors: Record<string, string> = {
     completed: "var(--success-green)",
     running: "var(--accent-orange)",
@@ -66,7 +66,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function PhaseStrip({ events }: { events: CertamenEvent[] }) {
+function PhaseStrip({ events }: Readonly<{ events: CertamenEvent[] }>) {
   const seenPhases = useMemo(() => {
     const set = new Set<string>();
     for (const e of events) {
@@ -125,7 +125,18 @@ function PhaseStrip({ events }: { events: CertamenEvent[] }) {
   );
 }
 
-function EventCard({ event }: { event: CertamenEvent }) {
+function EventBody({ event }: Readonly<{ event: CertamenEvent }>) {
+  const p = event.payload;
+  if (event.event_type === "llm_request" && p.prompt) {
+    return <pre className="event-body">{String(p.prompt)}</pre>;
+  }
+  if (event.event_type === "llm_response" && (p.content || p.error)) {
+    return <pre className="event-body">{String(p.content ?? p.error)}</pre>;
+  }
+  return <pre className="event-body">{JSON.stringify(p, null, 2)}</pre>;
+}
+
+function EventCard({ event }: Readonly<{ event: CertamenEvent }>) {
   const [open, setOpen] = useState(false);
   const p = event.payload;
 
@@ -165,15 +176,7 @@ function EventCard({ event }: { event: CertamenEvent }) {
         {isError ? <span className="tag tag-error">ERROR</span> : null}
         <span className="event-time">{formatTime(event.ts)}</span>
       </summary>
-      {open && event.event_type === "llm_request" && p.prompt ? (
-        <pre className="event-body">{String(p.prompt)}</pre>
-      ) : open && event.event_type === "llm_response" && (p.content || p.error) ? (
-        <pre className="event-body">{String(p.content || p.error)}</pre>
-      ) : open ? (
-        <pre className="event-body">
-          {JSON.stringify(p, null, 2)}
-        </pre>
-      ) : null}
+      {open && <EventBody event={event} />}
     </details>
   );
 }
@@ -183,12 +186,12 @@ function RunList({
   selectedId,
   onSelect,
   onRefresh,
-}: {
+}: Readonly<{
   runs: RunSummary[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onRefresh: () => void;
-}) {
+}>) {
   return (
     <div className="run-list">
       <div className="run-list-header">
@@ -275,8 +278,8 @@ export function TournamentView() {
       wsRef.current = null;
     }
 
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/runs/${selectedId}/attach?from_seq=0`;
+    const wsProtocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${wsProtocol}//${globalThis.location.host}/api/runs/${selectedId}/attach?from_seq=0`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

@@ -14,8 +14,8 @@ import "./App.css";
 
 type Tab = "workflow" | "results";
 
-const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
-const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws`;
+const WS_PROTOCOL = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
+const WS_URL = `${WS_PROTOCOL}//${globalThis.location.host}/ws`;
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("workflow");

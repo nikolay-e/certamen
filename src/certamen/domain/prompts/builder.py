@@ -8,7 +8,6 @@ from certamen.domain.prompts.templates import (
     INITIAL_PROMPT_TEMPLATE,
     SYNTHESIS_PROMPT_TEMPLATE,
 )
-from certamen.ports.llm import BaseModel
 
 
 class PromptBuilder:
@@ -131,7 +130,6 @@ class PromptBuilder:
         kb_context: str,
         improvement_context: dict[str, dict[str, str]] | None,
         other_responses: dict[str, str] | None,
-        model: BaseModel,
         display_name: str,
         prompt_type: str = "improvement",
     ) -> str:

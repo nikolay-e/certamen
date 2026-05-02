@@ -125,7 +125,9 @@ class GUIServer:
         )
         return response
 
-    async def _on_startup(self, _app: web.Application) -> None:
+    async def _on_startup(
+        self, _app: web.Application
+    ) -> None:  # NOSONAR - aiohttp on_startup hook requires coroutine
         # Start periodic cleanup task for rate limiter memory management
         self._cleanup_task = asyncio.create_task(
             self._periodic_rate_limit_cleanup(), name="rate_limit_cleanup"
@@ -169,8 +171,10 @@ class GUIServer:
             self._cleanup_task.cancel()
             try:
                 await self._cleanup_task
-            except asyncio.CancelledError:
-                pass  # Expected: we just cancelled this task
+            except (
+                asyncio.CancelledError
+            ):  # NOSONAR - intentionally swallowed after explicit task.cancel()
+                pass
 
         # Close all WebSocket connections gracefully
         async with self._clients_lock:
@@ -272,7 +276,7 @@ class GUIServer:
             )
             self._gui_dir = gui_dir
 
-    async def _serve_index(
+    def _serve_index(
         self, request: web.Request
     ) -> web.FileResponse | web.Response:
         if self._gui_dir is None:
@@ -334,28 +338,165 @@ class GUIServer:
                 self.broadcast_failure_count,
             )
 
-    async def websocket_handler(
-        self, request: web.Request
-    ) -> web.WebSocketResponse:
+    def _setup_auth_context(self) -> tuple[bool, Any]:
         skip_auth_env = os.environ.get("CERTAMEN_SKIP_AUTH", "").lower() in (
             "1",
             "true",
             "yes",
         )
         if skip_auth_env:
-            skip_auth = True
-            verify_access_token = None
-        else:
-            from certamen.interfaces.web.auth.config import (
-                SKIP_AUTH as _SKIP_AUTH,
+            return True, None
+        from certamen.interfaces.web.auth.config import SKIP_AUTH as _SKIP_AUTH
+        from certamen.interfaces.web.auth.security import (
+            verify_access_token as _verify_access_token,
+        )
+
+        return _SKIP_AUTH, _verify_access_token
+
+    async def _authenticate_ws(
+        self,
+        ws: web.WebSocketResponse,
+        client_ip: str,
+        skip_auth: bool,
+        verify_access_token: Any,
+    ) -> bool:
+        if skip_auth:
+            return True
+        try:
+            auth_msg = await asyncio.wait_for(ws.receive_json(), timeout=10.0)
+            if auth_msg.get("type") != "auth":
+                raise ValueError("First message must be auth")
+            token = auth_msg.get("token")
+            if not token:
+                raise ValueError("Missing token")
+            if verify_access_token is None:
+                raise ValueError("Auth disabled but token-based path reached")
+            user_info = verify_access_token(token)
+            user_id = user_info.get("user_id")
+            if not user_id:
+                raise ValueError("Invalid token")
+            await send_ws_json(ws, {"type": "auth_success"})
+            logger.info("WebSocket authenticated for user %s", user_id)
+            return True
+        except TimeoutError:
+            logger.warning("WebSocket auth timeout from %s", client_ip)
+            await ws.close(code=4001, message=b"Authentication timeout")
+            return False
+        except Exception as e:
+            logger.warning("WebSocket auth failed from %s: %s", client_ip, e)
+            await ws.close(code=4003, message=b"Authentication failed")
+            return False
+
+    def _maybe_log_message_rate(self) -> None:
+        if self.total_messages_received % 100 != 0:
+            return
+        elapsed = time.time() - self.last_rate_log_time
+        messages_in_period = (
+            self.total_messages_received - self.last_rate_log_count
+        )
+        rate_per_minute = (
+            (messages_in_period / elapsed) * 60 if elapsed > 0 else 0
+        )
+        logger.info(
+            "Message rate: total=%d period_messages=%d period_seconds=%.1f rate_per_minute=%.1f active_connections=%d",
+            self.total_messages_received,
+            messages_in_period,
+            elapsed,
+            rate_per_minute,
+            len(self.clients),
+        )
+        self.last_rate_log_time = time.time()
+        self.last_rate_log_count = self.total_messages_received
+
+    async def _handle_text_message(
+        self,
+        ws: web.WebSocketResponse,
+        data: str,
+        client_ip: str,
+        ws_id: int,
+    ) -> None:
+        self.messages_received[ws_id] += 1
+        self.total_messages_received += 1
+        self._maybe_log_message_rate()
+
+        if not await self._check_rate_limit(client_ip):
+            logger.warning("Rate limit exceeded for %s", client_ip)
+            await send_ws_error(ws, "Rate limit exceeded", code="RATE_LIMIT")
+            return
+
+        try:
+            msg = json.loads(data)
+            await self._handle_message(ws, msg)
+        except json.JSONDecodeError as e:
+            logger.error("Invalid JSON from %s: %s", client_ip, e)
+            await send_ws_error(ws, "Invalid JSON format", code="INVALID_JSON")
+        except Exception as e:
+            logger.exception(
+                "Error handling message from %s: %s", client_ip, e
             )
-            from certamen.interfaces.web.auth.security import (
-                verify_access_token as _verify_access_token,
+            await send_ws_error(
+                ws, f"Internal error: {e}", code="INTERNAL_ERROR"
             )
 
-            skip_auth = _SKIP_AUTH
-            verify_access_token = _verify_access_token
+    async def _handle_ws_msg(
+        self,
+        ws: web.WebSocketResponse,
+        msg: Any,
+        client_ip: str,
+        ws_id: int,
+    ) -> str | None:
+        if msg.type == web.WSMsgType.TEXT:
+            await self._handle_text_message(ws, msg.data, client_ip, ws_id)
+            return None
+        if msg.type == web.WSMsgType.ERROR:
+            logger.error(
+                "WebSocket error from %s: %s", client_ip, ws.exception()
+            )
+            return f"error: {ws.exception()}"
+        if msg.type == web.WSMsgType.CLOSE:
+            return f"client closed (code={ws.close_code})"
+        return None
 
+    async def _cleanup_ws_connection(
+        self,
+        ws: web.WebSocketResponse,
+        ws_id: int,
+        client_ip: str,
+        disconnect_reason: str,
+    ) -> None:
+        async with self._clients_lock:
+            self.clients.discard(ws)
+        async with self._connections_lock:
+            self.connections_per_ip[client_ip] -= 1
+            if self.connections_per_ip[client_ip] <= 0:
+                del self.connections_per_ip[client_ip]
+
+        duration = time.time() - self.connection_start_times.get(
+            ws_id, time.time()
+        )
+        messages_sent = self.messages_sent.get(ws_id, 0)
+        messages_received = self.messages_received.get(ws_id, 0)
+        async with self._clients_lock:
+            active_connections = len(self.clients)
+
+        logger.info(
+            "WebSocket disconnected: client=%s duration_s=%.1f messages_sent=%d messages_received=%d active_connections=%d reason=%s",
+            client_ip,
+            duration,
+            messages_sent,
+            messages_received,
+            active_connections,
+            disconnect_reason,
+        )
+
+        self.connection_start_times.pop(ws_id, None)
+        self.messages_sent.pop(ws_id, None)
+        self.messages_received.pop(ws_id, None)
+
+    async def websocket_handler(
+        self, request: web.Request
+    ) -> web.WebSocketResponse:
+        skip_auth, verify_access_token = self._setup_auth_context()
         client_ip = self._get_client_ip(request)
 
         if not skip_auth and not self._check_origin(request):
@@ -386,40 +527,10 @@ class GUIServer:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
-        if not skip_auth:
-            try:
-                auth_msg = await asyncio.wait_for(
-                    ws.receive_json(), timeout=10.0
-                )
-                if auth_msg.get("type") != "auth":
-                    raise ValueError("First message must be auth")
-
-                token = auth_msg.get("token")
-                if not token:
-                    raise ValueError("Missing token")
-
-                if verify_access_token is None:
-                    raise ValueError(
-                        "Auth disabled but token-based path reached"
-                    )
-                user_info = verify_access_token(token)
-                user_id = user_info.get("user_id")
-                if not user_id:
-                    raise ValueError("Invalid token")
-
-                await send_ws_json(ws, {"type": "auth_success"})
-                logger.info("WebSocket authenticated for user %s", user_id)
-
-            except TimeoutError:
-                logger.warning("WebSocket auth timeout from %s", client_ip)
-                await ws.close(code=4001, message=b"Authentication timeout")
-                return ws
-            except Exception as e:
-                logger.warning(
-                    "WebSocket auth failed from %s: %s", client_ip, e
-                )
-                await ws.close(code=4003, message=b"Authentication failed")
-                return ws
+        if not await self._authenticate_ws(
+            ws, client_ip, skip_auth, verify_access_token
+        ):
+            return ws
 
         async with self._clients_lock:
             self.clients.add(ws)
@@ -438,65 +549,10 @@ class GUIServer:
         disconnect_reason = "normal"
         try:
             async for msg in ws:
-                if msg.type == web.WSMsgType.TEXT:
-                    self.messages_received[ws_id] += 1
-                    self.total_messages_received += 1
-
-                    if self.total_messages_received % 100 == 0:
-                        elapsed = time.time() - self.last_rate_log_time
-                        messages_in_period = (
-                            self.total_messages_received
-                            - self.last_rate_log_count
-                        )
-                        rate_per_minute = (
-                            (messages_in_period / elapsed) * 60
-                            if elapsed > 0
-                            else 0
-                        )
-                        logger.info(
-                            "Message rate: total=%d period_messages=%d period_seconds=%.1f rate_per_minute=%.1f active_connections=%d",
-                            self.total_messages_received,
-                            messages_in_period,
-                            elapsed,
-                            rate_per_minute,
-                            len(self.clients),
-                        )
-                        self.last_rate_log_time = time.time()
-                        self.last_rate_log_count = self.total_messages_received
-
-                    if not await self._check_rate_limit(client_ip):
-                        logger.warning("Rate limit exceeded for %s", client_ip)
-                        await send_ws_error(
-                            ws, "Rate limit exceeded", code="RATE_LIMIT"
-                        )
-                        continue
-
-                    try:
-                        data = json.loads(msg.data)
-                        await self._handle_message(ws, data)
-                    except json.JSONDecodeError as e:
-                        logger.error("Invalid JSON from %s: %s", client_ip, e)
-                        await send_ws_error(
-                            ws, "Invalid JSON format", code="INVALID_JSON"
-                        )
-                    except Exception as e:
-                        logger.exception(
-                            "Error handling message from %s: %s",
-                            client_ip,
-                            e,
-                        )
-                        await send_ws_error(
-                            ws, f"Internal error: {e}", code="INTERNAL_ERROR"
-                        )
-                elif msg.type == web.WSMsgType.ERROR:
-                    disconnect_reason = f"error: {ws.exception()}"
-                    logger.error(
-                        "WebSocket error from %s: %s",
-                        client_ip,
-                        ws.exception(),
-                    )
-                elif msg.type == web.WSMsgType.CLOSE:
-                    disconnect_reason = f"client closed (code={ws.close_code})"
+                new_reason = await self._handle_ws_msg(
+                    ws, msg, client_ip, ws_id
+                )
+                disconnect_reason = new_reason or disconnect_reason
         except asyncio.CancelledError:
             disconnect_reason = "cancelled"
             raise
@@ -504,34 +560,9 @@ class GUIServer:
             disconnect_reason = f"exception: {e}"
             logger.exception("WebSocket loop error from %s: %s", client_ip, e)
         finally:
-            async with self._clients_lock:
-                self.clients.discard(ws)
-            async with self._connections_lock:
-                self.connections_per_ip[client_ip] -= 1
-                if self.connections_per_ip[client_ip] <= 0:
-                    del self.connections_per_ip[client_ip]
-
-            duration = time.time() - self.connection_start_times.get(
-                ws_id, time.time()
+            await self._cleanup_ws_connection(
+                ws, ws_id, client_ip, disconnect_reason
             )
-            messages_sent = self.messages_sent.get(ws_id, 0)
-            messages_received = self.messages_received.get(ws_id, 0)
-            async with self._clients_lock:
-                active_connections = len(self.clients)
-
-            logger.info(
-                "WebSocket disconnected: client=%s duration_s=%.1f messages_sent=%d messages_received=%d active_connections=%d reason=%s",
-                client_ip,
-                duration,
-                messages_sent,
-                messages_received,
-                active_connections,
-                disconnect_reason,
-            )
-
-            self.connection_start_times.pop(ws_id, None)
-            self.messages_sent.pop(ws_id, None)
-            self.messages_received.pop(ws_id, None)
 
         return ws
 
@@ -559,6 +590,26 @@ class GUIServer:
 
         return True, ""
 
+    def _build_models_data(self, ollama_models: list[str]) -> dict[str, Any]:
+        if not ollama_models:
+            logger.warning(
+                "No Ollama models found. Ensure Ollama is running and OLLAMA_BASE_URL is set."
+            )
+            return {}
+        models_data = {
+            model_name: {
+                "display_name": model_name.replace("ollama/", ""),
+                "provider": "ollama",
+            }
+            for model_name in ollama_models
+        }
+        logger.info(
+            "Sending %d Ollama models to client: %s...",
+            len(models_data),
+            list(models_data.keys())[:5],
+        )
+        return models_data
+
     async def _handle_message(
         self,
         ws: web.WebSocketResponse,
@@ -578,31 +629,8 @@ class GUIServer:
                 get_models_by_provider,
             )
 
-            # Get Ollama models dynamically from local Ollama server
             ollama_models = await get_models_by_provider("ollama")
-
-            # Build response with real installed models
-            models_data = {}
-            if ollama_models:
-                for model_name in ollama_models:
-                    # Extract display name from full model name (e.g., "ollama/llama3:8b" -> "llama3:8b")
-                    display_name = model_name.replace("ollama/", "")
-                    models_data[model_name] = {
-                        "display_name": display_name,
-                        "provider": "ollama",
-                    }
-                logger.info(
-                    "Sending %d Ollama models to client: %s...",
-                    len(models_data),
-                    list(models_data.keys())[:5],
-                )
-            else:
-                # No Ollama models available - return empty dict
-                logger.warning(
-                    "No Ollama models found. Ensure Ollama is running and OLLAMA_BASE_URL is set."
-                )
-                models_data = {}
-
+            models_data = self._build_models_data(ollama_models)
             await send_ws_json(ws, {"type": "models", "data": models_data})
 
         elif msg_type == "get_nodes":
@@ -702,7 +730,7 @@ class GUIServer:
         models = await get_models_by_provider(provider)
         return web.json_response({"provider": provider, "models": models})
 
-    async def get_nodes(self, request: web.Request) -> web.Response:
+    def get_nodes(self, request: web.Request) -> web.Response:
         return web.json_response(registry.list_by_category())
 
     async def validate_workflow(self, request: web.Request) -> web.Response:
@@ -731,7 +759,7 @@ class GUIServer:
         result = await self.executor.execute(nodes, edges)
         return web.json_response(result)
 
-    async def health_check(self, request: web.Request) -> web.Response:
+    def health_check(self, request: web.Request) -> web.Response:
         total_messages_sent = sum(self.messages_sent.values())
         total_messages_received = sum(self.messages_received.values())
         active_connections = len(self.clients)

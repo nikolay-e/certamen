@@ -18,7 +18,7 @@ export function PropertiesPanel({
   node,
   models,
   onPropertyChange,
-}: PropertiesPanelProps) {
+}: Readonly<PropertiesPanelProps>) {
   if (!node) {
     return (
       <aside className="properties-panel">
@@ -74,7 +74,7 @@ function PropertyEditor({
   models,
   onChange,
   allProperties,
-}: PropertyEditorProps) {
+}: Readonly<PropertyEditorProps>) {
   const handleChange = useCallback(
     (newValue: unknown) => {
       onChange(nodeId, propertyKey, newValue);
@@ -197,13 +197,13 @@ function MultiSelectEditor({
   options,
   models,
   onChange,
-}: {
+}: Readonly<{
   label: string;
   value: string[];
   options: string[];
   models: Record<string, ModelInfo>;
   onChange: (value: string[]) => void;
-}) {
+}>) {
   const toggleOption = (opt: string) => {
     if (value.includes(opt)) {
       onChange(value.filter((v) => v !== opt));
@@ -216,7 +216,7 @@ function MultiSelectEditor({
   const selectNone = () => onChange([]);
 
   const formatLabel = (key: string) =>
-    key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    key.replaceAll("_", " ").replaceAll(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <div className="property-field model-selector">

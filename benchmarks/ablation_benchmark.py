@@ -43,6 +43,10 @@ HOMOGENEOUS_CONFIG_PATHS = {
     "gemini": "benchmarks/config.ablation.gemini_only.yml",
 }
 
+_CONFIRMED = "✓ CONFIRMED\n"
+_NOT_CONFIRMED = "✗ NOT CONFIRMED\n"
+_SECTION_BREAK = "\n---\n\n"
+
 # Default test question (high-stakes strategic decision)
 DEFAULT_QUESTION = """
 Analyze the strategic decision: Should our SaaS startup focus on
@@ -329,6 +333,199 @@ Format: Score: X/10 - [Justification]
     return best_model_key, scores
 
 
+def _collect_answers_from_conditions(
+    all_results: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    answers: list[dict[str, Any]] = []
+    if all_results[0]["condition"] == "A":
+        for model_key, result in all_results[0]["results"].items():
+            answers.append(
+                {
+                    "condition": "A",
+                    "sub_condition": model_key,
+                    "content": result["content"],
+                    "display_name": result["display_name"],
+                }
+            )
+    if all_results[1]["condition"] == "B":
+        answers.append(
+            {
+                "condition": "B",
+                "sub_condition": "cot",
+                "content": all_results[1]["result"]["content"],
+                "display_name": all_results[1]["display_name"] + " (CoT)",
+            }
+        )
+    for result in all_results[2:-1]:
+        if result["condition"] == "C":
+            answers.append(
+                {
+                    "condition": "C",
+                    "sub_condition": result["model_family"],
+                    "content": result["champion_response"],
+                    "display_name": f"Homogeneous {result['model_family'].upper()} Tournament",
+                }
+            )
+    if all_results[-1]["condition"] == "D":
+        answers.append(
+            {
+                "condition": "D",
+                "sub_condition": "heterogeneous",
+                "content": all_results[-1]["champion_response"],
+                "display_name": "Certamen Framework (Heterogeneous)",
+            }
+        )
+    return answers
+
+
+def _parse_judge_scores(
+    judge_response_content: str,
+    answers: list[dict[str, Any]],
+) -> dict[str, Any]:
+    import re
+
+    scores: dict[str, Any] = {}
+    for answer in answers:
+        blind_id = answer["blind_id"]
+        pattern = rf"{blind_id}:\s*(\d+(?:\.\d+)?)"
+        match = re.search(pattern, judge_response_content)
+        if match:
+            scores[blind_id] = {
+                "score": float(match.group(1)),
+                "condition": answer["condition"],
+                "sub_condition": answer["sub_condition"],
+                "display_name": answer["display_name"],
+            }
+    return scores
+
+
+def _save_raw_results(path: Path, all_results: list[dict[str, Any]]) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(all_results, f, indent=2, default=str)
+
+
+def _write_baseline_section(f: Any, all_results: list[dict[str, Any]]) -> None:
+    if "baseline_evaluation" not in all_results[0]:
+        return
+    baseline_eval = all_results[0]["baseline_evaluation"]
+    best_key = baseline_eval["best_model"]
+    best_display = all_results[0]["results"][best_key]["display_name"]
+    f.write("## Baseline Selection\n\n")
+    f.write(f"**Selected Baseline:** {best_display}\n\n")
+    f.write("All single model scores (evaluated by judge):\n\n")
+    for model_key, score in sorted(
+        baseline_eval["scores"].items(), key=lambda x: x[1], reverse=True
+    ):
+        display = all_results[0]["results"][model_key]["display_name"]
+        marker = "⭐" if model_key == best_key else "  "
+        f.write(f"- {marker} {display}: {score:.1f}/10\n")
+    f.write(_SECTION_BREAK)
+
+
+def _write_conclusion_section(
+    f: Any,
+    evaluation: dict[str, Any] | None,
+    raw_results_name: str,
+) -> None:
+    f.write(_SECTION_BREAK)
+    f.write("## Conclusion\n\n")
+    f.write(
+        "This benchmark validates the core hypotheses of the Certamen Framework:\n\n"
+    )
+    if evaluation:
+        rankings = {
+            cond: rank
+            for rank, (cond, _) in enumerate(evaluation["ranking"], 1)
+        }
+        f.write("- **Competition improves quality**: ")
+        if rankings.get("C", 99) < rankings.get("A", 99) or rankings.get(
+            "D", 99
+        ) < rankings.get("A", 99):
+            f.write(_CONFIRMED)
+        else:
+            f.write(_NOT_CONFIRMED)
+
+        f.write("- **Diversity matters**: ")
+        if rankings.get("D", 99) < rankings.get("C", 99):
+            f.write(_CONFIRMED)
+        else:
+            f.write(_NOT_CONFIRMED)
+
+        f.write("- **Tournaments > Prompting**: ")
+        if rankings.get("D", 99) < rankings.get("B", 99):
+            f.write(_CONFIRMED)
+        else:
+            f.write(_NOT_CONFIRMED)
+
+    f.write("\n")
+    f.write(f"**Raw Data:** `{raw_results_name}`\n\n")
+
+
+def _write_ablation_report(
+    report_path: Path,
+    all_results: list[dict[str, Any]],
+    evaluation: dict[str, Any] | None,
+    total_cost: float,
+    start_time: datetime,
+    question: str,
+    raw_results_name: str,
+) -> None:
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write("# Certamen Ablation Benchmark Report\n\n")
+        f.write(
+            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        )
+        f.write(
+            f"**Total Runtime:** "
+            f"{(datetime.now() - start_time).total_seconds():.1f}s\n\n"
+        )
+        f.write(f"**Total Cost:** ${total_cost:.4f}\n\n")
+        f.write("---\n\n")
+        f.write("## Test Question\n\n")
+        f.write(f"```\n{question}\n```\n\n")
+        f.write("---\n\n")
+
+        _write_baseline_section(f, all_results)
+
+        f.write("## Conditions Tested\n\n")
+        for result in all_results:
+            if result.get("condition") == "EVALUATION":
+                continue
+            cond = result["condition"]
+            desc = result.get("description", "")
+            cost = result.get("total_cost", 0)
+            f.write(f"- **Condition {cond}**: {desc} (Cost: ${cost:.4f})\n")
+
+        f.write(_SECTION_BREAK)
+
+        if evaluation:
+            f.write("## Evaluation Results\n\n")
+            f.write(f"**Judge Model:** {evaluation['judge_model']}\n\n")
+            f.write("### Rankings\n\n")
+            for rank, (condition, avg_score) in enumerate(
+                evaluation["ranking"], 1
+            ):
+                f.write(
+                    f"{rank}. **Condition {condition}**: {avg_score:.2f}/10\n"
+                )
+
+            f.write("\n### Detailed Scores\n\n")
+            f.write("| Response | Condition | Score |\n")
+            f.write("|----------|-----------|-------|\n")
+            for _blind_id, score_data in sorted(
+                evaluation["individual_scores"].items(),
+                key=lambda x: x[1]["score"],
+                reverse=True,
+            ):
+                f.write(
+                    f"| {score_data['display_name']} | "
+                    f"{score_data['condition']} | "
+                    f"{score_data['score']:.1f}/10 |\n"
+                )
+
+        _write_conclusion_section(f, evaluation, raw_results_name)
+
+
 async def evaluate_results(
     all_results: list[dict[str, Any]], certamen: Certamen, question: str
 ) -> dict[str, Any]:
@@ -354,61 +551,11 @@ async def evaluate_results(
     logger.info("EVALUATION: Blind Scoring by External Judge")
     logger.info("=" * 80)
 
-    # Collect all answers with metadata
-    answers = []
-
-    # Condition A: Multiple single model responses
-    if all_results[0]["condition"] == "A":
-        for model_key, result in all_results[0]["results"].items():
-            answers.append(
-                {
-                    "condition": "A",
-                    "sub_condition": model_key,
-                    "content": result["content"],
-                    "display_name": result["display_name"],
-                }
-            )
-
-    # Condition B: Single model with CoT
-    if all_results[1]["condition"] == "B":
-        answers.append(
-            {
-                "condition": "B",
-                "sub_condition": "cot",
-                "content": all_results[1]["result"]["content"],
-                "display_name": all_results[1]["display_name"] + " (CoT)",
-            }
-        )
-
-    # Conditions C: Homogeneous tournaments
-    for result in all_results[2:-1]:  # All C conditions
-        if result["condition"] == "C":
-            answers.append(
-                {
-                    "condition": "C",
-                    "sub_condition": result["model_family"],
-                    "content": result["champion_response"],
-                    "display_name": f"Homogeneous {result['model_family'].upper()} Tournament",
-                }
-            )
-
-    # Condition D: Heterogeneous tournament
-    if all_results[-1]["condition"] == "D":
-        answers.append(
-            {
-                "condition": "D",
-                "sub_condition": "heterogeneous",
-                "content": all_results[-1]["champion_response"],
-                "display_name": "Certamen Framework (Heterogeneous)",
-            }
-        )
-
-    # Shuffle to ensure blind evaluation
+    answers = _collect_answers_from_conditions(all_results)
     random.shuffle(answers)
     for i, answer in enumerate(answers):
         answer["blind_id"] = f"Answer_{i + 1}"
 
-    # Create evaluation prompt
     evaluation_prompt = f"""
 You are an expert evaluator judging strategic business analysis responses.
 
@@ -436,7 +583,6 @@ Responses to evaluate:
 
     evaluation_prompt += "\n\nProvide your scores in this format:\nAnswer_X: [Score]/10 - [Justification]"
 
-    # Use first available model as judge (prefer Claude or GPT-5)
     judge_model_key = None
     for preferred in ["claude", "gpt"]:
         if preferred in certamen.healthy_models:
@@ -452,42 +598,21 @@ Responses to evaluate:
         judge_model_key, evaluation_prompt
     )
 
-    # Parse scores (simplified parsing - production would be more robust)
-    scores = {}
-    for answer in answers:
-        blind_id = answer["blind_id"]
-        # Look for pattern like "Answer_1: 8/10" or "Answer_1: 8.5/10"
-        import re
-
-        pattern = rf"{blind_id}:\s*(\d+(?:\.\d+)?)"
-        match = re.search(pattern, judge_response.content)
-        if match:
-            score = float(match.group(1))
-            scores[blind_id] = {
-                "score": score,
-                "condition": answer["condition"],
-                "sub_condition": answer["sub_condition"],
-                "display_name": answer["display_name"],
-            }
-
+    scores = _parse_judge_scores(judge_response.content, answers)
     logger.info(f"\nJudge evaluation cost: ${judge_response.cost:.4f}")
     logger.info(f"Successfully parsed {len(scores)}/{len(answers)} scores")
 
-    # Calculate statistics by condition
-    condition_scores = {}
+    condition_scores: dict[str, list[float]] = {}
     for _blind_id, score_data in scores.items():
         cond = score_data["condition"]
         if cond not in condition_scores:
             condition_scores[cond] = []
         condition_scores[cond].append(score_data["score"])
 
-    # Calculate averages
     condition_averages = {
         cond: sum(scores_list) / len(scores_list)
         for cond, scores_list in condition_scores.items()
     }
-
-    # Sort by average score
     ranked_conditions = sorted(
         condition_averages.items(), key=lambda x: x[1], reverse=True
     )
@@ -595,16 +720,11 @@ async def main() -> None:
     results_d = await run_condition_d(certamen_main, args.question)
     all_results.append(results_d)
 
-    # --- Save raw results ---
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     raw_results_path = OUTPUT_DIR / f"ablation_raw_{timestamp}.json"
-
-    with open(raw_results_path, "w", encoding="utf-8") as f:
-        json.dump(all_results, f, indent=2, default=str)
-
+    await asyncio.to_thread(_save_raw_results, raw_results_path, all_results)
     logger.info(f"\n✓ Raw results saved to {raw_results_path}")
 
-    # --- Evaluate results (optional) ---
     if not args.skip_evaluation:
         evaluation = await evaluate_results(
             all_results, certamen_main, args.question
@@ -614,7 +734,6 @@ async def main() -> None:
         logger.info("\nSkipping blind evaluation (--skip-evaluation flag)")
         evaluation = None
 
-    # --- Generate final report ---
     report_path = OUTPUT_DIR / f"ablation_report_{timestamp}.md"
     total_cost = sum(
         r.get("total_cost", 0)
@@ -624,108 +743,16 @@ async def main() -> None:
     if evaluation:
         total_cost += evaluation["judge_cost"]
 
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write("# Certamen Ablation Benchmark Report\n\n")
-        f.write(
-            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        )
-        f.write(
-            f"**Total Runtime:** {(datetime.now() - start_time).total_seconds():.1f}s\n\n"
-        )
-        f.write(f"**Total Cost:** ${total_cost:.4f}\n\n")
-        f.write("---\n\n")
-        f.write("## Test Question\n\n")
-        f.write(f"```\n{args.question}\n```\n\n")
-        f.write("---\n\n")
-
-        # Baseline selection
-        if "baseline_evaluation" in all_results[0]:
-            f.write("## Baseline Selection\n\n")
-            baseline_eval = all_results[0]["baseline_evaluation"]
-            best_key = baseline_eval["best_model"]
-            best_display = all_results[0]["results"][best_key]["display_name"]
-            f.write(f"**Selected Baseline:** {best_display}\n\n")
-            f.write("All single model scores (evaluated by judge):\n\n")
-            for model_key, score in sorted(
-                baseline_eval["scores"].items(),
-                key=lambda x: x[1],
-                reverse=True,
-            ):
-                display = all_results[0]["results"][model_key]["display_name"]
-                marker = "⭐" if model_key == best_key else "  "
-                f.write(f"- {marker} {display}: {score:.1f}/10\n")
-            f.write("\n---\n\n")
-
-        # Summary of conditions
-        f.write("## Conditions Tested\n\n")
-        for result in all_results:
-            if result.get("condition") == "EVALUATION":
-                continue
-            cond = result["condition"]
-            desc = result.get("description", "")
-            cost = result.get("total_cost", 0)
-            f.write(f"- **Condition {cond}**: {desc} (Cost: ${cost:.4f})\n")
-
-        f.write("\n---\n\n")
-
-        # Evaluation results
-        if evaluation:
-            f.write("## Evaluation Results\n\n")
-            f.write(f"**Judge Model:** {evaluation['judge_model']}\n\n")
-            f.write("### Rankings\n\n")
-            for rank, (condition, avg_score) in enumerate(
-                evaluation["ranking"], 1
-            ):
-                f.write(
-                    f"{rank}. **Condition {condition}**: {avg_score:.2f}/10\n"
-                )
-
-            f.write("\n### Detailed Scores\n\n")
-            f.write("| Response | Condition | Score |\n")
-            f.write("|----------|-----------|-------|\n")
-            for _blind_id, score_data in sorted(
-                evaluation["individual_scores"].items(),
-                key=lambda x: x[1]["score"],
-                reverse=True,
-            ):
-                f.write(
-                    f"| {score_data['display_name']} | {score_data['condition']} | {score_data['score']:.1f}/10 |\n"
-                )
-
-        f.write("\n---\n\n")
-        f.write("## Conclusion\n\n")
-        f.write(
-            "This benchmark validates the core hypotheses of the Certamen Framework:\n\n"
-        )
-
-        if evaluation:
-            rankings = {
-                cond: rank
-                for rank, (cond, _) in enumerate(evaluation["ranking"], 1)
-            }
-            f.write("- **Competition improves quality**: ")
-            if rankings.get("C", 99) < rankings.get("A", 99) or rankings.get(
-                "D", 99
-            ) < rankings.get("A", 99):
-                f.write("✓ CONFIRMED\n")
-            else:
-                f.write("✗ NOT CONFIRMED\n")
-
-            f.write("- **Diversity matters**: ")
-            if rankings.get("D", 99) < rankings.get("C", 99):
-                f.write("✓ CONFIRMED\n")
-            else:
-                f.write("✗ NOT CONFIRMED\n")
-
-            f.write("- **Tournaments > Prompting**: ")
-            if rankings.get("D", 99) < rankings.get("B", 99):
-                f.write("✓ CONFIRMED\n")
-            else:
-                f.write("✗ NOT CONFIRMED\n")
-
-        f.write("\n")
-        f.write(f"**Raw Data:** `{raw_results_path.name}`\n\n")
-
+    await asyncio.to_thread(
+        _write_ablation_report,
+        report_path,
+        all_results,
+        evaluation,
+        total_cost,
+        start_time,
+        args.question,
+        raw_results_path.name,
+    )
     logger.info(f"✓ Final report saved to {report_path}")
     logger.info("\n" + "=" * 80)
     logger.info("BENCHMARK COMPLETE")

@@ -559,11 +559,6 @@ body {
   justify-content: flex-end;
 }
 
-.draggable-node-content {
-  flex: 1;
-  text-align: center;
-}
-
 .port-marker {
   width: 8px;
   height: 8px;
@@ -1654,7 +1649,7 @@ body {
 
 .error-toast-close:hover {
   background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  color: #b91c1c;
 }
 
 .error-toast-body {

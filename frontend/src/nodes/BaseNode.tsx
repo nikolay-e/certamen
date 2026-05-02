@@ -20,7 +20,7 @@ interface TextPreview {
   fullText?: string;
 }
 
-function BaseNodeComponent({ id, data, selected }: BaseNodeProps) {
+function BaseNodeComponent({ id, data, selected }: Readonly<BaseNodeProps>) {
   const { deleteNode } = useWorkflowStore();
   const categoryColor = getCategoryColor(data.category);
   const isExecuting = data.executing;
@@ -50,10 +50,7 @@ function BaseNodeComponent({ id, data, selected }: BaseNodeProps) {
       if (texts && Array.isArray(texts) && texts.length > 0) {
         // Convert texts to single page with auto-add field
         const fieldsWithEmpty = [...texts.filter((t) => t !== undefined)];
-        if (
-          fieldsWithEmpty.length === 0 ||
-          fieldsWithEmpty[fieldsWithEmpty.length - 1] !== ""
-        ) {
+        if (fieldsWithEmpty.length === 0 || fieldsWithEmpty.at(-1) !== "") {
           fieldsWithEmpty.push("");
         }
         pages = [fieldsWithEmpty];
@@ -111,19 +108,19 @@ function BaseNodeComponent({ id, data, selected }: BaseNodeProps) {
       </div>
 
       <div className="node-body">
-        {/* Text node body with editable fields */}
-        {textNodeData ? (
+        {textNodeData && (
           <TextNodeBody
             nodeId={id}
             pages={textNodeData.pages}
             currentPage={textNodeData.currentPage}
             hidden={textNodeData.hidden}
           />
-        ) : textPreview ? (
+        )}
+        {!textNodeData && textPreview && (
           <div className="node-text-preview" title={textPreview.fullText}>
             {textPreview.text}
           </div>
-        ) : null}
+        )}
 
         {data.inputs.map((input: PortDefinition, index: number) => (
           <div key={input.name} className="node-port input-port">
@@ -183,81 +180,57 @@ function BaseNodeComponent({ id, data, selected }: BaseNodeProps) {
   );
 }
 
+function getLlmTextPreview(
+  props: Record<string, unknown>,
+  result: Record<string, unknown> | undefined,
+): TextPreview {
+  const modelConfig = result?.model_config as Record<string, unknown> | undefined;
+  if (modelConfig?.model_name) {
+    const name = modelConfig.name ? `${modelConfig.name}: ` : "";
+    return { text: `${name}${modelConfig.model_name}` };
+  }
+  if (props.model_name !== undefined && props.model_name !== "") {
+    return { text: `${props.model_name}` };
+  }
+  return { text: "(no model selected)" };
+}
+
 function getTextPreview(data: NodeData): TextPreview | null {
   const props = data.properties || {};
-  const result = data.result as Record<string, unknown> | undefined;
+  const result = data.result;
 
-  // Text nodes use TextNodeBody component for display
   if (data.nodeType === "simple/text") {
     return null;
   }
 
   if (props.template !== undefined) {
-    if (props.template === "") {
-      return {
-        text: "(empty template)",
-      };
-    }
+    if (props.template === "") return { text: "(empty template)" };
     const fullText = String(props.template);
     const truncated = truncateText(fullText, 100);
-    return {
-      text: truncated,
-      fullText: fullText !== truncated ? fullText : undefined,
-    };
+    return { text: truncated, fullText: fullText !== truncated ? fullText : undefined };
   }
 
   if (props.question !== undefined) {
-    if (props.question === "") {
-      return {
-        text: "(empty question)",
-      };
-    }
+    if (props.question === "") return { text: "(empty question)" };
     const fullText = String(props.question);
     const truncated = truncateText(fullText, 100);
-    return {
-      text: truncated,
-      fullText: fullText !== truncated ? fullText : undefined,
-    };
+    return { text: truncated, fullText: fullText !== truncated ? fullText : undefined };
   }
 
   if (props.model !== undefined) {
-    return {
-      text: `Model: ${props.model}`,
-    };
+    return { text: `Model: ${props.model}` };
   }
 
-  // For LLM nodes: show model from result (after execution) or properties
   if (data.nodeType === "simple/llm") {
-    const modelConfig = result?.model_config as
-      | Record<string, unknown>
-      | undefined;
-    if (modelConfig?.model_name) {
-      const name = modelConfig.name ? `${modelConfig.name}: ` : "";
-      return {
-        text: `${name}${modelConfig.model_name}`,
-      };
-    }
-    if (props.model_name !== undefined && props.model_name !== "") {
-      return {
-        text: `${props.model_name}`,
-      };
-    }
-    return {
-      text: "(no model selected)",
-    };
+    return getLlmTextPreview(props, result as Record<string, unknown> | undefined);
   }
 
   if (props.model_name !== undefined && props.model_name !== "") {
-    return {
-      text: `${props.model_name}`,
-    };
+    return { text: `${props.model_name}` };
   }
 
-  // For multi_text nodes, show title
   if (props.title !== undefined) {
-    return {
-      text: `📋 ${props.title}`,
-    };
+    return { text: `📋 ${props.title}` };
   }
 
   return null;

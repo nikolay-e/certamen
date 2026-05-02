@@ -252,20 +252,22 @@ def _validate_workflow_file(file_path: str) -> None:
         raise FatalError(f"File not found: {file_path}") from None
 
 
+def _print_node_outputs(node_id: str, node_data: dict[str, Any]) -> None:
+    cli_cyan(f"\n[{node_id}]")
+    for key, value in node_data.items():
+        print(f"  {key}: {value}")
+
+
 def _print_workflow_outputs(
     outputs: dict[str, Any], output_nodes: list[str]
 ) -> None:
     if output_nodes:
         for node_id in output_nodes:
             if node_id in outputs:
-                cli_cyan(f"\n[{node_id}]")
-                for key, value in outputs[node_id].items():
-                    print(f"  {key}: {value}")
+                _print_node_outputs(node_id, outputs[node_id])
     else:
-        for node_id, node_outputs in outputs.items():
-            cli_cyan(f"\n[{node_id}]")
-            for key, value in node_outputs.items():
-                print(f"  {key}: {value}")
+        for node_id, node_data in outputs.items():
+            _print_node_outputs(node_id, node_data)
 
 
 async def _execute_workflow_file(
@@ -380,9 +382,9 @@ async def _execute_workflow_dict(
             },
         )
 
-        async def broadcast_event(
+        async def broadcast_event(  # NOSONAR - awaited by AsyncExecutor._broadcast
             message_str: str,
-        ) -> None:  # NOSONAR - awaited by AsyncExecutor._broadcast
+        ) -> None:
             try:
                 msg = json.loads(message_str)
             except (json.JSONDecodeError, TypeError):

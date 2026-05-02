@@ -7,7 +7,7 @@ interface ErrorToastProps {
   onClose: () => void;
 }
 
-export function ErrorToast({ error, onClose }: ErrorToastProps) {
+export function ErrorToast({ error, onClose }: Readonly<ErrorToastProps>) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export function ErrorToast({ error, onClose }: ErrorToastProps) {
   const handleActionClick = () => {
     if (mappedError.action === "Retry") {
       // Trigger retry event or reload
-      window.location.reload();
+      globalThis.location.reload();
     } else if (mappedError.action === "Check credentials") {
       // Navigate to settings or show credentials panel
       console.log("Navigate to settings");
@@ -57,8 +57,8 @@ export function ErrorToast({ error, onClose }: ErrorToastProps) {
         <div className="error-toast-suggestions">
           <div className="error-toast-suggestions-title">What to do:</div>
           <ul className="error-toast-suggestions-list">
-            {mappedError.suggestions.map((suggestion, index) => (
-              <li key={index}>{suggestion}</li>
+            {mappedError.suggestions.map((suggestion) => (
+              <li key={suggestion}>{suggestion}</li>
             ))}
           </ul>
         </div>

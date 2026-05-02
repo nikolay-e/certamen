@@ -12,7 +12,7 @@ export function FormField({
   description,
   required = false,
   children,
-}: FormFieldProps) {
+}: Readonly<FormFieldProps>) {
   return (
     <div className="property-field">
       <label title={description}>

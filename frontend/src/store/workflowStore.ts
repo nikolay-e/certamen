@@ -14,6 +14,81 @@ import { NODE_TYPES, validateNodeType } from "../constants/nodeTypes";
 
 type WorkflowNode = Node<NodeData>;
 
+const EDGE_SETTLE_DELAY_MS = 100;
+
+function findNodeDefinitionInCategories(
+  nodeType: string,
+  nodeDefinitions: Record<string, unknown[]>,
+): Record<string, unknown> | null {
+  for (const category of Object.values(nodeDefinitions)) {
+    const def = (category as Record<string, unknown>[]).find(
+      (n) => n.node_type === nodeType,
+    );
+    if (def) return def;
+  }
+  return null;
+}
+
+function buildEnrichedNode(
+  jsonNode: Record<string, unknown>,
+  nodeDefinitions: Record<string, unknown[]>,
+): WorkflowNode | null {
+  const backendNodeType =
+    jsonNode.type || (jsonNode.data as Record<string, unknown>)?.nodeType;
+  if (!backendNodeType) {
+    console.warn(`Node ${jsonNode.id} missing type/nodeType, skipping`);
+    return null;
+  }
+
+  const nodeDef = findNodeDefinitionInCategories(
+    backendNodeType as string,
+    nodeDefinitions,
+  );
+  if (!nodeDef) {
+    console.warn(
+      `Node definition not found for type ${backendNodeType}, skipping node ${jsonNode.id}`,
+    );
+    return null;
+  }
+
+  const nodeData = jsonNode.data as Record<string, unknown> | undefined;
+  const properties: Record<string, unknown> =
+    (jsonNode.properties as Record<string, unknown> | undefined) ??
+    (nodeData?.properties as Record<string, unknown> | undefined) ??
+    {};
+  const enrichedProperties = {
+    ...Object.fromEntries(
+      Object.entries(
+        nodeDef.properties as Record<string, Record<string, unknown>>,
+      ).map(([key, prop]) => [
+        key,
+        properties[key] !== undefined ? properties[key] : prop.default,
+      ]),
+    ),
+    ...properties,
+  };
+
+  const xyflowNodeType = NODE_TYPES.WORKFLOW;
+  validateNodeType(xyflowNodeType);
+
+  return {
+    id: jsonNode.id as string,
+    type: xyflowNodeType,
+    position: (jsonNode.position as { x: number; y: number }) || { x: 0, y: 0 },
+    data: {
+      label:
+        (nodeData?.label as string) || (nodeDef.display_name as string),
+      nodeType: nodeDef.node_type,
+      category: nodeDef.category,
+      inputs: [...(nodeDef.inputs as unknown[])],
+      outputs: nodeDef.outputs,
+      properties: enrichedProperties,
+      propertyDefs: nodeDef.properties,
+      dynamicInputs: nodeDef.dynamic_inputs,
+    } as NodeData,
+  };
+}
+
 interface WorkflowState {
   nodes: WorkflowNode[];
   edges: Edge[];
@@ -256,7 +331,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     const nodes: WorkflowNode[] = [
       createNode(
-        textNodeDef as Record<string, unknown>,
+        textNodeDef,
         "text-input",
         { x: 100, y: 150 },
         {
@@ -266,7 +341,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         },
       ),
       createNode(
-        llmNodeDef as Record<string, unknown>,
+        llmNodeDef,
         "llm-main",
         { x: 450, y: 150 },
         {
@@ -274,7 +349,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         },
       ),
       createNode(
-        textNodeDef as Record<string, unknown>,
+        textNodeDef,
         "text-output",
         { x: 800, y: 150 },
         {
@@ -306,81 +381,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
   },
 
   loadWorkflow: (workflowJson, nodeDefinitions) => {
-    const findNodeDefinition = (
-      nodeType: string,
-    ): Record<string, unknown> | null => {
-      for (const category of Object.values(nodeDefinitions)) {
-        const def = (category as Record<string, unknown>[]).find(
-          (n) => n.node_type === nodeType,
-        );
-        if (def) return def;
-      }
-      return null;
-    };
-
-    const enrichNode = (
-      jsonNode: Record<string, unknown>,
-    ): WorkflowNode | null => {
-      const backendNodeType =
-        jsonNode.type || (jsonNode.data as Record<string, unknown>)?.nodeType;
-      if (!backendNodeType) {
-        console.warn(`Node ${jsonNode.id} missing type/nodeType, skipping`);
-        return null;
-      }
-
-      const nodeDef = findNodeDefinition(backendNodeType as string);
-      if (!nodeDef) {
-        console.warn(
-          `Node definition not found for type ${backendNodeType}, skipping node ${jsonNode.id}`,
-        );
-        return null;
-      }
-
-      const properties = ((jsonNode.properties as Record<string, unknown>) ||
-        ((jsonNode.data as Record<string, unknown>)?.properties as Record<
-          string,
-          unknown
-        >) ||
-        {}) as Record<string, unknown>;
-      const enrichedProperties = {
-        ...Object.fromEntries(
-          Object.entries(
-            nodeDef.properties as Record<string, Record<string, unknown>>,
-          ).map(([key, prop]) => [
-            key,
-            properties[key] !== undefined ? properties[key] : prop.default,
-          ]),
-        ),
-        ...properties,
-      };
-
-      const xyflowNodeType = NODE_TYPES.WORKFLOW;
-      validateNodeType(xyflowNodeType);
-
-      return {
-        id: jsonNode.id as string,
-        type: xyflowNodeType,
-        position: (jsonNode.position as { x: number; y: number }) || {
-          x: 0,
-          y: 0,
-        },
-        data: {
-          label:
-            ((jsonNode.data as Record<string, unknown>)?.label as string) ||
-            (nodeDef.display_name as string),
-          nodeType: nodeDef.node_type,
-          category: nodeDef.category,
-          inputs: [...(nodeDef.inputs as unknown[])],
-          outputs: nodeDef.outputs,
-          properties: enrichedProperties,
-          propertyDefs: nodeDef.properties,
-          dynamicInputs: nodeDef.dynamic_inputs,
-        } as NodeData,
-      };
-    };
-
     const enrichedNodes = (workflowJson.nodes as Record<string, unknown>[])
-      .map((node) => enrichNode(node))
+      .map((node) => buildEnrichedNode(node, nodeDefinitions))
       .filter((node): node is WorkflowNode => node !== null);
 
     const enrichedEdges = (
@@ -435,7 +437,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
       for (const handle of newStyleHandles) {
         const match = handle?.match(new RegExp(`^${prefix}_(\\d+)$`));
         if (match) {
-          const num = parseInt(match[1], 10);
+          const num = Number.parseInt(match[1], 10);
           if (num > maxPortNumber) maxPortNumber = num;
         }
       }
@@ -444,7 +446,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
       for (const handle of oldStyleHandles) {
         const match = handle?.match(new RegExp(`^${prefix}(\\d+)$`));
         if (match) {
-          const num = parseInt(match[1], 10);
+          const num = Number.parseInt(match[1], 10);
           if (num > maxPortNumber) maxPortNumber = num;
         }
       }
@@ -524,7 +526,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         })),
       );
       console.log("Edges:", enrichedEdges);
-    }, 100);
+    }, EDGE_SETTLE_DELAY_MS);
   },
 
   setDefaultModelIfEmpty: (models) => {

@@ -31,7 +31,7 @@ interface CanvasProps {
   executionMessages: ExecutionMessage[];
 }
 
-function CanvasInner({ executionMessages }: CanvasProps) {
+function CanvasInner({ executionMessages }: Readonly<CanvasProps>) {
   const { screenToFlowPosition } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
   const {
@@ -155,7 +155,7 @@ function CanvasInner({ executionMessages }: CanvasProps) {
             });
             break;
           case "node_complete": {
-            const outputs = msg.outputs as Record<string, unknown> | undefined;
+            const outputs = msg.outputs;
 
             // Update pages for nodes that output _pages (e.g., TextNode)
             // This avoids depending on nodes array which may be stale
@@ -299,7 +299,7 @@ function CanvasInner({ executionMessages }: CanvasProps) {
   );
 }
 
-export function Canvas(props: CanvasProps) {
+export function Canvas(props: Readonly<CanvasProps>) {
   return (
     <ReactFlowProvider>
       <CanvasInner {...props} />

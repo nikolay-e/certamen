@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Certamen Framework ROI Calculator</title>
     <meta charset="UTF-8">
@@ -104,22 +104,22 @@
             This calculator helps you determine if the investment is justified for your decision.
         </p>
 
-        <label>What's at stake in this decision? ($)</label>
+        <label for="stakes">What's at stake in this decision? ($)</label>
         <input id="stakes" type="number" placeholder="10000" value="10000">
         <small>The financial impact if you make the wrong choice</small>
 
-        <label>How many models in tournament?</label>
+        <label for="models">How many models in tournament?</label>
         <select id="models">
             <option value="3">3 models (~7 min, $0.92)</option>
             <option value="4" selected>4 models (~9 min, $1.53)</option>
             <option value="5">5 models (~15 min, $2.62)</option>
         </select>
 
-        <label>Your hourly rate ($)</label>
+        <label for="rate">Your hourly rate ($)</label>
         <input id="rate" type="number" placeholder="100" value="100">
         <small>Your time cost while waiting for results</small>
 
-        <label>Expected quality improvement (%)</label>
+        <label for="improvement">Expected quality improvement (%)</label>
         <input id="improvement" type="number" placeholder="18" value="18" step="1">
         <small>Conservative estimate: 15-20%. Adjust based on your domain.</small>
 
@@ -130,10 +130,10 @@
 
     <script>
         function calculate() {
-            const stakes = parseFloat(document.getElementById('stakes').value) || 0;
-            const models = parseInt(document.getElementById('models').value);
-            const rate = parseFloat(document.getElementById('rate').value) || 0;
-            const improvement = parseFloat(document.getElementById('improvement').value) || 18;
+            const stakes = Number.parseFloat(document.getElementById('stakes').value) || 0;
+            const models = Number.parseInt(document.getElementById('models').value);
+            const rate = Number.parseFloat(document.getElementById('rate').value) || 0;
+            const improvement = Number.parseFloat(document.getElementById('improvement').value) || 18;
 
             // Cost calculations
             const costs = {

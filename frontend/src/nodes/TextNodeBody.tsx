@@ -18,7 +18,7 @@ function TextNodeBodyComponent({
   pages,
   currentPage,
   hidden = false,
-}: TextNodeBodyProps) {
+}: Readonly<TextNodeBodyProps>) {
   const { updateNodeProperty } = useWorkflowStore();
   const textareasRef = useRef<Map<number, HTMLTextAreaElement>>(new Map());
 
@@ -73,7 +73,7 @@ function TextNodeBodyComponent({
       newFields[fieldIndex] = value;
 
       // Auto-add empty field at end when typing in last field
-      const lastField = newFields[newFields.length - 1];
+      const lastField = newFields.at(-1);
       if (lastField !== "") {
         newFields.push("");
       }
@@ -81,8 +81,8 @@ function TextNodeBodyComponent({
       // Remove trailing empty fields, but keep at least one
       while (
         newFields.length > 1 &&
-        newFields[newFields.length - 1] === "" &&
-        newFields[newFields.length - 2] === ""
+        newFields.at(-1) === "" &&
+        newFields.at(-2) === ""
       ) {
         newFields.pop();
       }
@@ -149,7 +149,7 @@ function TextNodeBodyComponent({
       {/* Fields Container */}
       <div className="text-node-fields">
         {currentFields.map((value, index) => (
-          <div key={index} className="text-node-field">
+          <div key={index /* NOSONAR - no stable id for string[] fields */} className="text-node-field">
             <span className="text-node-field-number">{index + 1}</span>
             <div className="text-node-field-input-wrapper">
               <textarea
@@ -212,7 +212,7 @@ function TextNodeBodyComponent({
           <div className="text-node-page-buttons">
             {pages.map((_, index) => (
               <button
-                key={index}
+                key={index /* NOSONAR - page array has no stable id */}
                 className={`text-node-page-btn nodrag ${index === currentPage ? "active" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();

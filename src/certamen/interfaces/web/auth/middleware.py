@@ -58,7 +58,7 @@ async def auth_middleware(
         return await handler(request)
 
     try:
-        user = await get_current_user_from_request(request)
+        user = get_current_user_from_request(request)
         request["user"] = user
         logger.debug("Authenticated user: %s", user["username"])
         return await handler(request)

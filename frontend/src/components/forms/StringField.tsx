@@ -13,7 +13,7 @@ export function StringField({
   value,
   definition,
   onChange,
-}: StringFieldProps) {
+}: Readonly<StringFieldProps>) {
   const isMultiline = definition?.multiline || false;
 
   return (

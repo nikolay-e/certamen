@@ -115,7 +115,7 @@ def db_transaction(write: bool = False) -> Any:
     try:
         conn = get_db()
         if not conn:
-            raise Exception("Failed to get database connection")
+            raise RuntimeError("Failed to get database connection")
 
         yield conn
 
@@ -162,7 +162,7 @@ def query_db(query: str, args: tuple[Any, ...] = (), one: bool = False) -> Any:
     """
     import re
 
-    query_cleaned = re.sub(r"--.*?(\n|$)", " ", query)
+    query_cleaned = re.sub(r"--[^\n]*(\n|$)", " ", query)
     query_cleaned = re.sub(r"/\*.*?\*/", " ", query_cleaned, flags=re.DOTALL)
     query_cleaned = query_cleaned.strip().upper()
 
@@ -201,7 +201,8 @@ def query_db(query: str, args: tuple[Any, ...] = (), one: bool = False) -> Any:
                 query_duration_ms,
                 row_count,
             )
-            return (rv[0] if rv else None) if one else rv
+            first_row = rv[0] if rv else None
+            return first_row if one else rv
 
 
 def execute_write_transaction(
@@ -227,7 +228,7 @@ def execute_write_transaction(
     """
     import re
 
-    query_cleaned = re.sub(r"--.*?(\n|$)", " ", query)
+    query_cleaned = re.sub(r"--[^\n]*(\n|$)", " ", query)
     query_cleaned = re.sub(r"/\*.*?\*/", " ", query_cleaned, flags=re.DOTALL)
     query_cleaned = query_cleaned.strip().upper()
 
@@ -260,7 +261,8 @@ def execute_write_transaction(
                     query_duration_ms,
                     row_count,
                 )
-                return (rv[0] if rv else None) if one else rv
+                first_row = rv[0] if rv else None
+                return first_row if one else rv
 
             affected_rows = cur.rowcount
             logger.debug(

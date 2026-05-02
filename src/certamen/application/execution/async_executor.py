@@ -184,7 +184,7 @@ class AsyncExecutor(BaseExecutor):
         total_layers: int,
         layer: list[str],
     ) -> None:
-        pass
+        pass  # Layer-level reporting not needed for async execution; subclasses may override
 
     def _report_execution_complete(
         self,

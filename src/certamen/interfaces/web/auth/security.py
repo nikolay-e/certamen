@@ -244,7 +244,7 @@ def verify_access_token(token: str) -> dict[str, Any]:
         raise web.HTTPUnauthorized(reason="Invalid token") from e
 
 
-async def get_current_user_from_request(
+def get_current_user_from_request(
     request: web.Request,
 ) -> dict[str, Any]:
     if SKIP_AUTH:
@@ -268,8 +268,8 @@ async def get_current_user_from_request(
     return verify_access_token(token)
 
 
-async def require_admin(request: web.Request) -> dict[str, Any]:
-    current_user = await get_current_user_from_request(request)
+def require_admin(request: web.Request) -> dict[str, Any]:
+    current_user = get_current_user_from_request(request)
 
     user = query_db(
         "SELECT is_admin FROM users WHERE id = %s",
