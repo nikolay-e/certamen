@@ -45,13 +45,12 @@ export function Sidebar({ nodeDefinitions, connected }: Readonly<SidebarProps>) 
               </h3>
               <div className="category-nodes">
                 {nodeDefinitions[category].map((nodeDef) => (
-                  <div
+                  <button
                     key={nodeDef.node_type}
+                    type="button"
                     className="draggable-node"
                     draggable
                     onDragStart={(e) => onDragStart(e, nodeDef)}
-                    tabIndex={0}
-                    role="button"
                     aria-label={`${nodeDef.display_name} node`}
                     onKeyDown={() => {}}
                   >
@@ -89,7 +88,7 @@ export function Sidebar({ nodeDefinitions, connected }: Readonly<SidebarProps>) 
                         />
                       ))}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

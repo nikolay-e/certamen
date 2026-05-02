@@ -542,6 +542,11 @@ body {
   cursor: grab;
   transition: all 0.2s;
   font-size: 0.875rem;
+  width: 100%;
+  border: none;
+  color: inherit;
+  text-align: left;
+  font-family: inherit;
 }
 
 .draggable-node:hover {
@@ -1657,8 +1662,7 @@ body {
 }
 
 .error-toast-close:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .error-toast-body {

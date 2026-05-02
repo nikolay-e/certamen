@@ -29,6 +29,21 @@ function findNodeDefinitionInCategories(
   return null;
 }
 
+function findMaxPortIndex(
+  handles: (string | null | undefined)[],
+  extractRe: RegExp,
+): number {
+  let max = 0;
+  for (const handle of handles) {
+    const match = handle == null ? null : extractRe.exec(handle);
+    if (match) {
+      const num = Number.parseInt(match[1], 10);
+      if (num > max) max = num;
+    }
+  }
+  return max;
+}
+
 function restoreNodeDynamicPorts(
   node: WorkflowNode,
   enrichedEdges: Edge[],
@@ -63,21 +78,10 @@ function restoreNodeDynamicPorts(
     useOldStyle,
   });
 
-  let maxPortNumber = 0;
-  for (const handle of newStyleHandles) {
-    const match = handle != null ? newStyleExtractRe.exec(handle) : null;
-    if (match) {
-      const num = Number.parseInt(match[1], 10);
-      if (num > maxPortNumber) maxPortNumber = num;
-    }
-  }
-  for (const handle of oldStyleHandles) {
-    const match = handle != null ? oldStyleExtractRe.exec(handle) : null;
-    if (match) {
-      const num = Number.parseInt(match[1], 10);
-      if (num > maxPortNumber) maxPortNumber = num;
-    }
-  }
+  const maxPortNumber = Math.max(
+    findMaxPortIndex(newStyleHandles, newStyleExtractRe),
+    findMaxPortIndex(oldStyleHandles, oldStyleExtractRe),
+  );
 
   const currentPortsNew = node.data.inputs.filter((p) =>
     p.name.startsWith(`${prefix}_`),

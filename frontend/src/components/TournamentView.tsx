@@ -161,6 +161,8 @@ function EventCard({ event }: Readonly<{ event: CertamenEvent }>) {
   const isError =
     event.event_type === "llm_response" && p.is_error === true;
   const cost = (p.cost as number) || 0;
+  const phaseTag = p.phase as string | undefined;
+  const modelTag = p.model as string | undefined;
 
   return (
     <details
@@ -171,8 +173,8 @@ function EventCard({ event }: Readonly<{ event: CertamenEvent }>) {
       <summary>
         <span className="event-seq">#{event.seq}</span>
         <span className="event-title">{title}</span>
-        {!!p.phase && <span className="tag tag-phase">{String(p.phase)}</span>}
-        {!!p.model && <span className="tag tag-model">{String(p.model)}</span>}
+        {phaseTag && <span className="tag tag-phase">{phaseTag}</span>}
+        {modelTag && <span className="tag tag-model">{modelTag}</span>}
         {cost > 0 && <span className="tag tag-cost">{formatCost(cost)}</span>}
         {isError && <span className="tag tag-error">ERROR</span>}
         <span className="event-time">{formatTime(event.ts)}</span>
@@ -276,7 +278,7 @@ export function TournamentView() {
     const wsProtocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
     const safeRunId = encodeURIComponent(selectedId);
     const wsUrl = `${wsProtocol}//${globalThis.location.host}/api/runs/${safeRunId}/attach?from_seq=0`;
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(wsUrl); // NOSONAR - URL is derived from window.location (same origin), not user input
     wsRef.current = ws;
 
     ws.onopen = () => setLiveStatus("live");

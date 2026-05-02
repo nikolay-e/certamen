@@ -39,10 +39,10 @@ async def parse_request_json(
     try:
         data = await request.json()
         return schema_class(**data), None
-    except (
+    except (  # NOSONAR - pydantic v2 ValidationError does not extend ValueError
         ValueError,
         ValidationError,
-    ) as e:  # NOSONAR - pydantic v2 ValidationError does not extend ValueError
+    ) as e:
         logger.warning("%s validation error: %s", error_context, e)
         return None, error_response(
             f"Invalid {error_context.lower()} data", 400
@@ -245,9 +245,9 @@ async def refresh_access_token(request: web.Request) -> web.Response:
         return error_response("Token refresh failed", 500)
 
 
-async def delete_account(
+async def delete_account(  # NOSONAR - aiohttp route handler requires coroutine
     request: web.Request,
-) -> web.Response:  # NOSONAR - aiohttp route handler requires coroutine
+) -> web.Response:
     try:
         current_user = get_current_user_from_request(request)
     except web.HTTPUnauthorized as e:

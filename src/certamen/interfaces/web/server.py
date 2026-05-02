@@ -125,9 +125,9 @@ class GUIServer:
         )
         return response
 
-    async def _on_startup(
+    async def _on_startup(  # NOSONAR - aiohttp on_startup hook requires coroutine
         self, _app: web.Application
-    ) -> None:  # NOSONAR - aiohttp on_startup hook requires coroutine
+    ) -> None:
         # Start periodic cleanup task for rate limiter memory management
         self._cleanup_task = asyncio.create_task(
             self._periodic_rate_limit_cleanup(), name="rate_limit_cleanup"
@@ -171,9 +171,7 @@ class GUIServer:
             self._cleanup_task.cancel()
             try:
                 await self._cleanup_task
-            except (
-                asyncio.CancelledError
-            ):  # NOSONAR - intentionally swallowed after explicit task.cancel()
+            except asyncio.CancelledError:  # NOSONAR
                 pass
 
         # Close all WebSocket connections gracefully
