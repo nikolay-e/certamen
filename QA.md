@@ -7,7 +7,7 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 
 ## Applicable QA Steps
 
-- Tests: `make test` — 410+ integration tests, 50%+ coverage, no mocks
+- Tests: `make test` — 225+ integration tests, 30%+ coverage, no mocks
 - Lint: `make lint` — ruff (bandit security rules), mypy strict, isort, black
 - Pre-commit: full suite including gitleaks, semgrep, vulture, detect-secrets
 - Code review: manual diff review for prompt/config changes
@@ -43,3 +43,11 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 - CI Windows path test: use `set.issubset(set(path.parts))` not `"src/certamen/workflows" in str(path)` to avoid backslash separator failure
 - Coverage threshold: web interface (interfaces/web/) and logging infrastructure (shared/logging/) contribute 0% coverage in CI as they require runtime; exclude them from coverage.omit; threshold of 30% is correct for integration-test-only project
 - `tournament/rank` → `extract_insights.model` flow: the rank node outputs model config as dict; `ExtractInsightsNode` must call `ensure_single_model_instance()` before calling `.generate()`
+- `flow/gate` → `synthesize.model` flow: gate returns champion as raw dict; `SynthesizeNode` must call `ensure_single_model_instance()` — same pattern as ExtractInsightsNode
+- Pattern: any workflow node that accepts a `model` or `champion` input from `gate` or `rank` nodes must handle dict input via `ensure_single_model_instance()` before calling `safe_generate()`
+- Executor termination: `_is_iteration_done` must check ALL `node_outputs` entries (not just last layer tasks) — gate node in early layers was not detected
+- Small models (1B-4B) as judges: rankings will be empty because they can't produce scores in parseable format (LLM1: X/10); expected behavior, not a bug — tournament still terminates and produces synthesis
+- SonarCloud project key is `nikolay-e_arbitrium-core` (old name); `sonar-project.properties` scopes analysis to `src/certamen/` only
+- SonarCloud BLOCKER on intentional bcrypt dummy hash: add `# NOSONAR` + `# pragma: allowlist secret`
+- `pull_request_target` with `github.triggering_actor` is forgeable — use `pull_request` + `github.actor`
+- `asyncio.CancelledError` in periodic loop: always `raise`, not `break`; in shutdown (task we explicitly cancelled): comment OK; at top level: use `finally` only
