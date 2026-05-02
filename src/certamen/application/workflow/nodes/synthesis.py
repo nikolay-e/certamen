@@ -13,6 +13,7 @@ from certamen.domain.knowledge_map.renderer import KnowledgeMapRenderer
 from certamen.domain.prompts.builder import PromptBuilder
 from certamen.domain.prompts.formatter import PromptFormatter
 from certamen.infrastructure.config.defaults import get_defaults
+from certamen.infrastructure.llm import ensure_single_model_instance
 
 
 def _build_prompt_builder(
@@ -97,6 +98,15 @@ class SynthesizeNode(BaseNode):
             if not model_keys:
                 return {"synthesis": "[No model available for synthesis]"}
             synth_model = context.models[model_keys[0]]
+        elif isinstance(synth_model, dict):
+            synth_model = await ensure_single_model_instance(
+                synth_model, "synthesizer"
+            )
+            if synth_model is None:
+                model_keys = list(context.models.keys())
+                if not model_keys:
+                    return {"synthesis": "[No model available for synthesis]"}
+                synth_model = context.models[model_keys[0]]
 
         instruction = self.node_properties.get("instruction") or None
         prompt_builder = _build_prompt_builder(instruction)
