@@ -479,6 +479,81 @@ async def run_workflow(args: dict[str, object]) -> None:
     raise FatalError(f"Unknown workflow command: {workflow_command}")
 
 
+def _run_gui_command(args: dict[str, Any]) -> None:
+    from certamen.interfaces.web.server import run_gui_server
+
+    host = str(args.get("host", "0.0.0.0"))  # noqa: S104
+    port = int(args.get("port", 8765))  # type: ignore[arg-type]
+    try:
+        asyncio.run(run_gui_server(host=host, port=port))
+    except KeyboardInterrupt:
+        print("\nServer stopped.")
+        sys.exit(0)
+
+
+def _run_render_command(args: dict[str, Any]) -> None:
+    from certamen.interfaces.render import write_run_report
+
+    raw = str(args.get("run_dir", ""))
+    outputs_dir = Path(str(args.get("outputs_dir", "outputs")))
+    run_path = Path(raw)
+    if not run_path.is_dir():
+        candidate = outputs_dir / "runs" / raw
+        if candidate.is_dir():
+            run_path = candidate
+        else:
+            cli_error(f"Run directory not found: {raw}")
+            sys.exit(1)
+
+    out = args.get("output")
+    out_path = Path(str(out)) if out else None
+    try:
+        written = write_run_report(run_path, out_path)
+    except Exception as e:
+        cli_error(f"Render failed: {e}")
+        sys.exit(1)
+    print(f"Wrote report: {written}")
+
+
+def _run_workflow_command(args: dict[str, Any]) -> None:
+    from certamen.application.workflow.nodes import register_all
+
+    register_all()
+    try:
+        asyncio.run(run_workflow(args))
+    except FatalError as e:
+        cli_error(str(e))
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print(_USER_INTERRUPTED_MSG)
+        sys.exit(130)
+
+
+def _run_tournament_workflow_command(args: dict[str, Any]) -> None:
+    from certamen.application.workflow.nodes import register_all
+    from certamen.shared.logging import get_contextual_logger as _get_logger
+
+    register_all()
+    logger = _get_logger("certamen.tournament_workflow")
+    tw_outputs = args.get("outputs_dir")
+    outputs_dir_str = str(tw_outputs) if tw_outputs is not None else None
+    try:
+        asyncio.run(
+            _execute_tournament_workflow(
+                str(args.get("workflow")),
+                outputs_dir_str,
+                bool(args.get("verbose", False)),
+                logger,
+            )
+        )
+    except FatalError as e:
+        cli_error(str(e))
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print(_USER_INTERRUPTED_MSG)
+        sys.exit(130)
+
+
 def run_from_cli() -> None:
     from dotenv import load_dotenv
 
@@ -502,84 +577,19 @@ def run_from_cli() -> None:
     command = args.get("command", "tournament")
 
     if command in ("gui", "web"):
-        from certamen.interfaces.web.server import run_gui_server
-
-        host = str(args.get("host", "0.0.0.0"))  # noqa: S104
-        port = int(args.get("port", 8765))  # type: ignore[arg-type]
-
-        try:
-            asyncio.run(run_gui_server(host=host, port=port))
-        except KeyboardInterrupt:
-            print("\nServer stopped.")
-            sys.exit(0)
+        _run_gui_command(args)
         return
 
     if command == "render":
-        from pathlib import Path
-
-        from certamen.interfaces.render import write_run_report
-
-        raw = str(args.get("run_dir", ""))
-        outputs_dir = Path(str(args.get("outputs_dir", "outputs")))
-        run_path = Path(raw)
-        if not run_path.is_dir():
-            candidate = outputs_dir / "runs" / raw
-            if candidate.is_dir():
-                run_path = candidate
-            else:
-                cli_error(f"Run directory not found: {raw}")
-                sys.exit(1)
-
-        out = args.get("output")
-        out_path = Path(str(out)) if out else None
-        try:
-            written = write_run_report(run_path, out_path)
-        except Exception as e:
-            cli_error(f"Render failed: {e}")
-            sys.exit(1)
-        print(f"Wrote report: {written}")
+        _run_render_command(args)
         return
 
     if command == "workflow":
-        from certamen.application.workflow.nodes import register_all
-
-        register_all()
-
-        try:
-            asyncio.run(run_workflow(args))
-        except FatalError as e:
-            cli_error(str(e))
-            sys.exit(1)
-        except KeyboardInterrupt:
-            print(_USER_INTERRUPTED_MSG)
-            sys.exit(130)
+        _run_workflow_command(args)
         return
 
-    workflow_path = args.get("workflow")
-    if workflow_path:
-        from certamen.application.workflow.nodes import register_all
-        from certamen.shared.logging import get_contextual_logger
-
-        register_all()
-        logger = get_contextual_logger("certamen.tournament_workflow")
-        tw_outputs = args.get("outputs_dir")
-        outputs_dir_str = str(tw_outputs) if tw_outputs is not None else None
-
-        try:
-            asyncio.run(
-                _execute_tournament_workflow(
-                    str(workflow_path),
-                    outputs_dir_str,
-                    bool(args.get("verbose", False)),
-                    logger,
-                )
-            )
-        except FatalError as e:
-            cli_error(str(e))
-            sys.exit(1)
-        except KeyboardInterrupt:
-            print(_USER_INTERRUPTED_MSG)
-            sys.exit(130)
+    if args.get("workflow"):
+        _run_tournament_workflow_command(args)
         return
 
     try:

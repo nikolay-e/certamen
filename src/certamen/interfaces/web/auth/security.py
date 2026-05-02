@@ -166,9 +166,7 @@ auth_rate_limiter = AuthRateLimiter()
 # Pre-computed bcrypt hash for timing attack prevention
 # This hash is used when user doesn't exist to ensure constant-time response
 # The actual password doesn't matter - we just need to run bcrypt
-DUMMY_HASH_FOR_TIMING_ATTACK_PREVENTION = (
-    "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.5qLB6kGGGGGGGG"
-)
+DUMMY_HASH_FOR_TIMING_ATTACK_PREVENTION = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.5qLB6kGGGGGGGG"  # NOSONAR - intentional dummy, not a real credential  # pragma: allowlist secret
 
 
 def hash_password(password: str) -> str:

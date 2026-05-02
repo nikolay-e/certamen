@@ -162,123 +162,133 @@ def _read_events(events_path: Path) -> list[dict[str, Any]]:
     return events
 
 
+def _apply_event_to_summary(
+    state: dict[str, Any], et: str, p: dict[str, Any]
+) -> None:
+    if et == "tournament_started":
+        state["question"] = p.get("question", "")
+        state["model_count"] = len(p.get("models", []))
+    elif et == "phase_started":
+        phase = p.get("phase", "")
+        if phase and phase not in state["phases"]:
+            state["phases"].append(phase)
+    elif et == "llm_response":
+        state["llm_count"] += 1
+        state["total_cost"] += float(p.get("cost") or 0.0)
+    elif et == "model_eliminated":
+        state["eliminated_count"] += 1
+    elif et == "tournament_ended":
+        state["champion"] = p.get("champion") or "—"
+        if p.get("total_cost") is not None:
+            state["total_cost"] = float(p["total_cost"])
+
+
 def _summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
-    question = ""
-    champion = "—"
-    total_cost = 0.0
-    llm_count = 0
-    model_count = 0
-    eliminated_count = 0
-    phases: list[str] = []
-
-    for e in events:
-        et = e.get("event_type", "")
-        p = e.get("payload", {})
-        if et == "tournament_started":
-            question = p.get("question", "")
-            model_count = len(p.get("models", []))
-        elif et == "phase_started":
-            phase = p.get("phase", "")
-            if phase and phase not in phases:
-                phases.append(phase)
-        elif et == "llm_response":
-            llm_count += 1
-            total_cost += float(p.get("cost") or 0.0)
-        elif et == "model_eliminated":
-            eliminated_count += 1
-        elif et == "tournament_ended":
-            champion = p.get("champion") or "—"
-            if p.get("total_cost") is not None:
-                total_cost = float(p["total_cost"])
-
-    return {
-        "question": question,
-        "champion": champion,
-        "total_cost": total_cost,
-        "llm_count": llm_count,
-        "model_count": model_count,
-        "eliminated_count": eliminated_count,
-        "phases": phases,
+    state: dict[str, Any] = {
+        "question": "",
+        "champion": "—",
+        "total_cost": 0.0,
+        "llm_count": 0,
+        "model_count": 0,
+        "eliminated_count": 0,
+        "phases": [],
     }
+    for e in events:
+        _apply_event_to_summary(
+            state, e.get("event_type", ""), e.get("payload", {})
+        )
+    return state
+
+
+def _render_phase_event(
+    et: str, p: dict[str, Any]
+) -> tuple[str, list[str], list[str]]:
+    label = "START" if et == "phase_started" else "END"
+    return (
+        f"PHASE {label}: {p.get('phase', '?')}",
+        [f'<span class="tag phase">{p.get("phase", "")}</span>'],
+        [_kv(p)],
+    )
+
+
+def _render_llm_request(p: dict[str, Any]) -> tuple[str, list[str], list[str]]:
+    return (
+        f"REQUEST → {p.get('anon', p.get('model', '?'))}",
+        [
+            f'<span class="tag model">{html.escape(p.get("model", ""))}</span>',
+            f'<span class="tag phase">{html.escape(p.get("phase", ""))}</span>',
+        ],
+        [
+            f"<details><summary>Prompt ({p.get('prompt_chars', 0)} chars)</summary>"
+            f"<pre>{html.escape(p.get('prompt', ''))}</pre></details>"
+        ],
+    )
+
+
+def _render_llm_response(
+    p: dict[str, Any],
+) -> tuple[str, list[str], list[str]]:
+    cost = float(p.get("cost") or 0.0)
+    is_err = p.get("is_error", False)
+    content = p.get("content", "") or p.get("error", "")
+    tags = [
+        f'<span class="tag model">{html.escape(p.get("model", ""))}</span>',
+        f'<span class="tag phase">{html.escape(p.get("phase", ""))}</span>',
+    ]
+    if cost > 0:
+        tags.append(f'<span class="tag cost">${cost:.4f}</span>')
+    if is_err:
+        tags.append('<span class="tag elim">ERROR</span>')
+    parts = [
+        f"<details open><summary>Response ({len(content)} chars)</summary>"
+        f"<pre>{html.escape(content)}</pre></details>"
+    ]
+    if p.get("tokens_in") or p.get("tokens_out"):
+        parts.append(
+            _kv(
+                {
+                    "tokens_in": p.get("tokens_in"),
+                    "tokens_out": p.get("tokens_out"),
+                    "cost": cost,
+                }
+            )
+        )
+    return f"RESPONSE ← {p.get('anon', p.get('model', '?'))}", tags, parts
+
+
+def _classify_event(
+    et: str, p: dict[str, Any]
+) -> tuple[str, list[str], list[str]]:
+    if et in ("phase_started", "phase_completed"):
+        return _render_phase_event(et, p)
+    if et == "llm_request":
+        return _render_llm_request(p)
+    if et == "llm_response":
+        return _render_llm_response(p)
+    if et == "model_eliminated":
+        return (
+            f"ELIMINATED: {p.get('anon', '?')}",
+            ['<span class="tag elim">ELIM</span>'],
+            [_kv(p)],
+        )
+    if et == "tournament_started":
+        return "TOURNAMENT STARTED", [], [_kv(p)]
+    if et == "tournament_ended":
+        return (
+            "TOURNAMENT ENDED",
+            ['<span class="tag synth">FINAL</span>'],
+            [_kv(p)],
+        )
+    return et, [], [_kv(p)]
 
 
 def _render_event(event: dict[str, Any]) -> str:
     seq = event.get("seq", "?")
     et = event.get("event_type", "")
     p = event.get("payload", {})
-
-    title = et
-    extra_tags = []
-    body_parts = []
     text_for_search = json.dumps(p, default=str).lower()
 
-    if et == "phase_started":
-        title = f"PHASE START: {p.get('phase', '?')}"
-        extra_tags.append(
-            f'<span class="tag phase">{p.get("phase", "")}</span>'
-        )
-        body_parts.append(_kv(p))
-    elif et == "phase_completed":
-        title = f"PHASE END: {p.get('phase', '?')}"
-        extra_tags.append(
-            f'<span class="tag phase">{p.get("phase", "")}</span>'
-        )
-        body_parts.append(_kv(p))
-    elif et == "llm_request":
-        title = f"REQUEST → {p.get('anon', p.get('model', '?'))}"
-        extra_tags.append(
-            f'<span class="tag model">{html.escape(p.get("model", ""))}</span>'
-        )
-        extra_tags.append(
-            f'<span class="tag phase">{html.escape(p.get("phase", ""))}</span>'
-        )
-        body_parts.append(
-            f"<details><summary>Prompt ({p.get('prompt_chars', 0)} chars)</summary>"
-            f"<pre>{html.escape(p.get('prompt', ''))}</pre></details>"
-        )
-    elif et == "llm_response":
-        cost = float(p.get("cost") or 0.0)
-        is_err = p.get("is_error", False)
-        title = f"RESPONSE ← {p.get('anon', p.get('model', '?'))}"
-        extra_tags.append(
-            f'<span class="tag model">{html.escape(p.get("model", ""))}</span>'
-        )
-        extra_tags.append(
-            f'<span class="tag phase">{html.escape(p.get("phase", ""))}</span>'
-        )
-        if cost > 0:
-            extra_tags.append(f'<span class="tag cost">${cost:.4f}</span>')
-        if is_err:
-            extra_tags.append('<span class="tag elim">ERROR</span>')
-        content = p.get("content", "") or p.get("error", "")
-        body_parts.append(
-            f"<details open><summary>Response ({len(content)} chars)</summary>"
-            f"<pre>{html.escape(content)}</pre></details>"
-        )
-        if p.get("tokens_in") or p.get("tokens_out"):
-            body_parts.append(
-                _kv(
-                    {
-                        "tokens_in": p.get("tokens_in"),
-                        "tokens_out": p.get("tokens_out"),
-                        "cost": cost,
-                    }
-                )
-            )
-    elif et == "model_eliminated":
-        title = f"ELIMINATED: {p.get('anon', '?')}"
-        extra_tags.append('<span class="tag elim">ELIM</span>')
-        body_parts.append(_kv(p))
-    elif et == "tournament_started":
-        title = "TOURNAMENT STARTED"
-        body_parts.append(_kv(p))
-    elif et == "tournament_ended":
-        title = "TOURNAMENT ENDED"
-        extra_tags.append('<span class="tag synth">FINAL</span>')
-        body_parts.append(_kv(p))
-    else:
-        body_parts.append(_kv(p))
-
+    title, extra_tags, body_parts = _classify_event(et, p)
     body = "\n".join(body_parts) if body_parts else ""
     return (
         f'<details data-type="{html.escape(et)}" data-text="{html.escape(text_for_search)}">'

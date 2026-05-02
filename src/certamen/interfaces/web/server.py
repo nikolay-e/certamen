@@ -140,7 +140,7 @@ class GUIServer:
                 await asyncio.sleep(cleanup_interval)
                 await self._cleanup_stale_rate_limits()
             except asyncio.CancelledError:
-                break
+                raise
             except Exception as e:
                 logger.warning("Rate limit cleanup error: %s", e)
 
@@ -170,7 +170,7 @@ class GUIServer:
             try:
                 await self._cleanup_task
             except asyncio.CancelledError:
-                pass
+                pass  # Expected: we just cancelled this task
 
         # Close all WebSocket connections gracefully
         async with self._clients_lock:
@@ -772,7 +772,5 @@ async def run_gui_server(
     try:
         while True:
             await asyncio.sleep(3600)
-    except asyncio.CancelledError:
-        pass
     finally:
         await runner.cleanup()
