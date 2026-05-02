@@ -16,6 +16,19 @@ from certamen.infrastructure.config.defaults import get_defaults
 from certamen.infrastructure.llm import ensure_single_model_instance
 
 
+async def _resolve_model(model_input: Any, context: ExecutionContext) -> Any:
+    if isinstance(model_input, dict):
+        model_input = await ensure_single_model_instance(
+            model_input, "synthesizer"
+        )
+    if model_input is None:
+        model_keys = list(context.models.keys())
+        if not model_keys:
+            return None
+        return context.models[model_keys[0]]
+    return model_input
+
+
 def _build_prompt_builder(
     instruction: str | None = None,
 ) -> PromptBuilder:
@@ -93,20 +106,9 @@ class SynthesizeNode(BaseNode):
         if not responses or not question:
             return {"synthesis": ""}
 
+        synth_model = await _resolve_model(synth_model, context)
         if synth_model is None:
-            model_keys = list(context.models.keys())
-            if not model_keys:
-                return {"synthesis": "[No model available for synthesis]"}
-            synth_model = context.models[model_keys[0]]
-        elif isinstance(synth_model, dict):
-            synth_model = await ensure_single_model_instance(
-                synth_model, "synthesizer"
-            )
-            if synth_model is None:
-                model_keys = list(context.models.keys())
-                if not model_keys:
-                    return {"synthesis": "[No model available for synthesis]"}
-                synth_model = context.models[model_keys[0]]
+            return {"synthesis": "[No model available for synthesis]"}
 
         instruction = self.node_properties.get("instruction") or None
         prompt_builder = _build_prompt_builder(instruction)

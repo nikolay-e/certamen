@@ -380,7 +380,9 @@ async def _execute_workflow_dict(
             },
         )
 
-        async def broadcast_event(message_str: str) -> None:
+        async def broadcast_event(
+            message_str: str,
+        ) -> None:  # NOSONAR - awaited by AsyncExecutor._broadcast
             try:
                 msg = json.loads(message_str)
             except (json.JSONDecodeError, TypeError):

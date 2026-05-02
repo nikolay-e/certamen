@@ -11,6 +11,7 @@ from certamen.shared.logging import get_contextual_logger
 logger = get_contextual_logger(__name__)
 
 EVENTS_FILENAME = "events.jsonl"
+_RUN_NOT_FOUND = "run not found"
 
 
 def _runs_root() -> Path:
@@ -39,6 +40,28 @@ def _read_events_from_offset(
     return events, size
 
 
+def _apply_event_to_run_summary(
+    summary: dict[str, Any],
+    et: str,
+    p: dict[str, Any],
+    ts: float,
+    flags: dict[str, bool],
+) -> None:
+    if et == "tournament_started":
+        flags["started"] = True
+        summary["question"] = p.get("question")
+        summary["model_count"] = len(p.get("models", []))
+        summary["started_at"] = ts
+    elif et == "llm_response":
+        summary["total_cost"] += float(p.get("cost") or 0.0)
+    elif et == "tournament_ended":
+        flags["ended"] = True
+        summary["champion"] = p.get("champion")
+        summary["ended_at"] = ts
+        if p.get("total_cost") is not None:
+            summary["total_cost"] = float(p["total_cost"])
+
+
 def _summarize_run(run_dir: Path) -> dict[str, Any]:
     events_path = run_dir / EVENTS_FILENAME
     summary: dict[str, Any] = {
@@ -56,8 +79,7 @@ def _summarize_run(run_dir: Path) -> dict[str, Any]:
         summary["status"] = "missing"
         return summary
 
-    started = False
-    ended = False
+    flags = {"started": False, "ended": False}
     for raw in events_path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line:
@@ -67,26 +89,17 @@ def _summarize_run(run_dir: Path) -> dict[str, Any]:
         except json.JSONDecodeError:
             continue
         summary["event_count"] += 1
-        et = event.get("event_type", "")
-        p = event.get("payload", {})
-        ts = event.get("ts", 0)
-        if et == "tournament_started":
-            started = True
-            summary["question"] = p.get("question")
-            summary["model_count"] = len(p.get("models", []))
-            summary["started_at"] = ts
-        elif et == "llm_response":
-            summary["total_cost"] += float(p.get("cost") or 0.0)
-        elif et == "tournament_ended":
-            ended = True
-            summary["champion"] = p.get("champion")
-            summary["ended_at"] = ts
-            if p.get("total_cost") is not None:
-                summary["total_cost"] = float(p["total_cost"])
+        _apply_event_to_run_summary(
+            summary,
+            event.get("event_type", ""),
+            event.get("payload", {}),
+            event.get("ts", 0),
+            flags,
+        )
 
-    if ended:
+    if flags["ended"]:
         summary["status"] = "completed"
-    elif started:
+    elif flags["started"]:
         summary["status"] = "running"
     else:
         summary["status"] = "empty"
@@ -111,15 +124,15 @@ def get_run(request: web.Request) -> web.Response:
     run_id = request.match_info["run_id"]
     run_dir = _runs_root() / run_id
     if not run_dir.is_dir():
-        return web.json_response({"error": "run not found"}, status=404)
+        return web.json_response({"error": _RUN_NOT_FOUND}, status=404)
     return web.json_response(_summarize_run(run_dir))
 
 
-async def get_run_events(request: web.Request) -> web.Response:
+def get_run_events(request: web.Request) -> web.Response:
     run_id = request.match_info["run_id"]
     run_dir = _runs_root() / run_id
     if not run_dir.is_dir():
-        return web.json_response({"error": "run not found"}, status=404)
+        return web.json_response({"error": _RUN_NOT_FOUND}, status=404)
 
     from_seq = int(request.query.get("from_seq", "0"))
     limit = int(request.query.get("limit", "10000"))
@@ -144,6 +157,26 @@ async def _replay_events(
     return last_seq, size
 
 
+async def _consume_ws_messages(ws: web.WebSocketResponse) -> None:
+    async for msg in ws:
+        if msg.type == WSMsgType.ERROR:
+            break
+
+
+async def _forward_new_events(
+    ws: web.WebSocketResponse,
+    new_events: list[dict[str, Any]],
+    last_seq: int,
+) -> tuple[int, bool]:
+    for event in new_events:
+        try:
+            await ws.send_json({"type": "event", "event": event})
+            last_seq = event.get("seq", last_seq)
+        except ConnectionResetError:
+            return last_seq, True
+    return last_seq, False
+
+
 async def _tail_events(
     ws: web.WebSocketResponse,
     events_path: Path,
@@ -154,12 +187,7 @@ async def _tail_events(
     idle_timeout = 600
     idle_seconds = 0.0
 
-    async def consumer() -> None:
-        async for msg in ws:
-            if msg.type == WSMsgType.ERROR:
-                break
-
-    consumer_task = asyncio.create_task(consumer())
+    consumer_task = asyncio.create_task(_consume_ws_messages(ws))
     try:
         while not ws.closed:
             await asyncio.sleep(poll_interval)
@@ -178,12 +206,11 @@ async def _tail_events(
             new_events, last_size = _read_events_from_offset(
                 events_path, last_seq
             )
-            for event in new_events:
-                try:
-                    await ws.send_json({"type": "event", "event": event})
-                    last_seq = event.get("seq", last_seq)
-                except ConnectionResetError:
-                    break
+            last_seq, disconnected = await _forward_new_events(
+                ws, new_events, last_seq
+            )
+            if disconnected:
+                break
             if any(
                 e.get("event_type") == "tournament_ended" for e in new_events
             ):
@@ -206,7 +233,7 @@ async def attach_run_websocket(
     await ws.prepare(request)
 
     if not run_dir.is_dir():
-        await ws.send_json({"type": "error", "message": "run not found"})
+        await ws.send_json({"type": "error", "message": _RUN_NOT_FOUND})
         await ws.close()
         return ws
 
