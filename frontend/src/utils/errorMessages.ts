@@ -152,9 +152,10 @@ export function mapTechnicalError(
     }
   }
 
+  const nodeContext = nodeType ? ` in the ${nodeType} node` : "";
   return {
     title: "Unexpected error",
-    message: `An unexpected error occurred${nodeType ? ` in the ${nodeType} node` : ""}: ${sanitizeErrorMessage(errorMessage)}`,
+    message: `An unexpected error occurred${nodeContext}: ${sanitizeErrorMessage(errorMessage)}`,
     suggestions: [
       "Check the browser console for more details (F12 or Cmd+Option+I)",
       "Try refreshing the page and rerunning the workflow",

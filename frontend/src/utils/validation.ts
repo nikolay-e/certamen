@@ -1,12 +1,12 @@
 import type { PortDefinition } from "../types";
 
-const TEXT_COMPATIBLE_TYPES: readonly string[] = [
+const TEXT_COMPATIBLE_TYPES = new Set<string>([
   "string",
   "string_matrix",
   "responses",
   "insights",
   "results",
-];
+]);
 
 export function isPortCompatible(
   sourcePort: PortDefinition,
@@ -23,11 +23,7 @@ export function isPortCompatible(
     return true;
   }
 
-  // Text-like types are compatible with each other
-  if (
-    TEXT_COMPATIBLE_TYPES.includes(sourceType) &&
-    TEXT_COMPATIBLE_TYPES.includes(targetType)
-  ) {
+  if (TEXT_COMPATIBLE_TYPES.has(sourceType) && TEXT_COMPATIBLE_TYPES.has(targetType)) {
     return true;
   }
 

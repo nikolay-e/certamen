@@ -180,17 +180,25 @@ function BaseNodeComponent({ id, data, selected }: Readonly<BaseNodeProps>) {
   );
 }
 
+function getStringPropPreview(value: unknown, emptyLabel: string): TextPreview | null {
+  if (value === undefined) return null;
+  if (value === "") return { text: emptyLabel };
+  const fullText = value as string;
+  const truncated = truncateText(fullText, 100);
+  return { text: truncated, fullText: fullText === truncated ? undefined : fullText };
+}
+
 function getLlmTextPreview(
   props: Record<string, unknown>,
   result: Record<string, unknown> | undefined,
 ): TextPreview {
   const modelConfig = result?.model_config as Record<string, unknown> | undefined;
   if (modelConfig?.model_name) {
-    const name = modelConfig.name ? `${modelConfig.name}: ` : "";
-    return { text: `${name}${modelConfig.model_name}` };
+    const name = modelConfig.name ? `${modelConfig.name as string}: ` : "";
+    return { text: `${name}${modelConfig.model_name as string}` };
   }
   if (props.model_name !== undefined && props.model_name !== "") {
-    return { text: `${props.model_name}` };
+    return { text: `${props.model_name as string}` };
   }
   return { text: "(no model selected)" };
 }
@@ -203,34 +211,26 @@ function getTextPreview(data: NodeData): TextPreview | null {
     return null;
   }
 
-  if (props.template !== undefined) {
-    if (props.template === "") return { text: "(empty template)" };
-    const fullText = String(props.template);
-    const truncated = truncateText(fullText, 100);
-    return { text: truncated, fullText: fullText !== truncated ? fullText : undefined };
-  }
+  const templatePreview = getStringPropPreview(props.template, "(empty template)");
+  if (templatePreview) return templatePreview;
 
-  if (props.question !== undefined) {
-    if (props.question === "") return { text: "(empty question)" };
-    const fullText = String(props.question);
-    const truncated = truncateText(fullText, 100);
-    return { text: truncated, fullText: fullText !== truncated ? fullText : undefined };
-  }
+  const questionPreview = getStringPropPreview(props.question, "(empty question)");
+  if (questionPreview) return questionPreview;
 
   if (props.model !== undefined) {
-    return { text: `Model: ${props.model}` };
+    return { text: `Model: ${props.model as string}` };
   }
 
   if (data.nodeType === "simple/llm") {
-    return getLlmTextPreview(props, result as Record<string, unknown> | undefined);
+    return getLlmTextPreview(props, result);
   }
 
   if (props.model_name !== undefined && props.model_name !== "") {
-    return { text: `${props.model_name}` };
+    return { text: `${props.model_name as string}` };
   }
 
   if (props.title !== undefined) {
-    return { text: `📋 ${props.title}` };
+    return { text: `📋 ${props.title as string}` };
   }
 
   return null;

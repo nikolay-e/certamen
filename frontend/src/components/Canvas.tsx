@@ -27,6 +27,39 @@ const edgeTypes: EdgeTypes = {
   colored: ColoredSmartEdge,
 };
 
+function applyExecutionMessage(
+  msg: ExecutionMessage,
+  updateNodeData: (nodeId: string, data: Partial<NodeData>) => void,
+  updateNodeProperty: (nodeId: string, key: string, value: unknown) => void,
+): void {
+  if (!msg.node_id) return;
+  switch (msg.type) {
+    case "node_start":
+      updateNodeData(msg.node_id, { executing: true, completed: false, error: undefined });
+      break;
+    case "node_complete": {
+      const outputs = msg.outputs;
+      if (outputs?._pages) {
+        const pages = outputs._pages as string[][] | undefined;
+        const totalPages = outputs._total_pages as number | undefined;
+        if (pages && Array.isArray(pages) && pages.length > 0) {
+          updateNodeProperty(msg.node_id, "pages", pages);
+          const pageIndex = Math.min(
+            Math.max(0, (totalPages ?? pages.length) - 1),
+            pages.length - 1,
+          );
+          updateNodeProperty(msg.node_id, "current_page", pageIndex);
+        }
+      }
+      updateNodeData(msg.node_id, { executing: false, completed: true, result: outputs });
+      break;
+    }
+    case "node_error":
+      updateNodeData(msg.node_id, { executing: false, completed: false, error: msg.error });
+      break;
+  }
+}
+
 interface CanvasProps {
   executionMessages: ExecutionMessage[];
 }
@@ -145,51 +178,7 @@ function CanvasInner({ executionMessages }: Readonly<CanvasProps>) {
 
   useEffect(() => {
     for (const msg of executionMessages) {
-      if (msg.node_id) {
-        switch (msg.type) {
-          case "node_start":
-            updateNodeData(msg.node_id, {
-              executing: true,
-              completed: false,
-              error: undefined,
-            });
-            break;
-          case "node_complete": {
-            const outputs = msg.outputs;
-
-            // Update pages for nodes that output _pages (e.g., TextNode)
-            // This avoids depending on nodes array which may be stale
-            if (outputs?._pages) {
-              const pages = outputs._pages as string[][] | undefined;
-              const totalPages = outputs._total_pages as number | undefined;
-
-              if (pages && Array.isArray(pages) && pages.length > 0) {
-                updateNodeProperty(msg.node_id, "pages", pages);
-                // Ensure current_page is within bounds of actual pages array
-                const pageIndex = Math.min(
-                  Math.max(0, (totalPages ?? pages.length) - 1),
-                  pages.length - 1,
-                );
-                updateNodeProperty(msg.node_id, "current_page", pageIndex);
-              }
-            }
-
-            updateNodeData(msg.node_id, {
-              executing: false,
-              completed: true,
-              result: outputs,
-            });
-            break;
-          }
-          case "node_error":
-            updateNodeData(msg.node_id, {
-              executing: false,
-              completed: false,
-              error: msg.error,
-            });
-            break;
-        }
-      }
+      applyExecutionMessage(msg, updateNodeData, updateNodeProperty);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [executionMessages]);

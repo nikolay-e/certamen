@@ -50,6 +50,10 @@ export function Sidebar({ nodeDefinitions, connected }: Readonly<SidebarProps>) 
                     className="draggable-node"
                     draggable
                     onDragStart={(e) => onDragStart(e, nodeDef)}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${nodeDef.display_name} node`}
+                    onKeyDown={() => {}}
                   >
                     <span className="node-name">
                       {nodeDef.display_name}

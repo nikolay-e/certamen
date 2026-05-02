@@ -254,6 +254,22 @@ def _write_micro_report(
         f.write(generate_manual_evaluation_template(model_names))
 
 
+def _print_health_status(certamen: Any) -> bool:
+    if not certamen.is_ready:
+        print("\n❌ ERROR: No healthy models available")
+        if certamen.failed_models:
+            print("\nFailed models:")
+            for model_key, error in certamen.failed_models.items():
+                print(f"  - {model_key}: {error}")
+        return False
+    print(f"\n✅ {certamen.healthy_model_count} healthy models ready")
+    if certamen.failed_model_count > 0:
+        print(f"⚠️  {certamen.failed_model_count} models failed health check:")
+        for model_key, error in certamen.failed_models.items():
+            print(f"  - {model_key}: {error}")
+    return True
+
+
 async def main(args: dict[str, Any] | None = None) -> None:
     if args is None:
         parser = argparse.ArgumentParser(
@@ -306,19 +322,8 @@ async def main(args: dict[str, Any] | None = None) -> None:
     print(f"\nTest Question:\n{question}")
     print()
 
-    if not certamen.is_ready:
-        print("\n❌ ERROR: No healthy models available")
-        if certamen.failed_models:
-            print("\nFailed models:")
-            for model_key, error in certamen.failed_models.items():
-                print(f"  - {model_key}: {error}")
+    if not _print_health_status(certamen):
         return
-
-    print(f"\n✅ {certamen.healthy_model_count} healthy models ready")
-    if certamen.failed_model_count > 0:
-        print(f"⚠️  {certamen.failed_model_count} models failed health check:")
-        for model_key, error in certamen.failed_models.items():
-            print(f"  - {model_key}: {error}")
 
     single_model_results = await _run_single_models(certamen, question)
 

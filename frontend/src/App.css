@@ -77,9 +77,7 @@
   padding: 0;
 }
 .run-list li {
-  padding: 10px 16px;
   border-bottom: 1px solid var(--bg-tertiary);
-  cursor: pointer;
   font-size: 0.85rem;
 }
 .run-list li:hover {
@@ -88,6 +86,17 @@
 .run-list li.selected {
   background: var(--bg-tertiary);
   border-left: 3px solid var(--accent-blue);
+}
+.run-item-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
 }
 .run-list-row {
   display: flex;

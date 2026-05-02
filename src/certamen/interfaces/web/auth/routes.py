@@ -245,7 +245,9 @@ async def refresh_access_token(request: web.Request) -> web.Response:
         return error_response("Token refresh failed", 500)
 
 
-async def delete_account(request: web.Request) -> web.Response:
+async def delete_account(
+    request: web.Request,
+) -> web.Response:  # NOSONAR - aiohttp route handler requires coroutine
     try:
         current_user = get_current_user_from_request(request)
     except web.HTTPUnauthorized as e:

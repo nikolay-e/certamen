@@ -41,6 +41,10 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(4)}`;
 }
 
+function formatQuestion(question: string): string {
+  return question.length > 80 ? question.slice(0, 80) + "…" : question;
+}
+
 function StatusBadge({ status }: Readonly<{ status: string }>) {
   const colors: Record<string, string> = {
     completed: "var(--success-green)",
@@ -110,12 +114,13 @@ function PhaseStrip({ events }: Readonly<{ events: CertamenEvent[] }>) {
       {allPhases.map((phase) => {
         const done = completedPhases.has(phase);
         const active = !done && seenPhases.has(phase);
+        let phaseClass = "";
+        if (done) phaseClass = "phase-done";
+        else if (active) phaseClass = "phase-active";
         return (
           <div
             key={phase}
-            className={`phase-pill ${
-              done ? "phase-done" : active ? "phase-active" : ""
-            }`}
+            className={`phase-pill ${phaseClass}`}
           >
             {phase}
           </div>
@@ -128,10 +133,10 @@ function PhaseStrip({ events }: Readonly<{ events: CertamenEvent[] }>) {
 function EventBody({ event }: Readonly<{ event: CertamenEvent }>) {
   const p = event.payload;
   if (event.event_type === "llm_request" && p.prompt) {
-    return <pre className="event-body">{String(p.prompt)}</pre>;
+    return <pre className="event-body">{p.prompt as string}</pre>;
   }
   if (event.event_type === "llm_response" && (p.content || p.error)) {
-    return <pre className="event-body">{String(p.content ?? p.error)}</pre>;
+    return <pre className="event-body">{(p.content ?? p.error) as string}</pre>;
   }
   return <pre className="event-body">{JSON.stringify(p, null, 2)}</pre>;
 }
@@ -143,11 +148,11 @@ function EventCard({ event }: Readonly<{ event: CertamenEvent }>) {
   const titleMap: Record<string, string> = {
     tournament_started: "TOURNAMENT STARTED",
     tournament_ended: "TOURNAMENT ENDED",
-    phase_started: `PHASE START: ${p.phase || "?"}`,
-    phase_completed: `PHASE END: ${p.phase || "?"}`,
-    llm_request: `REQUEST → ${p.anon || p.model || "?"}`,
-    llm_response: `RESPONSE ← ${p.anon || p.model || "?"}`,
-    model_eliminated: `ELIMINATED: ${p.anon || "?"}`,
+    phase_started: `PHASE START: ${(p.phase as string | undefined) ?? "?"}`,
+    phase_completed: `PHASE END: ${(p.phase as string | undefined) ?? "?"}`,
+    llm_request: `REQUEST → ${(p.anon as string | undefined) ?? (p.model as string | undefined) ?? "?"}`,
+    llm_response: `RESPONSE ← ${(p.anon as string | undefined) ?? (p.model as string | undefined) ?? "?"}`,
+    model_eliminated: `ELIMINATED: ${(p.anon as string | undefined) ?? "?"}`,
   };
 
   const title = titleMap[event.event_type] || event.event_type;
@@ -164,16 +169,10 @@ function EventCard({ event }: Readonly<{ event: CertamenEvent }>) {
       <summary>
         <span className="event-seq">#{event.seq}</span>
         <span className="event-title">{title}</span>
-        {p.phase ? (
-          <span className="tag tag-phase">{String(p.phase)}</span>
-        ) : null}
-        {p.model ? (
-          <span className="tag tag-model">{String(p.model)}</span>
-        ) : null}
-        {cost > 0 ? (
-          <span className="tag tag-cost">{formatCost(cost)}</span>
-        ) : null}
-        {isError ? <span className="tag tag-error">ERROR</span> : null}
+        {p.phase && <span className="tag tag-phase">{String(p.phase)}</span>}
+        {p.model && <span className="tag tag-model">{String(p.model)}</span>}
+        {cost > 0 && <span className="tag tag-cost">{formatCost(cost)}</span>}
+        {isError && <span className="tag tag-error">ERROR</span>}
         <span className="event-time">{formatTime(event.ts)}</span>
       </summary>
       {open && <EventBody event={event} />}
@@ -207,30 +206,24 @@ function RunList({
       ) : (
         <ul>
           {runs.map((run) => (
-            <li
-              key={run.run_id}
-              className={selectedId === run.run_id ? "selected" : ""}
-              onClick={() => onSelect(run.run_id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onSelect(run.run_id);
-              }}
-              tabIndex={0}
-              role="button"
-            >
-              <div className="run-list-row">
-                <code className="run-id">{run.run_id}</code>
-                <StatusBadge status={run.status} />
-              </div>
-              <div className="run-list-meta">
-                {run.question
-                  ? run.question.slice(0, 80) +
-                    (run.question.length > 80 ? "…" : "")
-                  : "(no question)"}
-              </div>
-              <div className="run-list-stats">
-                {run.event_count} events · {formatCost(run.total_cost)} ·{" "}
-                {run.champion ? `Winner: ${run.champion}` : "No champion"}
-              </div>
+            <li key={run.run_id} className={selectedId === run.run_id ? "selected" : ""}>
+              <button
+                type="button"
+                className="run-item-btn"
+                onClick={() => onSelect(run.run_id)}
+              >
+                <div className="run-list-row">
+                  <code className="run-id">{run.run_id}</code>
+                  <StatusBadge status={run.status} />
+                </div>
+                <div className="run-list-meta">
+                  {run.question ? formatQuestion(run.question) : "(no question)"}
+                </div>
+                <div className="run-list-stats">
+                  {run.event_count} events · {formatCost(run.total_cost)} ·{" "}
+                  {run.champion ? `Winner: ${run.champion}` : "No champion"}
+                </div>
+              </button>
             </li>
           ))}
         </ul>
@@ -279,7 +272,8 @@ export function TournamentView() {
     }
 
     const wsProtocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${globalThis.location.host}/api/runs/${selectedId}/attach?from_seq=0`;
+    const safeRunId = encodeURIComponent(selectedId);
+    const wsUrl = `${wsProtocol}//${globalThis.location.host}/api/runs/${safeRunId}/attach?from_seq=0`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -354,11 +348,7 @@ export function TournamentView() {
         onRefresh={fetchRuns}
       />
       <div className="tournament-main">
-        {!selectedId ? (
-          <div className="tournament-empty">
-            Select a run from the left to view its details.
-          </div>
-        ) : (
+        {selectedId ? (
           <>
             <div className="tournament-header">
               <div>
@@ -429,6 +419,10 @@ export function TournamentView() {
               ))}
             </div>
           </>
+        ) : (
+          <div className="tournament-empty">
+            Select a run from the left to view its details.
+          </div>
         )}
       </div>
     </div>
