@@ -17,7 +17,7 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 - Browser QA / Playwright: no public web UI
 - Schemathesis / ZAP / autoqa: no HTTP API
 - K8s logs: deployment is simple container, no complex orchestration to debug
-- SonarCloud: not integrated for this project
+- SonarCloud: project key is `nikolay-e_arbitrium-core` (old name); `sonar-project.properties` scopes analysis to `src/certamen/` only
 
 ## Known Pre-existing Issues
 
@@ -38,3 +38,8 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 - GUI server requires `OLLAMA_BASE_URL` env to actually run workflows that include Ollama models; `CERTAMEN_SKIP_AUTH=true` for dev (skips bcrypt + DB init)
 - Workflow Editor's WebSocket connects to `/ws` for live execution events; if backend uses lazy auth import path it must also bypass when `CERTAMEN_SKIP_AUTH=true`
 - React error #31: rendering an object as a child — wrap any `data.error` in a string check before rendering (errors come from backend as `{type, message, node_id, node_type}` objects, not strings)
+- Ollama smoke test: use `venv/bin/certamen` not system `certamen` (system binary may point to old package name); always set `OLLAMA_BASE_URL=http://localhost:11434`
+- qwen3 models with thinking mode: use gemma3:1b as substitute in QA config — qwen3 fills max_tokens with `<think>...</think>` blocks leaving no room for actual answer
+- CI Windows path test: use `set.issubset(set(path.parts))` not `"src/certamen/workflows" in str(path)` to avoid backslash separator failure
+- Coverage threshold: web interface (interfaces/web/) and logging infrastructure (shared/logging/) contribute 0% coverage in CI as they require runtime; exclude them from coverage.omit; threshold of 30% is correct for integration-test-only project
+- `tournament/rank` → `extract_insights.model` flow: the rank node outputs model config as dict; `ExtractInsightsNode` must call `ensure_single_model_instance()` before calling `.generate()`
