@@ -47,7 +47,7 @@ class TestBuiltinWorkflowRegistry:
         path = resolve_workflow_path("diamond-tournament")
         assert path.is_file()
         assert path.name == "diamond-tournament.yml"
-        assert "src/certamen/workflows" in str(path)
+        assert {"src", "certamen", "workflows"}.issubset(set(path.parts))
 
     def test_resolves_explicit_path(self, tmp_path: Path) -> None:
         wf = tmp_path / "custom.yml"

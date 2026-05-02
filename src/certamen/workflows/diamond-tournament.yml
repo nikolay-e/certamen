@@ -85,7 +85,7 @@ nodes:
     type: tournament/interrogate
     position: { x: 1020, y: 220 }
     properties:
-      max_questions: 4
+      max_questions_per_pair: 4
 
   - id: diverge_improve
     type: tournament/improve

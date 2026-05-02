@@ -1,0 +1,50 @@
+question: |
+  What are the two most important practices for writing maintainable code?
+  Be concise — one paragraph max.
+
+models:
+  model_a:
+    provider: ollama
+    model_name: ollama/llama3.2:3b
+    display_name: "Model A"
+    temperature: 0.7
+    max_tokens: 400
+
+  model_b:
+    provider: ollama
+    model_name: ollama/phi4-mini:latest
+    display_name: "Model B"
+    temperature: 0.8
+    max_tokens: 400
+
+  model_c:
+    provider: ollama
+    model_name: ollama/gemma3:1b
+    display_name: "Model C"
+    temperature: 0.6
+    max_tokens: 400
+
+  model_d:
+    provider: ollama
+    model_name: ollama/gemma3:4b
+    display_name: "Model D"
+    temperature: 0.5
+    max_tokens: 400
+
+workflow: diamond-tournament
+
+overrides:
+  gate.max_rounds: 2
+  interrogate.max_questions_per_pair: 2
+  extract_insights.max_insights: 3
+  peer_review.criteria: >
+    Judge clarity and evidence quality.
+    Reward concrete actionable advice.
+    Penalize vague generalities.
+
+outputs_dir: "qa"
+
+logging:
+  level: INFO
+  file_logging: true
+  console_logging: true

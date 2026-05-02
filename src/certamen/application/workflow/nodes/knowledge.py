@@ -9,6 +9,7 @@ from certamen.application.workflow.nodes.base import (
     safe_generate,
 )
 from certamen.application.workflow.registry import register_node
+from certamen.infrastructure.llm import ensure_single_model_instance
 from certamen.shared.constants import (
     INSIGHT_EXTRACTION_PROMPT,
     MAX_MULTI_INPUTS,
@@ -86,6 +87,18 @@ class ExtractInsightsNode(BaseNode):
                     "insights_text": "[No model available]",
                 }
             extractor_model = context.models[model_keys[0]]
+        elif isinstance(extractor_model, dict):
+            extractor_model = await ensure_single_model_instance(
+                extractor_model, "extractor"
+            )
+            if extractor_model is None:
+                model_keys = list(context.models.keys())
+                if not model_keys:
+                    return {
+                        "insights": [],
+                        "insights_text": "[No model available]",
+                    }
+                extractor_model = context.models[model_keys[0]]
 
         prompt = INSIGHT_EXTRACTION_PROMPT.format(text=response_text)
 
