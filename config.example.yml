@@ -1,123 +1,52 @@
-# Certamen Framework - Example Configuration
-# This is the default configuration for heterogeneous tournaments with diverse models
+question: |
+  What are the three most important principles for designing reliable
+  distributed systems? Be concise.
 
-# Question to analyze (can also be provided via CLI argument)
-question: >
-  Put your question here.
-
-# Model configurations for heterogeneous tournament
-# Each model requires: provider, model_name, display_name
-# model_name must be in LiteLLM format: provider/model for non-OpenAI models
-# Optional: temperature (default 0.7), max_tokens (default 4096)
 models:
   gpt:
     provider: openai
     model_name: gpt-5.2-pro
-    display_name: "GPT"
+    display_name: GPT
     temperature: 0.7
     max_tokens: 4096
-    reasoning_effort: high
-    web_search_options:
-      search_context_size: high
 
   claude:
     provider: anthropic
     model_name: anthropic/claude-opus-4-6
-    display_name: "Claude"
+    display_name: Claude
     temperature: 0.7
     max_tokens: 4096
-    reasoning_effort: high
-    web_search_options:
-      search_context_size: high
 
   gemini:
     provider: google
     model_name: gemini/gemini-3.1-pro-preview
-    display_name: "Gemini"
+    display_name: Gemini
     temperature: 0.7
     max_tokens: 4096
-    reasoning_effort: high
-    web_search_options:
-      search_context_size: high
 
   grok:
     provider: xai
     model_name: xai/grok-4-1-fast-reasoning
-    display_name: "Grok"
+    display_name: Grok
     temperature: 0.8
     max_tokens: 4096
-    reasoning_effort: high
-    web_search_options:
-      search_context_size: high
 
-  deepseek:
-    provider: deepseek
-    model_name: deepseek/deepseek-reasoner
-    display_name: "DeepSeek"
-    temperature: 0.7
-    max_tokens: 4096
+workflow: diamond-tournament
 
-# Tournament configuration
-tournament:
-  # Judge model for scoring responses (can be one of the tournament models or separate)
-  judge_model: claude  # Use Claude as the judge
-  # Number of improvement rounds before elimination
-  improvement_rounds: 2
-  # Anonymize model identities during evaluation (recommended for fairness)
-  anonymize: true
-# Knowledge Bank configuration
-knowledge_bank:
-  enabled: true
-  # Maximum number of insights to preserve (LRU eviction when exceeded)
-  max_insights: 100
-  # Similarity threshold for deduplication (0.0-1.0, higher = more strict)
-  similarity_threshold: 0.75
+overrides:
+  gate.max_rounds: 4
+  peer_review.criteria: >
+    Judge analytical depth, scientific rigor, and reasoning quality.
+    Reward novel well-evidenced insights and intellectual independence.
+    Penalize speculation and moral hedging.
 
-# Feature flags (advanced settings)
-features:
-  # Model to use for extracting insights from eliminated models
-  # "leader" = use current tournament leader, or specify a model key (e.g., "claude")
-  knowledge_bank_model: leader
-
-  # --- Knowledge Extraction Features ---
-
-  # Adversarial cross-examination: models interrogate each other after initial answers
-  # to extract knowledge they didn't volunteer. High ROI for revealing hidden insights.
-  interrogation_enabled: true
-  interrogation_max_questions: 4  # Questions each model asks of each other (1-10)
-
-  # Disagreement investigation: when models disagree, instead of resolving it,
-  # we investigate it. Disagreements mark the frontier of extractable knowledge.
-  disagreement_investigation_enabled: true
-
-  # Confidence calibration: models annotate claims with [HIGH]/[MEDIUM]/[LOW]/[UNCERTAIN]
-  # and explicitly state KNOWN_UNKNOWNS and ASSUMPTIONS.
-  confidence_calibration_enabled: true
-
-  # Knowledge map: after the tournament, build a structured map of consensus,
-  # disagreements, unique insights, and exploration branches. Available in metrics["knowledge_map"].
-  knowledge_map_enabled: true
-
-  # Deep extraction: recursively run sub-tournaments on exploration branches.
-  # EXPENSIVE - each branch runs a full tournament. Use sparingly.
-  deep_extraction_enabled: false
-  deep_extraction_depth: 2  # Max recursion levels
-
-  # Persist knowledge maps to SQLite for cross-tournament learning.
-  persistence_enabled: true
-  persistence_db_path: "certamen_knowledge.db"
-
-# Output configuration
 outputs_dir: "."
 
-# Logging
 logging:
   level: INFO
   file_logging: true
   console_logging: true
 
-# API secrets configuration (1Password integration)
-# If env var is not set, certamen will attempt to fetch from 1Password using op_path
 secrets:
   providers:
     openai:
@@ -132,21 +61,6 @@ secrets:
     xai:
       env_var: XAI_API_KEY
       op_path: op://Personal/XAI/api-key
-    vertex_ai:
-      env_var: VERTEX_AI_API_KEY
-      op_path: op://Personal/VertexAI/api-key
-    mistral:
-      env_var: MISTRAL_API_KEY
-      op_path: op://Personal/Mistral/api-key
-    cohere:
-      env_var: COHERE_API_KEY
-      op_path: op://Personal/Cohere/api-key
-    perplexity:
-      env_var: PERPLEXITY_API_KEY
-      op_path: op://Personal/Perplexity/api-key
     deepseek:
       env_var: DEEPSEEK_API_KEY
       op_path: op://Personal/DeepSeek/api-key
-    groq:
-      env_var: GROQ_API_KEY
-      op_path: op://Personal/Groq/api-key

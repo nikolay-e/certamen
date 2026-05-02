@@ -36,8 +36,9 @@ def _add_tournament_args(parser: argparse.ArgumentParser) -> None:
         "--workflow",
         default=None,
         help=(
-            "Path to YAML workflow file (e.g., examples/workflows/diamond-tournament.yml). "
-            "When provided, runs YAML workflow via the executor and bypasses the legacy ModelComparison engine."
+            "Path to a custom YAML workflow file. "
+            "Overrides the workflow declared in the slim config; "
+            "useful for ad-hoc experimentation without editing config.yml."
         ),
     )
     parser.add_argument("-q", "--question", help="Path to question file")

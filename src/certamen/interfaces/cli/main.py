@@ -3,14 +3,12 @@
 import asyncio
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import Any, NoReturn
 
 import colorama
 
-from certamen import Certamen
 from certamen.domain.errors import FatalError
 from certamen.interfaces.cli.args import parse_arguments
-from certamen.interfaces.cli.input import async_input
 from certamen.interfaces.cli.ui import (
     cli_cyan,
     cli_error,
@@ -20,10 +18,6 @@ from certamen.interfaces.cli.ui import (
 from certamen.shared.constants import DEFAULT_CONFIG_FILE
 from certamen.shared.logging import get_contextual_logger
 
-if TYPE_CHECKING:
-    from certamen.infrastructure.config.loader import Config
-
-CERTAMEN_NOT_INITIALIZED_MSG = "Certamen not initialized"
 _USER_INTERRUPTED_MSG = "\nInterrupted by user. Exiting..."
 
 
@@ -32,7 +26,6 @@ class App:
         self.args = args if args is not None else parse_arguments()
         self.logger = get_contextual_logger("certamen.cli")
         self.outputs_dir = self._get_outputs_dir()
-        self.certamen: Certamen | None = None
 
     def _fatal_error(self, message: str) -> NoReturn:
         self.logger.error(message)
@@ -44,162 +37,62 @@ class App:
             return None
         return str(outputs_dir_arg)
 
-    def _load_config(self, config_path: str) -> "Config":
-        from certamen.infrastructure.config.loader import Config
-
-        config_obj = Config(config_path)
-        if config_obj.load():
-            return config_obj
-
-        self._fatal_error(
-            f"Failed to load configuration from '{config_path}'. "
-            f"Please ensure the file exists and is valid YAML. "
-            f"Use --config to specify a different config file."
-        )
-
-    async def _try_create_certamen_from_config_obj(
-        self, config_obj: "Config", skip_secrets: bool
-    ) -> Certamen:
-        if self.outputs_dir is not None:
-            config_obj.config_data["outputs_dir"] = self.outputs_dir
-        return await Certamen.from_settings(
-            settings=config_obj.config_data,
-            skip_secrets=skip_secrets,
-        )
-
-    async def _create_certamen_from_config(
-        self, config_path: str, skip_secrets: bool
-    ) -> Certamen:
-        config_obj = self._load_config(config_path)
-
-        return await self._try_create_certamen_from_config_obj(
-            config_obj, skip_secrets
-        )
-
-    def _filter_requested_models(self) -> None:
-        if not self.args.get("models") or self.certamen is None:
-            return
-
-        models_arg: str = self.args.get("models")  # type: ignore[assignment]
-        requested_models = [m.strip() for m in models_arg.split(",")]
-
-        filtered_models = {
-            key: model
-            for key, model in self.certamen.healthy_models.items()
-            if key in requested_models
-        }
-
-        if not filtered_models:
-            self._fatal_error(
-                f"None of the requested models ({', '.join(requested_models)}) are available or healthy"
-            )
-
-        self.logger.info(
-            "Filtering to requested models: %s",
-            ", ".join(filtered_models.keys()),
-        )
-        self.certamen._healthy_models = filtered_models
-
-    def _validate_certamen_ready(self) -> None:
-        if self.certamen is None:
-            self._fatal_error(CERTAMEN_NOT_INITIALIZED_MSG)
-        assert self.certamen is not None
-        if not self.certamen.is_ready:
-            self._fatal_error("No models passed health check")
-
-    def _reconfigure_logging_from_config(self) -> None:
-        if self.certamen is None:
-            return
-
-        from certamen.shared.logging import setup_logging
-
-        log_dir = self.outputs_dir
-        if log_dir is None:
-            try:
-                raw_dir = self.certamen.config.config_data.get("outputs_dir")
-                if isinstance(raw_dir, (str, Path)):
-                    log_dir = str(raw_dir)
-            except (AttributeError, TypeError):
-                pass
-        setup_logging(
-            debug=bool(self.args.get("debug", False)),
-            verbose=bool(self.args.get("verbose", False)),
-            log_dir=log_dir,
-        )
-
-    async def _initialize_certamen(self) -> None:
-        config_path = str(self.args.get("config", DEFAULT_CONFIG_FILE))
-        skip_secrets = bool(self.args.get("no_secrets", False))
-
-        self.logger.info("Loading configuration from %s", config_path)
-
-        self.certamen = await self._create_certamen_from_config(
-            config_path, skip_secrets
-        )
-
-        self._reconfigure_logging_from_config()
-
-        self._filter_requested_models()
-
-        self._validate_certamen_ready()
-
-    async def _get_app_question(self) -> str:
-        if self.certamen is None:
-            self._fatal_error(CERTAMEN_NOT_INITIALIZED_MSG)
-
-        question = ""
-
-        if self.args.get("interactive", False):
-            self.logger.info(
-                "Enter your question:", extra={"display_type": "header"}
-            )
-            question = await async_input("> ")
-            return question.strip()
-
-        question_path = self.args.get("question")
-        if question_path:
-            path = Path(str(question_path))
-            if not path.exists() or not path.is_file():
-                self._fatal_error(f"Question file not found: {path}")
-            try:
-                content = path.read_text(encoding="utf-8")
-            except Exception as e:
-                self._fatal_error(
-                    f"Failed to read question file '{path}': {e!s}"
-                )
-            if content.strip():
-                self.logger.info("Using question from file: %s", path)
-                return content.strip()
-
-        assert self.certamen is not None
-        config_question = self.certamen.config_data.get("question")
-        if config_question:
-            self.logger.info("Using question from config file")
-            return str(config_question).strip()
-
-        self.logger.info(
-            "No question file or config question found, entering interactive mode"
-        )
-        self.logger.info(
-            "Enter your question:", extra={"display_type": "header"}
-        )
-        question = await async_input("> ")
-
-        return question.strip()
-
     async def run(self) -> None:
         self.logger.info("Starting Certamen Framework")
 
-        await self._initialize_certamen()
+        config_path = str(self.args.get("config", DEFAULT_CONFIG_FILE))
+        if not _config_is_slim(config_path):
+            self._fatal_error(
+                f"Config '{config_path}' is not a slim config "
+                "(missing top-level 'workflow:' key, or contains legacy "
+                "tournament/knowledge_bank/features blocks). The legacy "
+                "ModelComparison engine has been removed; migrate to the "
+                "slim schema. See config.example.yml."
+            )
 
-        if self.certamen is None:
-            self._fatal_error(CERTAMEN_NOT_INITIALIZED_MSG)
+        await self._run_slim(config_path)
 
-        question = await self._get_app_question()
+    async def _run_slim(self, config_path: str) -> None:
+        from certamen.application.slim_loader import load_and_materialize
+        from certamen.application.workflow.nodes import register_all
+        from certamen.domain.errors import ConfigurationError
+        from certamen.infrastructure.secrets.env_secrets import load_secrets
 
-        assert self.certamen is not None
+        register_all()
+
         try:
-            _result, _metrics = await self.certamen.run_tournament(question)
+            slim, workflow = load_and_materialize(config_path)
+        except ConfigurationError as exc:
+            self._fatal_error(str(exc))
+
+        if not bool(self.args.get("no_secrets", False)) and slim.secrets:
+            providers = sorted(
+                {model.provider.lower() for model in slim.models.values()}
+            )
+            try:
+                load_secrets({"secrets": slim.secrets.model_dump()}, providers)
+            except Exception as exc:
+                # nosemgrep: python-logger-credential-disclosure
+                self.logger.warning(
+                    "Failed to load secrets: %s — continuing", exc
+                )
+
+        outputs_dir = self.outputs_dir or slim.outputs_dir
+
+        question_override = self._read_question_override()
+        if question_override is not None:
+            _override_question_in_workflow(workflow, question_override)
+
+        try:
+            await _execute_workflow_dict(
+                workflow,
+                source_label=f"slim:{config_path}",
+                outputs_dir=outputs_dir,
+                verbose=bool(self.args.get("verbose", False)),
+                logger=self.logger,
+            )
+        except FatalError:
+            raise
         except KeyboardInterrupt:
             self.logger.info("Interrupted by user")
             print(_USER_INTERRUPTED_MSG)
@@ -207,6 +100,55 @@ class App:
             self._fatal_error(f"Error during tournament: {err!s}")
 
         self.logger.info("Certamen Framework completed successfully")
+
+    def _read_question_override(self) -> str | None:
+        question_path = self.args.get("question")
+        if not question_path:
+            return None
+        path = Path(str(question_path))
+        if not path.is_file():
+            self._fatal_error(f"Question file not found: {path}")
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            self._fatal_error(f"Failed to read question file '{path}': {exc}")
+        return content.strip() or None
+
+
+def _override_question_in_workflow(
+    workflow: dict[str, Any], question: str
+) -> None:
+    for node in workflow["nodes"]:
+        if node.get("id") == "question" and node.get("type") == "simple/text":
+            node.setdefault("properties", {})["texts"] = [question]
+
+
+_LEGACY_CONFIG_KEYS = (
+    "tournament",
+    "knowledge_bank",
+    "features",
+    "prompts",
+    "retry",
+    "reasoning_perspectives",
+)
+
+
+def _config_is_slim(config_path: str) -> bool:
+    import yaml
+
+    path = Path(config_path)
+    if not path.is_file():
+        return False
+    try:
+        with path.open(encoding="utf-8") as fh:
+            raw = yaml.safe_load(fh)
+    except (yaml.YAMLError, OSError):
+        return False
+    if not isinstance(raw, dict):
+        return False
+    if not isinstance(raw.get("workflow"), str):
+        return False
+    return not any(key in raw for key in _LEGACY_CONFIG_KEYS)
 
 
 def _print_node_types() -> None:
@@ -309,6 +251,34 @@ async def _execute_tournament_workflow(
     verbose: bool,
     logger: Any,
 ) -> None:
+    from certamen.infrastructure.serialization import (
+        WorkflowLoader,
+        WorkflowValidationError,
+    )
+
+    try:
+        workflow = WorkflowLoader.load_from_file(file_path)
+    except WorkflowValidationError as e:
+        raise FatalError(f"Workflow error: {e}") from e
+    except FileNotFoundError as exc:
+        raise FatalError(f"File not found: {file_path}") from exc
+
+    await _execute_workflow_dict(
+        workflow,
+        source_label=file_path,
+        outputs_dir=outputs_dir,
+        verbose=verbose,
+        logger=logger,
+    )
+
+
+async def _execute_workflow_dict(
+    workflow: dict[str, Any],
+    source_label: str,
+    outputs_dir: str | None,
+    verbose: bool,
+    logger: Any,
+) -> None:
     import json
     from pathlib import Path
 
@@ -317,19 +287,10 @@ async def _execute_tournament_workflow(
         JsonlEventHandler,
         generate_run_id,
     )
-    from certamen.infrastructure.serialization import (
-        WorkflowLoader,
-        WorkflowValidationError,
-    )
+    from certamen.infrastructure.serialization import WorkflowLoader
 
-    try:
-        workflow = WorkflowLoader.load_from_file(file_path)
-        logger.info("Loaded workflow: %s", workflow["name"])
-        executor_data = WorkflowLoader.to_executor_format(workflow)
-    except WorkflowValidationError as e:
-        raise FatalError(f"Workflow error: {e}") from e
-    except FileNotFoundError as exc:
-        raise FatalError(f"File not found: {file_path}") from exc
+    logger.info("Loaded workflow: %s", workflow.get("name", source_label))
+    executor_data = WorkflowLoader.to_executor_format(workflow)
 
     base_dir = Path(outputs_dir) if outputs_dir else Path(".")
     run_id = generate_run_id()
@@ -340,8 +301,8 @@ async def _execute_tournament_workflow(
             "tournament_started",
             {
                 "run_id": run_id,
-                "workflow_name": workflow.get("name", file_path),
-                "workflow_path": file_path,
+                "workflow_name": workflow.get("name", source_label),
+                "workflow_source": source_label,
                 "node_count": len(executor_data["nodes"]),
                 "edge_count": len(executor_data["edges"]),
             },

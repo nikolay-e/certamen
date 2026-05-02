@@ -48,19 +48,12 @@ pre-commit run -a     # all quality checks
 
 ### Python API
 
-```python
-from certamen import Certamen
-
-async def main():
-    arb = await Certamen.from_settings({
-        "models": {
-            "gpt": {"provider": "openai", "name": "gpt-4o"},
-            "claude": {"provider": "anthropic", "name": "claude-3-5-sonnet-20241022"},
-        }
-    })
-    result, metrics = await arb.run_tournament("What is the best approach to...")
-    print(result)
-```
+Tournaments are run via the CLI against a slim `config.yml` that
+references a packaged workflow (e.g. `workflow: diamond-tournament`).
+The Python `Certamen` class still exposes `run_single_model` and
+`run_all_models` for ad-hoc model probing; full tournament execution
+goes through the workflow executor, not a `Certamen.run_tournament()`
+method.
 
 ## Architecture Overview
 
