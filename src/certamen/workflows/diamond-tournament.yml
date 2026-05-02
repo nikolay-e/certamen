@@ -123,9 +123,14 @@ nodes:
     properties:
       count: 1
 
+  - id: round_leader
+    type: tournament/rank
+    position: { x: 2220, y: 480 }
+    properties: {}
+
   - id: extract_insights
     type: tournament/extract_insights
-    position: { x: 2220, y: 480 }
+    position: { x: 2520, y: 480 }
     properties:
       max_insights: 5
 
@@ -280,11 +285,25 @@ edges:
     sourceHandle: models
     targetHandle: models
 
-  # --- Eliminate → Extract insights from eliminated ---
+  # --- Peer Review + gate models → round leader (highest scorer this round) ---
+  - source: gate
+    target: round_leader
+    sourceHandle: models
+    targetHandle: models
+  - source: peer_review
+    target: round_leader
+    sourceHandle: scores
+    targetHandle: scores
+
+  # --- Eliminate → Extract insights from eliminated (leader does the extraction) ---
   - source: eliminate
     target: extract_insights
     sourceHandle: eliminated_info
     targetHandle: response
+  - source: round_leader
+    target: extract_insights
+    sourceHandle: champion
+    targetHandle: model
 
   # --- Survivors + insights → Convergence improve ---
   - source: eliminate
