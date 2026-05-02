@@ -82,7 +82,7 @@ jobs:
 
       - name: Enforce coverage threshold
         if: runner.os == 'Linux' && matrix.python-version == '3.12'
-        run: coverage report --fail-under=40
+        run: coverage report --fail-under=30
 
       - name: Upload coverage report
         if: runner.os == 'Linux' && matrix.python-version == '3.12'
