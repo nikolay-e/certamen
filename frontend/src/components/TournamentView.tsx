@@ -133,10 +133,12 @@ function PhaseStrip({ events }: Readonly<{ events: CertamenEvent[] }>) {
 function EventBody({ event }: Readonly<{ event: CertamenEvent }>) {
   const p = event.payload;
   if (event.event_type === "llm_request" && p.prompt) {
-    return <pre className="event-body">{p.prompt as string}</pre>;
+    const promptText = p.prompt as string;
+    return <pre className="event-body">{promptText}</pre>;
   }
   if (event.event_type === "llm_response" && (p.content || p.error)) {
-    return <pre className="event-body">{(p.content ?? p.error) as string}</pre>;
+    const bodyText = (p.content ?? p.error) as string;
+    return <pre className="event-body">{bodyText}</pre>;
   }
   return <pre className="event-body">{JSON.stringify(p, null, 2)}</pre>;
 }
@@ -169,8 +171,8 @@ function EventCard({ event }: Readonly<{ event: CertamenEvent }>) {
       <summary>
         <span className="event-seq">#{event.seq}</span>
         <span className="event-title">{title}</span>
-        {p.phase && <span className="tag tag-phase">{String(p.phase)}</span>}
-        {p.model && <span className="tag tag-model">{String(p.model)}</span>}
+        {!!p.phase && <span className="tag tag-phase">{String(p.phase)}</span>}
+        {!!p.model && <span className="tag tag-model">{String(p.model)}</span>}
         {cost > 0 && <span className="tag tag-cost">{formatCost(cost)}</span>}
         {isError && <span className="tag tag-error">ERROR</span>}
         <span className="event-time">{formatTime(event.ts)}</span>

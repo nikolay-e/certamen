@@ -53,7 +53,7 @@ function restoreNodeDynamicPorts(
     .map((e) => e.targetHandle);
 
   const oldStyleHandles = allTargetEdges
-    .filter((e) => e.targetHandle !== undefined && oldStyleRe.test(e.targetHandle))
+    .filter((e) => e.targetHandle != null && oldStyleRe.test(e.targetHandle))
     .map((e) => e.targetHandle);
 
   const useOldStyle = oldStyleHandles.length > 0 && newStyleHandles.length === 0;
@@ -65,14 +65,14 @@ function restoreNodeDynamicPorts(
 
   let maxPortNumber = 0;
   for (const handle of newStyleHandles) {
-    const match = handle !== undefined ? newStyleExtractRe.exec(handle) : null;
+    const match = handle != null ? newStyleExtractRe.exec(handle) : null;
     if (match) {
       const num = Number.parseInt(match[1], 10);
       if (num > maxPortNumber) maxPortNumber = num;
     }
   }
   for (const handle of oldStyleHandles) {
-    const match = handle !== undefined ? oldStyleExtractRe.exec(handle) : null;
+    const match = handle != null ? oldStyleExtractRe.exec(handle) : null;
     if (match) {
       const num = Number.parseInt(match[1], 10);
       if (num > maxPortNumber) maxPortNumber = num;
