@@ -151,6 +151,78 @@ def _config_is_slim(config_path: str) -> bool:
     return not any(key in raw for key in _LEGACY_CONFIG_KEYS)
 
 
+def _list_workflows() -> None:
+    from pathlib import Path
+
+    from certamen.workflows.registry import BUILTIN_WORKFLOWS
+
+    cli_cyan("\nBuilt-in workflows:")
+    for name in BUILTIN_WORKFLOWS:
+        print(f"  {name}")
+
+    user_dir = Path.home() / ".certamen" / "workflows"
+    if user_dir.is_dir():
+        user_workflows = sorted(p.stem for p in user_dir.glob("*.yml"))
+        if user_workflows:
+            cli_cyan("\nUser workflows (~/.certamen/workflows/):")
+            for name in user_workflows:
+                print(f"  {name}")
+
+    total = len(BUILTIN_WORKFLOWS) + (
+        len(list((Path.home() / ".certamen" / "workflows").glob("*.yml")))
+        if user_dir.is_dir()
+        else 0
+    )
+    print(f"\nTotal: {total} workflow(s)")
+
+
+def _show_workflow(name_or_path: str) -> None:
+    from certamen.infrastructure.serialization import (
+        WorkflowLoader,
+        WorkflowValidationError,
+    )
+    from certamen.workflows.registry import (
+        BuiltinWorkflowNotFoundError,
+        resolve_workflow_path,
+    )
+
+    try:
+        path = resolve_workflow_path(name_or_path)
+    except BuiltinWorkflowNotFoundError as exc:
+        raise FatalError(str(exc)) from exc
+
+    try:
+        workflow = WorkflowLoader.load_from_file(str(path))
+    except WorkflowValidationError as exc:
+        raise FatalError(f"Workflow error: {exc}") from exc
+    except FileNotFoundError:
+        raise FatalError(f"File not found: {path}") from None
+
+    cli_cyan(f"\nWorkflow: {workflow['name']}")
+    description = workflow.get("description", "").strip()
+    if description:
+        print(f"Description: {description}")
+    print(f"Version: {workflow.get('version', 'unknown')}")
+    print(f"File: {path}")
+
+    nodes = workflow.get("nodes", [])
+    edges = workflow.get("edges", [])
+    outputs = workflow.get("outputs", [])
+
+    print(f"\nNodes ({len(nodes)}):")
+    node_types: dict[str, int] = {}
+    for node in nodes:
+        t = node.get("type", "unknown")
+        node_types[t] = node_types.get(t, 0) + 1
+    for node_type, count in sorted(node_types.items()):
+        suffix = f" x{count}" if count > 1 else ""
+        print(f"  {node_type}{suffix}")
+
+    print(f"\nEdges: {len(edges)}")
+    if outputs:
+        print(f"Outputs: {', '.join(outputs)}")
+
+
 def _print_node_types() -> None:
     from certamen.application.workflow.schema import list_node_types
 
@@ -377,6 +449,17 @@ async def run_workflow(args: dict[str, object]) -> None:
 
     if workflow_command in ("list-nodes", "nodes"):
         _print_node_types()
+        return
+
+    if workflow_command in ("list", "workflows"):
+        _list_workflows()
+        return
+
+    if workflow_command in ("show", "inspect"):
+        name_or_path = str(args.get("name_or_path", ""))
+        if not name_or_path:
+            raise FatalError("No workflow name or path specified")
+        _show_workflow(name_or_path)
         return
 
     file_path = str(args.get("file", ""))

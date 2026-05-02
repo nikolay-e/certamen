@@ -4,25 +4,25 @@ import re
 from certamen.ports.llm import BaseModel
 
 _QUESTION_GENERATION_PROMPT = """\
-Extract hidden knowledge from this AI's response. Ask {max_questions} specific questions targeting:
-evidence behind weak claims, avoided aspects, contradictions with other response, edge cases.
+Extract hidden knowledge from this submission. Ask {max_questions} specific questions targeting:
+evidence behind weak claims, avoided aspects, contradictions with the other submission, edge cases.
 
 Question: {question}
 
-Target response:
+Target submission:
 {target_response}
 
-Other response:
+Other submission:
 {other_response}
 
 Each question must target a specific claim or gap. Output ONLY numbered questions."""
 
 _INTERROGATION_RESPONSE_PROMPT = """\
-Answer these questions about your previous response. Be specific — reveal all relevant knowledge concisely.
+Answer these questions about your previous submission. Be specific — reveal all relevant knowledge concisely.
 
 Question: {question}
 
-Your response:
+Your submission:
 {own_response}
 
 Questions:

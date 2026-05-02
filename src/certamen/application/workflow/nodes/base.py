@@ -150,7 +150,7 @@ def build_evaluation_prompt(
     if criteria:
         parts.append(criteria)
     parts.append(
-        "Provide a score for each model in the format:\nMODEL_NAME: SCORE/10"
+        "Provide a score for each submission in the format:\nSUBMISSION_LABEL: SCORE/10"
     )
     return "\n\n".join(parts)
 

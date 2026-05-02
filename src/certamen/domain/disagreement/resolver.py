@@ -9,7 +9,7 @@ _EVIDENCE_PROMPT = """\
 In this discussion about "{question}", you claimed:
 "{own_claim}"
 
-The other model claimed:
+The other submission claimed:
 "{other_claim}"
 
 Present your strongest evidence for your position. What specific facts, \

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from certamen.ports.llm import BaseModel
 
 _DETECTION_PROMPT = """\
-Compare these responses and identify specific points of DISAGREEMENT.
+Compare these submissions and identify specific points of DISAGREEMENT.
 Not style differences — substantive factual or analytical disagreements.
 
 Question: {question}
@@ -13,8 +13,8 @@ Question: {question}
 
 For each disagreement, output in this exact format:
 DISAGREEMENT: [topic]
-POSITION_A: [model name]: [their claim]
-POSITION_B: [model name]: [their claim]
+POSITION_A: [reviewer label]: [their claim]
+POSITION_B: [reviewer label]: [their claim]
 SIGNIFICANCE: [why this matters for answering the question]
 ---
 

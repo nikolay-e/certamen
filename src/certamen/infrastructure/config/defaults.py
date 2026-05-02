@@ -96,7 +96,6 @@ PROMPTS: dict[str, Any] = {
             "BE CONCISE — target 300-500 words. Improve using feedback, grounded in evidence. "
             "Do NOT let emotional appeals, fashionable opinions, or moral frameworks constrain rigorous thinking. "
             "Values and norms are temporal constructs — pursue truth regardless of comfort. "
-            "CRITICAL: Do NOT converge toward other responses. Your independent perspective is most valuable. "
             "If you contradict others, investigate WHY — do NOT yield to majority. "
             "Preserve unique insights from YOUR original answer absent from others'. "
             "Build argument around key verifiable insights. Remove generic claims and speculation. "

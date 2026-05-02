@@ -138,6 +138,25 @@ def parse_arguments() -> dict[str, Any]:
     )
     _add_common_args(list_nodes_parser)
 
+    list_workflows_parser = workflow_subparsers.add_parser(
+        "list",
+        aliases=["workflows"],
+        help="List all available workflows (built-in and user-defined)",
+    )
+    _add_common_args(list_workflows_parser)
+
+    show_workflow_parser = workflow_subparsers.add_parser(
+        "show",
+        aliases=["inspect"],
+        help="Show metadata for a workflow by name or file path",
+    )
+    _add_common_args(show_workflow_parser)
+    show_workflow_parser.add_argument(
+        "name_or_path",
+        type=str,
+        help="Workflow name (e.g. diamond-tournament) or path to .yml file",
+    )
+
     render_parser = subparsers.add_parser(
         "render",
         help="Generate self-contained HTML report from a tournament run",

@@ -20,63 +20,47 @@ nodes:
       hidden: false
 
   # ========================================================================
-  # MODELS — 4 distinct perspectives (Ollama by default; swap to your providers)
+  # MODELS — 4 competitors (Ollama by default; swap to your providers)
   # ========================================================================
   - id: llm_principles
     type: simple/llm
     position: { x: 100, y: 220 }
     properties:
-      name: "First Principles"
+      name: "Model A"
       provider: ollama
       model_name: ollama/llama3.2:3b
       temperature: 0.7
       max_tokens: 800
-      system_prompt: >
-        You analyze using first-principles reasoning. Break the problem down to
-        its fundamental components. Challenge every assumption. Be objective —
-        morals and trends are temporal; pursue truth.
 
   - id: llm_contrarian
     type: simple/llm
     position: { x: 100, y: 410 }
     properties:
-      name: "Contrarian"
+      name: "Model B"
       provider: ollama
       model_name: ollama/phi4-mini:latest
       temperature: 0.9
       max_tokens: 800
-      system_prompt: >
-        You take a contrarian stance. Challenge the conventional wisdom. What
-        is everyone getting wrong? What failure modes are being ignored? Be
-        objective and uncomfortable conclusions are welcome.
 
   - id: llm_systems
     type: simple/llm
     position: { x: 100, y: 600 }
     properties:
-      name: "Systems Thinker"
+      name: "Model C"
       provider: ollama
       model_name: ollama/qwen3:4b
       temperature: 0.6
       max_tokens: 800
-      system_prompt: >
-        You use systems thinking. Focus on second-order effects, feedback
-        loops, and unintended consequences. How do parts interact? What
-        emerges from the whole that isn't visible in the parts?
 
   - id: llm_implementer
     type: simple/llm
     position: { x: 100, y: 790 }
     properties:
-      name: "Implementer"
+      name: "Model D"
       provider: ollama
       model_name: ollama/gemma3:4b
       temperature: 0.5
       max_tokens: 800
-      system_prompt: >
-        You reason from implementation and practice. What are the real-world
-        obstacles? What would actually work vs. what sounds good in theory?
-        Focus on actionable specifics.
 
   - id: models
     type: tournament/models
