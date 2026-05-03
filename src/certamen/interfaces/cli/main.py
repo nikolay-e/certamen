@@ -366,7 +366,7 @@ async def _execute_workflow_dict(
     logger.info("Loaded workflow: %s", workflow.get("name", source_label))
     executor_data = WorkflowLoader.to_executor_format(workflow)
 
-    base_dir = Path(outputs_dir) if outputs_dir else Path(".")
+    base_dir = Path(outputs_dir) if outputs_dir else Path("reports")
     run_id = generate_run_id()
     run_dir = base_dir / "runs" / run_id
 
@@ -570,6 +570,7 @@ def run_from_cli() -> None:
     setup_logging(
         debug=bool(args.get("debug", False)),
         verbose=bool(args.get("verbose", False)),
+        log_dir="reports/logs",
     )
 
     from certamen.interfaces.cli.ui import configure_display

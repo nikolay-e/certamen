@@ -134,10 +134,8 @@ benchmark_results/
 # Generated code IS committed to ensure fresh clones work immediately
 # CI enforces that committed generated code matches schema (git diff --exit-code after regeneration)
 
-# Keep lightweight markdown docs in reports/, exclude heavy data files
-reports/*.csv
-reports/*.json
-reports/*.parquet
+# All tournament outputs and logs
+/reports/
 
 # --- Certamen Framework Specific ---
 # Runtime logs and outputs

@@ -15,7 +15,7 @@ _RUN_NOT_FOUND = "run not found"
 
 
 def _runs_root() -> Path:
-    base = Path(os.environ.get("CERTAMEN_OUTPUTS_DIR", "outputs"))
+    base = Path(os.environ.get("CERTAMEN_OUTPUTS_DIR", "reports"))
     return base / "runs"
 
 

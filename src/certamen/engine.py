@@ -65,7 +65,9 @@ class Certamen:
         self._host = _InternalHost(
             base_dir=str(outputs_dir) if outputs_dir else None
         )
-        self._outputs_dir = Path(outputs_dir) if outputs_dir else Path(".")
+        self._outputs_dir = (
+            Path(outputs_dir) if outputs_dir else Path("reports")
+        )
 
     @classmethod
     async def from_settings(
