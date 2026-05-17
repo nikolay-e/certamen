@@ -69,7 +69,8 @@ class RankingsNode(BaseNode):
         Port(
             "rankings",
             PortType.RANKINGS,
-            description="Connect Rank node's rankings output to display the leaderboard",
+            required=False,
+            description="Connect Rank node's rankings output to display the leaderboard. Optional: when absent, scores alone are rendered.",
         ),
         Port(
             "scores",

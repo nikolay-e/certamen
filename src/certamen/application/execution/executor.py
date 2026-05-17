@@ -20,7 +20,7 @@ def _truncate_for_log(value: Any, max_length: int = 200) -> str:
     return str_value
 
 
-DEFAULT_NODE_TIMEOUT = 300  # 5 minutes per node
+DEFAULT_NODE_TIMEOUT = None  # No node-level timeout. Reasoning-mode LLM calls with large context can run arbitrarily long; the user is in control via Ctrl-C.
 
 
 class BaseExecutor(ABC):
@@ -29,6 +29,7 @@ class BaseExecutor(ABC):
         self.node_timeout = self.config.get(
             "node_timeout", DEFAULT_NODE_TIMEOUT
         )
+        self._feedback_input_handles: dict[str, set[str]] = {}
 
     async def _execute_node_with_timeout(
         self,
@@ -37,6 +38,9 @@ class BaseExecutor(ABC):
         context: Any,
     ) -> dict[str, Any]:
         import asyncio
+
+        if self.node_timeout is None:
+            return await node.execute(inputs, context)
 
         try:
             return await asyncio.wait_for(
@@ -291,9 +295,16 @@ class BaseExecutor(ABC):
         node: BaseNode,
         inputs: dict[str, Any],
     ) -> list[str]:
+        feedback_handles = self._feedback_input_handles.get(
+            node.node_id, set()
+        )
         missing = []
         for port in node.INPUTS:
-            if port.required and port.name not in inputs:
+            if (
+                port.required
+                and port.name not in inputs
+                and port.name not in feedback_handles
+            ):
                 missing.append(port.name)
         return missing
 
@@ -395,6 +406,7 @@ class BaseExecutor(ABC):
         )
 
         feedback_connections: list[tuple[str, str, str, str]] = []
+        feedback_input_handles: dict[str, set[str]] = {}
         for edge in feedback_edges:
             source = edge["source"]
             target = edge["target"]
@@ -403,6 +415,9 @@ class BaseExecutor(ABC):
             feedback_connections.append(
                 (source, target, source_handle, target_handle)
             )
+            feedback_input_handles.setdefault(target, set()).add(target_handle)
+
+        self._feedback_input_handles = feedback_input_handles
 
         execution_layers = self._build_execution_layers(
             node_instances, dependencies
@@ -497,12 +512,20 @@ class BaseExecutor(ABC):
         except GraphValidationError as e:
             errors.append(str(e))
 
+        feedback_inputs_by_node: dict[str, set[str]] = {}
+        for edge in feedback_edges:
+            feedback_inputs_by_node.setdefault(edge["target"], set()).add(
+                edge.get("targetHandle", "input")
+            )
+
         for node_id, node in node_instances.items():
             required_inputs = [p.name for p in node.INPUTS if p.required]
             connected_inputs = set()
 
             for _, _, target_handle in connections.get(node_id, []):
                 connected_inputs.add(target_handle)
+
+            connected_inputs |= feedback_inputs_by_node.get(node_id, set())
 
             missing = set(required_inputs) - connected_inputs
             if missing:

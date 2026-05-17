@@ -18,7 +18,7 @@ class ExecutionCancelledError(Exception):
     pass
 
 
-DEFAULT_GLOBAL_EXECUTION_TIMEOUT = 3600  # 1 hour default
+DEFAULT_GLOBAL_EXECUTION_TIMEOUT = None  # No global timeout. Tournaments with reasoning models and many iterations can legitimately run for hours; Ctrl-C is the cancel mechanism.
 
 
 class AsyncExecutor(BaseExecutor):
@@ -32,7 +32,6 @@ class AsyncExecutor(BaseExecutor):
         self._current_execution_id: str | None = None
         self._cancel_event: asyncio.Event = asyncio.Event()
         self._background_tasks: set[asyncio.Task[None]] = set()
-        # Global execution timeout (prevents runaway executions)
         self.global_timeout = (config or {}).get(
             "global_timeout", DEFAULT_GLOBAL_EXECUTION_TIMEOUT
         )
@@ -241,18 +240,22 @@ class AsyncExecutor(BaseExecutor):
         self._current_execution_id = execution_id
         self._cancel_event.clear()
 
+        timeout_label = (
+            f"{self.global_timeout}s" if self.global_timeout else "none"
+        )
         logger.info(
-            "[%s] === EXECUTION START === nodes=%d, edges=%d, global_timeout=%ds",
+            "[%s] === EXECUTION START === nodes=%d, edges=%d, global_timeout=%s",
             execution_id[:8],
             len(nodes),
             len(edges),
-            self.global_timeout,
+            timeout_label,
         )
 
         self._report_execution_start(execution_id, len(nodes), len(edges))
 
         try:
-            # Wrap entire execution in global timeout
+            if self.global_timeout is None:
+                return await self._execute_workflow(nodes, edges, execution_id)
             return await asyncio.wait_for(
                 self._execute_workflow(nodes, edges, execution_id),
                 timeout=self.global_timeout,

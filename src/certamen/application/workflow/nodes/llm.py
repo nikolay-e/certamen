@@ -206,8 +206,8 @@ class LLMNode(BaseNode):
         Port(
             "prompt",
             PortType.STRING,
-            required=True,
-            description="The question or task you want the LLM to answer or perform",
+            required=False,
+            description="The question or task you want the LLM to answer or perform. Optional: when omitted, the node only emits its model_config (model-declaration usage in tournaments).",
         ),
         Port(
             "system",
@@ -271,6 +271,12 @@ class LLMNode(BaseNode):
             "max": 128000,
             "description": "Maximum tokens in response (higher = longer output, more cost)",
         },
+        "reasoning_effort": {
+            "type": "select",
+            "default": None,
+            "options": ["minimal", "low", "medium", "high"],
+            "description": "Reasoning depth for o-series / GPT-5 / Claude thinking models. Ignored by non-reasoning models.",
+        },
     }
 
     async def execute(
@@ -329,23 +335,19 @@ class LLMNode(BaseNode):
         system_prompt: str,
     ) -> dict[str, Any]:
         if input_model_config and isinstance(input_model_config, dict):
-            name = input_model_config.get("name", "") or self.node_id
-            provider = input_model_config.get("provider", "ollama")
-            model_name = input_model_config.get(
-                "model_name", _DEFAULT_OLLAMA_MODEL
-            )
-            temperature = float(input_model_config.get("temperature", 0.7))
-            max_tokens = int(input_model_config.get("max_tokens", 4096))
-            if not system_prompt:
-                system_prompt = input_model_config.get("system_prompt", "")
+            source = input_model_config
         else:
-            name = self.node_properties.get("name", "") or self.node_id
-            provider = self.node_properties.get("provider", "ollama")
-            model_name = self.node_properties.get(
-                "model_name", _DEFAULT_OLLAMA_MODEL
-            )
-            temperature = float(self.node_properties.get("temperature", 0.7))
-            max_tokens = int(self.node_properties.get("max_tokens", 4096))
+            source = self.node_properties
+
+        name = source.get("name", "") or self.node_id
+        provider = source.get("provider", "ollama")
+        model_name = source.get("model_name", _DEFAULT_OLLAMA_MODEL)
+        temperature = float(source.get("temperature", 0.7))
+        max_tokens = int(source.get("max_tokens", 4096))
+        if not system_prompt:
+            system_prompt = source.get("system_prompt", "")
+        reasoning_effort = source.get("reasoning_effort")
+        web_search_options = source.get("web_search_options")
 
         config: dict[str, Any] = {
             "name": name,
@@ -355,6 +357,12 @@ class LLMNode(BaseNode):
             "max_tokens": max_tokens,
             "display_name": name,
         }
+
+        if reasoning_effort:
+            config["reasoning_effort"] = reasoning_effort
+
+        if web_search_options:
+            config["web_search_options"] = web_search_options
 
         if system_prompt:
             config["system_prompt"] = system_prompt

@@ -197,15 +197,17 @@ class LiteLLMModel(BaseModel):
     def _build_completion_params(
         self, messages: list[dict[str, str]], logger: Any
     ) -> dict[str, Any]:
-        # Anthropic requires temperature=1 when extended thinking is enabled
         anthropic_with_reasoning = (
             self.provider == "anthropic" and self.reasoning_effort is not None
         )
-        temperature = (
-            1.0
-            if (self.requires_temp_one or anthropic_with_reasoning)
-            else float(self.temperature)
+        gpt5_with_reasoning = (
+            self._is_gpt5_model() and self.reasoning_effort is not None
         )
+        # Reasoning-mode endpoints (Claude Opus 4.7+ extended thinking,
+        # GPT-5 family) reject the temperature parameter outright — even
+        # the default value triggers "temperature is deprecated for this
+        # model". Drop it from the payload entirely in those cases.
+        omit_temperature = anthropic_with_reasoning or gpt5_with_reasoning
 
         # Anthropic extended thinking requires max_tokens > budget_tokens
         # Minimum 16000 for extended thinking to work properly
@@ -219,11 +221,14 @@ class LiteLLMModel(BaseModel):
                 self.display_name,
             )
 
-        params = {
+        params: dict[str, Any] = {
             "model": self.model_name,
             "messages": messages,
-            "temperature": temperature,
         }
+        if not omit_temperature:
+            params["temperature"] = (
+                1.0 if self.requires_temp_one else float(self.temperature)
+            )
 
         # GPT-5.x models require max_completion_tokens instead of max_tokens
         if self._is_gpt5_model():
@@ -381,7 +386,7 @@ class LiteLLMModel(BaseModel):
 
         fingerprint_data = {
             "messages": messages,
-            "temperature": params["temperature"],
+            "temperature": params.get("temperature"),
             "max_tokens": self._get_effective_max_tokens(params),
             "api_base": self.api_base,
             "reasoning_effort": self.reasoning_effort,
@@ -401,7 +406,7 @@ class LiteLLMModel(BaseModel):
         messages = self._build_messages(validated_prompt)
         params = self._build_completion_params(messages, logger)
 
-        effective_temp = float(params["temperature"])
+        effective_temp = float(params.get("temperature", 1.0))
         effective_max_tokens = self._get_effective_max_tokens(params)
         cache_fingerprint = self._build_cache_fingerprint(messages, params)
 
