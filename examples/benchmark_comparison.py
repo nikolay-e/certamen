@@ -134,8 +134,7 @@ async def main():
     print("🎯 RECOMMENDATIONS")
     print("=" * 80)
 
-    print(
-        f"""
+    print(f"""
     Use Single Model when:
     ✅ Budget < $0.20 per query
     ✅ Time sensitive (< 1 minute)
@@ -152,8 +151,7 @@ async def main():
     ✅ Irreversible decision
     ✅ Stakeholder buy-in needed (synthesis helps)
     ✅ Worth extra {tournament_time-single_time:.0f} seconds for quality
-    """
-    )
+    """)
 
 
 if __name__ == "__main__":

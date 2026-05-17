@@ -26,12 +26,16 @@ export function useWebSocket(url: string): UseWebSocketResult {
   const handleMessage = useCallback((message: ExecutionMessage) => {
     switch (message.type) {
       case "models":
-        if (message.data)
+        if (message.data) {
+          // NOSONAR(typescript:S4325) narrow Record<string,unknown>→ModelInfo via unknown
           setModels(message.data as unknown as Record<string, ModelInfo>);
+        }
         break;
       case "nodes":
-        if (message.data)
+        if (message.data) {
+          // NOSONAR(typescript:S4325) narrow Record<string,unknown>→NodeDefinition[] via unknown
           setNodeDefinitions(message.data as unknown as NodesByCategory);
+        }
         break;
       case "execution_start":
         setIsExecuting(true);

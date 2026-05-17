@@ -62,16 +62,14 @@ class ResponseCache:
         conn = self._get_conn()
 
         try:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS responses (
                     cache_key TEXT PRIMARY KEY,
                     response TEXT NOT NULL,
                     cost REAL NOT NULL,
                     timestamp INTEGER NOT NULL
                 )
-                """
-            )
+                """)
             conn.commit()
             logger.debug("Cache table created or verified")
         except sqlite3.Error as e:

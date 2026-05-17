@@ -41,8 +41,10 @@ async def parse_request_json(
         return schema_class(**data), None
     except (
         ValueError,
-        ValidationError,  # NOSONAR(python:S5713) pydantic v2 ValidationError does not extend ValueError
+        ValidationError,  # NOSONAR
     ) as e:
+        # pydantic v2 ValidationError does NOT extend ValueError;
+        # NOSONAR suppresses Sonar S5713 false positive.
         logger.warning("%s validation error: %s", error_context, e)
         return None, error_response(
             f"Invalid {error_context.lower()} data", 400
