@@ -27,14 +27,14 @@ export function useWebSocket(url: string): UseWebSocketResult {
     switch (message.type) {
       case "models":
         if (message.data) {
-          // NOSONAR(typescript:S4325) narrow Record<string,unknown>→ModelInfo via unknown
-          setModels(message.data as unknown as Record<string, ModelInfo>);
+          const modelsData = message.data as unknown as Record<string, ModelInfo>; // NOSONAR
+          setModels(modelsData);
         }
         break;
       case "nodes":
         if (message.data) {
-          // NOSONAR(typescript:S4325) narrow Record<string,unknown>→NodeDefinition[] via unknown
-          setNodeDefinitions(message.data as unknown as NodesByCategory);
+          const nodesData = message.data as unknown as NodesByCategory; // NOSONAR
+          setNodeDefinitions(nodesData);
         }
         break;
       case "execution_start":
