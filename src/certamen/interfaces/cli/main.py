@@ -346,6 +346,46 @@ async def _execute_tournament_workflow(
     )
 
 
+def _extract_workflow_question(workflow: dict[str, Any]) -> str | None:
+    for node in workflow.get("nodes", []):
+        if node.get("id") == "question" and node.get("type") == "simple/text":
+            texts = node.get("properties", {}).get("texts", [])
+            if texts:
+                return str(texts[0])
+    return None
+
+
+def _extract_workflow_model_keys(workflow: dict[str, Any]) -> list[str]:
+    keys: list[str] = []
+    for node in workflow.get("nodes", []):
+        if node.get("type") == "simple/llm":
+            props = node.get("properties", {})
+            name = props.get("name") or node.get("id") or ""
+            if name:
+                keys.append(str(name))
+    return keys
+
+
+def _extract_champion_from_outputs(
+    outputs: dict[str, Any],
+) -> dict[str, Any] | None:
+    for value in outputs.values():
+        if not isinstance(value, dict):
+            continue
+        champion = value.get("champion")
+        if isinstance(champion, dict):
+            model = champion.get("model")
+            if isinstance(model, dict):
+                return {
+                    "name": model.get("name")
+                    or model.get("display_name")
+                    or model.get("model_name"),
+                    "model_name": model.get("model_name"),
+                    "provider": model.get("provider"),
+                }
+    return None
+
+
 async def _execute_workflow_dict(
     workflow: dict[str, Any],
     source_label: str,
@@ -371,6 +411,8 @@ async def _execute_workflow_dict(
     run_dir = base_dir / "runs" / run_id
 
     with JsonlEventHandler(run_dir, run_id) as event_handler:
+        question = _extract_workflow_question(workflow)
+        model_keys = _extract_workflow_model_keys(workflow)
         event_handler.publish(
             "tournament_started",
             {
@@ -379,6 +421,8 @@ async def _execute_workflow_dict(
                 "workflow_source": source_label,
                 "node_count": len(executor_data["nodes"]),
                 "edge_count": len(executor_data["edges"]),
+                "question": question,
+                "models": model_keys,
             },
         )
 
@@ -431,12 +475,14 @@ async def _execute_workflow_dict(
             )
             raise FatalError(f"Workflow execution failed: {result['error']}")
 
+        champion_info = _extract_champion_from_outputs(outputs)
         event_handler.publish(
             "tournament_ended",
             {
                 "run_id": run_id,
                 "completed_nodes": len(outputs),
                 "output_nodes": output_nodes,
+                "champion": champion_info,
             },
         )
 

@@ -146,6 +146,7 @@ class ExceptionClassifier:
         "internalservererror": ("service", True),
         "connectionerror": ("connection", True),
         "modelresponseerror": ("model_response_error", False),
+        "badrequesterror": ("bad_request", False),
     }
 
     @classmethod
@@ -211,6 +212,7 @@ class ExceptionClassifier:
             "token_limit": "Output token limit reached",
             "permission_denied": "Permission denied",
             "model_response_error": "Invalid model response",
+            "bad_request": "Bad request",
             "general": "Unexpected error",
         }
         label = type_labels.get(error_type, "Error")

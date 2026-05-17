@@ -497,6 +497,17 @@ class LiteLLMModel(BaseModel):
                 raise ValueError(
                     f"Required field '{required_field}' missing in model configuration for {model_key}"
                 )
+        cls._ensure_provider_prefix(model_config)
+
+    @classmethod
+    def _ensure_provider_prefix(cls, model_config: dict[str, Any]) -> None:
+        provider = model_config.get("provider")
+        model_name = model_config.get("model_name", "")
+        if not provider or not model_name:
+            return
+        local_providers = {"ollama"}
+        if provider in local_providers and "/" not in model_name:
+            model_config["model_name"] = f"{provider}/{model_name}"
 
     @classmethod
     async def _get_ollama_model_info(

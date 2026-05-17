@@ -7,9 +7,8 @@ nodes:
     type: simple/text
     position: { x: 100, y: 300 }
     properties:
-      pages: [["Write a haiku about programming. Be creative and philosophical."]]
-      current_page: 0
-      mode: append
+      texts: ["Write a haiku about programming. Be creative and philosophical."]
+      separator: "\n"
 
   - id: llm1
     type: simple/llm
@@ -42,25 +41,22 @@ nodes:
     type: simple/text
     position: { x: 800, y: 100 }
     properties:
-      pages: []
-      current_page: 0
-      mode: append
+      texts: []
+      separator: "\n"
 
   - id: output2
     type: simple/text
     position: { x: 800, y: 300 }
     properties:
-      pages: []
-      current_page: 0
-      mode: append
+      texts: []
+      separator: "\n"
 
   - id: output3
     type: simple/text
     position: { x: 800, y: 500 }
     properties:
-      pages: []
-      current_page: 0
-      mode: append
+      texts: []
+      separator: "\n"
 
 edges:
   - source: prompt

@@ -160,7 +160,11 @@ async def safe_generate(model: Any, prompt: str) -> tuple[str, bool]:
         response = await model.generate(prompt)
         if response.is_error():
             logger.warning(
-                "Model generation returned error response: %s", response
+                "Model generation returned error response: model=%s "
+                "error_type=%s error=%s",
+                getattr(model, "display_name", "unknown"),
+                response.error_type,
+                response.error,
             )
             return "", False
         return response.content, True

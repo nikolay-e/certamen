@@ -27,28 +27,8 @@ def get_ollama_models(base_url: str) -> list[dict[str, Any]]:
         return []
 
 
-def get_ollama_model_details(
-    base_url: str, model_name: str
-) -> dict[str, Any] | None:
-    """Fetch detailed information for a specific model."""
-    try:
-        response = httpx.post(
-            f"{base_url}/api/show",
-            json={"name": model_name},
-            timeout=10.0,
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(
-            f"Warning: Could not fetch details for {model_name}: {e}",
-            file=sys.stderr,
-        )
-        return None
-
-
 def generate_model_config(
-    model: dict[str, Any], base_url: str, details: dict[str, Any] | None
+    model: dict[str, Any], base_url: str
 ) -> dict[str, Any]:
     """Generate configuration for a single model."""
     model_name = model["name"]
@@ -62,7 +42,7 @@ def generate_model_config(
 
     config = {
         "provider": "ollama",
-        "model_name": model_name,
+        "model_name": f"ollama/{model_name}",
         "display_name": f"{display_name} ({size_label})",
         "base_url": base_url,
     }
@@ -92,9 +72,10 @@ def main() -> None:
         help="Question for tournament",
     )
     parser.add_argument(
-        "--judge",
-        "-j",
-        help="Judge model (auto-select largest if not specified)",
+        "--workflow",
+        "-w",
+        default="diamond-tournament",
+        help="Packaged workflow name (default: diamond-tournament)",
     )
 
     args = parser.parse_args()
@@ -112,36 +93,14 @@ def main() -> None:
     for model in models:
         model_name = model["name"]
         print(f"\n  {model_name}", file=sys.stderr)
-
-        details = get_ollama_model_details(args.base_url, model_name)
         safe_key = model_name.replace(":", "_").replace("/", "_")
-        models_config[safe_key] = generate_model_config(
-            model, args.base_url, details
-        )
-
-    judge_model = args.judge
-    if not judge_model:
-        judge_model = next(iter(models_config.keys()))
-        print(
-            f"\n  [i] Auto-selecting judge model: {judge_model}",
-            file=sys.stderr,
-        )
+        models_config[safe_key] = generate_model_config(model, args.base_url)
 
     config = {
+        "workflow": args.workflow,
         "question": args.question,
         "models": models_config,
-        "tournament": {
-            "judge_model": judge_model,
-            "improvement_rounds": 1,
-            "anonymize": True,
-        },
-        "knowledge_bank": {
-            "enabled": True,
-            "max_insights": 3,
-            "similarity_threshold": 0.85,
-            "extraction_model": judge_model,
-        },
-        "outputs_dir": "./outputs",
+        "outputs_dir": "./reports",
         "logging": {
             "level": "INFO",
             "file_logging": True,

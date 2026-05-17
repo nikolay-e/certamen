@@ -56,7 +56,13 @@ def _apply_event_to_run_summary(
         summary["total_cost"] += float(p.get("cost") or 0.0)
     elif et == "tournament_ended":
         flags["ended"] = True
-        summary["champion"] = p.get("champion")
+        champion_payload = p.get("champion")
+        if isinstance(champion_payload, dict):
+            summary["champion"] = champion_payload.get(
+                "name"
+            ) or champion_payload.get("model_name")
+        else:
+            summary["champion"] = champion_payload
         summary["ended_at"] = ts
         if p.get("total_cost") is not None:
             summary["total_cost"] = float(p["total_cost"])

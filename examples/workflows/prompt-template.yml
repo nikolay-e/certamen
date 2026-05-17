@@ -7,25 +7,22 @@ nodes:
     type: simple/text
     position: { x: 100, y: 100 }
     properties:
-      pages: [["artificial intelligence"]]
-      current_page: 0
-      mode: append
+      texts: ["artificial intelligence"]
+      separator: "\n"
 
   - id: style
     type: simple/text
     position: { x: 100, y: 250 }
     properties:
-      pages: [["a curious 5-year-old child"]]
-      current_page: 0
-      mode: append
+      texts: ["a curious 5-year-old child"]
+      separator: "\n"
 
   - id: length
     type: simple/text
     position: { x: 100, y: 400 }
     properties:
-      pages: [["3 sentences"]]
-      current_page: 0
-      mode: append
+      texts: ["3 sentences"]
+      separator: "\n"
 
   - id: template
     type: simple/template
@@ -46,9 +43,8 @@ nodes:
     type: simple/text
     position: { x: 1150, y: 250 }
     properties:
-      pages: []
-      current_page: 0
-      mode: append
+      texts: []
+      separator: "\n"
 
 edges:
   - source: topic

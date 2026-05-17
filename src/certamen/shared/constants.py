@@ -55,30 +55,32 @@ PROVIDER_RETRY_DELAYS = {
 }
 
 # Error type patterns for classification (used by both base.py and exceptions.py)
+# IMPORTANT: patterns are matched as case-insensitive substrings. Patterns
+# shorter than 5 chars MUST be wrapped in clear delimiters (spaces, colons)
+# to avoid false positives like "tps" matching inside "https://" in URLs.
 ERROR_PATTERNS = {
     # Rate limit related patterns
     "rate_limit": [
         "rate limit",
         "ratelimit",
         "too many requests",
-        "429",
-        "tps",
+        " 429",
+        " tps ",
         "tokens per minute",
         "input tokens per minute",
         "requests per minute",
-        "rpm",
+        " rpm ",
         "quota",
         "exceeded",
         "limit reached",
-        "capacity",
         "throttled",
         "limit error",
         "error code: 429",
         "code: 429",
         "error code: 160",
         "code: 160",
-        "error code: 6",
-        "code: 6",
+        "error code: 6 ",
+        "code: 6 ",
         "error code: 1015",
         "code: 1015",
         "anthropicexception",

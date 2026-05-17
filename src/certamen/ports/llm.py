@@ -48,6 +48,17 @@ class ModelResponse:
     def is_error(self) -> bool:
         return self.error is not None
 
+    def __repr__(self) -> str:
+        if self.error is not None:
+            return (
+                f"ModelResponse(error_type={self.error_type!r}, "
+                f"error={self.error!r}, provider={self.provider!r})"
+            )
+        return (
+            f"ModelResponse(content={self.content[:80]!r}, "
+            f"cost={self.cost})"
+        )
+
 
 class BaseModel(ABC):
     def __init__(
