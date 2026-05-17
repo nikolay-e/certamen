@@ -7,4 +7,4 @@ permissions:
 
 jobs:
   diff:
-    uses: nikolay-e/treemapper-action/.github/workflows/diff-context.yml@v1
+    uses: nikolay-e/treemapper-action/.github/workflows/diff-context.yml@b9c88b1ba58a54f13d67c3e7ab56b9eba8355d9e # v1
