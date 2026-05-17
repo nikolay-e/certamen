@@ -136,6 +136,7 @@ benchmark_results/
 
 # All tournament outputs and logs
 /reports/
+/runs/
 
 # --- Certamen Framework Specific ---
 # Runtime logs and outputs

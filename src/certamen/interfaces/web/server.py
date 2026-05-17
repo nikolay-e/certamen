@@ -274,9 +274,10 @@ class GUIServer:
             )
             self._gui_dir = gui_dir
 
-    async def _serve_index(
+    async def _serve_index(  # NOSONAR
         self, request: web.Request
     ) -> web.FileResponse | web.Response:
+        # S7503: aiohttp typed handler signature requires async
         if self._gui_dir is None:
             return web.Response(text="GUI not configured")
         index_path = self._gui_dir / "index.html"
@@ -728,7 +729,8 @@ class GUIServer:
         models = await get_models_by_provider(provider)
         return web.json_response({"provider": provider, "models": models})
 
-    async def get_nodes(self, request: web.Request) -> web.Response:
+    async def get_nodes(self, request: web.Request) -> web.Response:  # NOSONAR
+        # S7503: aiohttp typed handler signature requires async
         return web.json_response(registry.list_by_category())
 
     async def validate_workflow(self, request: web.Request) -> web.Response:
@@ -757,7 +759,10 @@ class GUIServer:
         result = await self.executor.execute(nodes, edges)
         return web.json_response(result)
 
-    async def health_check(self, request: web.Request) -> web.Response:
+    async def health_check(  # NOSONAR
+        self, request: web.Request
+    ) -> web.Response:
+        # S7503: aiohttp typed handler signature requires async
         total_messages_sent = sum(self.messages_sent.values())
         total_messages_received = sum(self.messages_received.values())
         active_connections = len(self.clients)

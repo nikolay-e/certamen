@@ -26,10 +26,12 @@ export function useWebSocket(url: string): UseWebSocketResult {
   const handleMessage = useCallback((message: ExecutionMessage) => {
     switch (message.type) {
       case "models":
-        setModels(message.data as Record<string, ModelInfo>);
+        if (message.data)
+          setModels(message.data as unknown as Record<string, ModelInfo>);
         break;
       case "nodes":
-        setNodeDefinitions(message.data as NodesByCategory);
+        if (message.data)
+          setNodeDefinitions(message.data as unknown as NodesByCategory);
         break;
       case "execution_start":
         setIsExecuting(true);

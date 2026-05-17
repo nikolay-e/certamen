@@ -178,7 +178,7 @@ def _check_snake_case_file(item: Path, root: Path, errors: list[str]) -> None:
 
 
 def _check_snake_case_dir(item: Path, root: Path, errors: list[str]) -> None:
-    if item.name.startswith("__") or item.name.startswith("."):
+    if item.name.startswith(("__", ".")):
         return
     if not _SNAKE_CASE_PKG.match(item.name):
         errors.append(f"Non-snake_case package: {item.relative_to(root)}")

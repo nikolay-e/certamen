@@ -194,6 +194,22 @@ class LiteLLMModel(BaseModel):
             for pattern in ["gpt-5", "gpt5", "gpt-5.1", "gpt-5.2"]
         )
 
+    def _log_reasoning_effort(
+        self, anthropic_with_reasoning: bool, logger: Any
+    ) -> None:
+        if anthropic_with_reasoning:
+            logger.debug(
+                "Using reasoning_effort=%s for %s (temperature forced to 1.0)",
+                self.reasoning_effort,
+                self.display_name,
+            )
+        else:
+            logger.debug(
+                "Using reasoning_effort=%s for %s",
+                self.reasoning_effort,
+                self.display_name,
+            )
+
     def _build_completion_params(
         self, messages: list[dict[str, str]], logger: Any
     ) -> dict[str, Any]:
@@ -249,18 +265,7 @@ class LiteLLMModel(BaseModel):
 
         if self.reasoning_effort:
             params["reasoning_effort"] = self.reasoning_effort
-            if anthropic_with_reasoning:
-                logger.debug(
-                    "Using reasoning_effort=%s for %s (temperature forced to 1.0)",
-                    self.reasoning_effort,
-                    self.display_name,
-                )
-            else:
-                logger.debug(
-                    "Using reasoning_effort=%s for %s",
-                    self.reasoning_effort,
-                    self.display_name,
-                )
+            self._log_reasoning_effort(anthropic_with_reasoning, logger)
 
         if self.web_search_options:
             params["web_search_options"] = self.web_search_options

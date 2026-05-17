@@ -31,7 +31,7 @@ def _extract_json_text(text: str) -> str | None:
 
     # Try to find bare JSON (starting with { or [)
     stripped = text.strip()
-    if stripped.startswith("{") or stripped.startswith("["):
+    if stripped.startswith(("{", "[")):
         return stripped
 
     return None

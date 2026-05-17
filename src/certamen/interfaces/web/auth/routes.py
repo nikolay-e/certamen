@@ -39,9 +39,9 @@ async def parse_request_json(
     try:
         data = await request.json()
         return schema_class(**data), None
-    except (  # NOSONAR - pydantic v2 ValidationError does not extend ValueError
+    except (
         ValueError,
-        ValidationError,
+        ValidationError,  # NOSONAR(python:S5713) pydantic v2 ValidationError does not extend ValueError
     ) as e:
         logger.warning("%s validation error: %s", error_context, e)
         return None, error_response(
