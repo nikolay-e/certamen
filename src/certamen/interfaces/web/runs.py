@@ -106,7 +106,7 @@ def _summarize_run(run_dir: Path) -> dict[str, Any]:
     return summary
 
 
-def list_runs(_request: web.Request) -> web.Response:
+async def list_runs(_request: web.Request) -> web.Response:
     root = _runs_root()
     if not root.exists():
         return web.json_response({"runs": []})
@@ -120,7 +120,7 @@ def list_runs(_request: web.Request) -> web.Response:
     return web.json_response({"runs": runs})
 
 
-def get_run(request: web.Request) -> web.Response:
+async def get_run(request: web.Request) -> web.Response:
     run_id = request.match_info["run_id"]
     run_dir = _runs_root() / run_id
     if not run_dir.is_dir():
@@ -128,7 +128,7 @@ def get_run(request: web.Request) -> web.Response:
     return web.json_response(_summarize_run(run_dir))
 
 
-def get_run_events(request: web.Request) -> web.Response:
+async def get_run_events(request: web.Request) -> web.Response:
     run_id = request.match_info["run_id"]
     run_dir = _runs_root() / run_id
     if not run_dir.is_dir():

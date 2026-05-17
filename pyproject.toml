@@ -237,6 +237,9 @@ module = [
     "yaml", "yaml.*",
     "colorama", "colorama.*",
     "pydantic", "pydantic.*",
+    "bcrypt", "bcrypt.*",
+    "jwt", "jwt.*",
+    "psycopg2", "psycopg2.*",
 ]
 ignore_missing_imports = true
 disable_error_code = ["attr-defined"]
