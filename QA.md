@@ -113,3 +113,8 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 - **import-smoke test** (`tests/integration/test_import_smoke.py`) walks every module — needs the `gui` extra installed AND sets `CERTAMEN_JWT_SECRET` (the auth package hard-fails at import without a ≥32-char secret). CI `test` job installs `.[dev,gui]`.
 - **Frontend is gated in CI** (`Frontend` job: `biome ci` + `tsc -b` + `vitest run`). Vitest tests exercise real behavior (real store via `getState`, real hooks via `renderHook`) — no mocks, per the integration-only philosophy.
 - **codespell skips lockfiles** (`package-lock.json`, `uv.lock`) — hash fragments trip false positives.
+
+## Workflow executor — cycles vs feedback loops
+
+- A **back-edge in a workflow graph is NOT rejected as a cycle** — the executor classifies it as a bounded *feedback loop* (the mechanism behind tournament gate-loops) and runs the iteration loop up to `max_iterations` (default 20), then stops with normal `outputs`. `GraphValidationError("Graph contains a cycle")` only fires for a cycle *within a single execution layer* (non-feedback). So the safety property to assert for a cyclic graph is **termination** (returns `outputs`, no hang), not an error. See `tests/integration/test_executor_gaps.py`.
+- `simple/text` reads `texts:` only when no `input_text` is connected; seed text placed in `pages:` is silently ignored → empty `output_text` (validates + "runs" green). Covered by `test_executor_gaps.py`.
