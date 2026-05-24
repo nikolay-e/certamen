@@ -137,7 +137,7 @@ class DisagreementInvestigator:
         elif re.search(r"\bresolved\b", text):
             status = "resolved"
         conf_match = re.search(
-            r"confidence[:\s]+([01]?\.\d+)", text, re.IGNORECASE
+            r"confidence[:\s]+([01](?:\.\d+)?)", text, re.IGNORECASE
         )
         if not conf_match:
             conf_match = re.search(r"\b([01]\.\d+)\b", text)

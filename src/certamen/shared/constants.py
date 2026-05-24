@@ -71,7 +71,7 @@ ERROR_PATTERNS = {
         "requests per minute",
         " rpm ",
         "quota",
-        "exceeded",
+        "rate limit exceeded",
         "limit reached",
         "throttled",
         "limit error",
