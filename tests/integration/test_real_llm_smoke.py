@@ -22,6 +22,7 @@ async def test_ollama_basic_generation():
         provider="ollama",
         temperature=0.7,
         max_tokens=100,
+        context_window=131072,
     )
 
     response = await model.generate("What is 2+2? Answer in one word.")
@@ -50,6 +51,7 @@ async def test_ollama_with_cache():
         provider="ollama",
         temperature=0.7,
         max_tokens=50,
+        context_window=131072,
         options=LiteLLMModelOptions(response_cache=cache),
     )
 
