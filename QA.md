@@ -1,6 +1,6 @@
 # QA Methodology — certamen
 
-> Generic QA patterns (SonarCloud rules, pre-commit, ArgoCD, etc.) live in the global `/qa` skill. This file holds project-specific overrides only.
+> Generic QA patterns (pre-commit, ArgoCD, etc.) live in the global `/qa` skill. This file holds project-specific overrides only.
 
 ## Project Type
 
@@ -12,7 +12,7 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 **Applicable:**
 
 - Tests: `make test` — 225+ integration tests, 30%+ coverage, no mocks
-- Lint: `make lint` — ruff (lint + format + import sort + bandit security rules), mypy strict
+- Lint: `make lint` — ruff (lint + format + import sort + bandit security rules), pyright strict
 - Pre-commit: full suite including gitleaks, semgrep, vulture, detect-secrets
 - Code review: manual diff review for prompt/config changes
 - **Ollama smoke**: `make discover-ollama` + at least one slim-config run via `certamen --config /tmp/cert-*.yml` to catch provider-prefix and slim-schema regressions
@@ -23,14 +23,14 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 
 - Schemathesis / ZAP / autoqa: no HTTP API surface intended for external traffic (the GUI server is dev-only, binds 0.0.0.0 intentionally, has no OpenAPI). The crawler / accessibility checks are out-of-scope until/unless we ship the GUI as a hosted product.
 - K8s logs: deployment is simple container, no complex orchestration
-- SonarCloud project key is `nikolay-e_arbitrium-core` (old name); `sonar-project.properties` scopes analysis to `src/certamen/` only
+- SonarCloud: removed 2026-05 (`sonar-project.properties` deleted). Coverage via pytest-cov, security via ruff `S*` + bandit + CodeQL, secrets via gitleaks/detect-secrets — Sonar duplicated all of it
 
 ## Project-Specific Findings
 
 - **S104 (ruff/bandit)** in web server/CLI — intentional bind to 0.0.0.0, suppressed with `# noqa: S104`.
 - **pylint duplicate-code** between `certamen` (legacy) and `certamen` — scoped to `certamen/` only in pre-commit; do NOT scope to `src/`.
 - **pip-audit may flag pip itself** — transient CVE, added to ignore list.
-- **SonarCloud BLOCKER on intentional bcrypt dummy hash**: add `# NOSONAR` + `# pragma: allowlist secret`.
+- **Intentional bcrypt dummy hash** (timing-attack prevention) needs `# pragma: allowlist secret` for detect-secrets.
 - **JSONC files** (tsconfig with comments) must be excluded from `check-json` hook.
 - **markdownlint** on generated reports/docs: exclude `benchmarks/reports/` and `docs/` dirs.
 - **After package rename**, search BOTH `.github/workflows/` and `Makefile` for stale source paths — `--cov=src/<old_name>` causes "0.00% coverage" failure on CI while passing locally.
@@ -94,25 +94,11 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 - In shutdown (task we explicitly cancelled): comment OK.
 - At top level: use `finally` only.
 
-## aiohttp handlers + SonarCloud S7503
+## aiohttp typed handlers + pyright
 
-- aiohttp's typed handlers require `async def` even when no `await` is needed (signature is `Callable[[Request], Awaitable[StreamResponse]]`). SonarCloud S7503 ("remove async, no awaits") is a wrong fix here — reverting to sync triggers mypy strict failures in `interfaces/web/` (3 in `runs.py`, 4 in `server.py`).
+- aiohttp's typed handlers require `async def` even when no `await` is needed (signature is `Callable[[Request], Awaitable[StreamResponse]]`). Reverting to sync to satisfy a "no awaits" lint triggers strict type failures in `interfaces/web/` (3 in `runs.py`, 4 in `server.py`).
 - `websocket_handler` returns either `WebSocketResponse` on success or `Response(status=403/503/429)` for pre-upgrade rejections. Annotate return as `web.StreamResponse` (parent of both) — not `WebSocketResponse`.
-- Missing third-party stubs (`bcrypt`, `jwt`, `psycopg2`) live in mypy override `ignore_missing_imports = true` block in `pyproject.toml`.
-
-## SonarCloud — project-specific
-
-- Quality gate failed on `new_security_rating=3` because of S8565 ("missing lock file"). Fix: `uv lock` and commit `uv.lock` — Sonar accepts uv lock for Python projects, even though we ship as a wheel without one historically.
-- Keychain `sonarcloud-token` is analysis-scope, not user-scope: `api/authentication/validate?token=…` returns valid but `api/users/current` shows `isLoggedIn: false` and any management POST (hotspot status change, issue resolution) returns 401. Marking hotspots SAFE requires manual UI action or a personal user token from 1Password.
-- **Valid user-scope token in 1Password Sonarcloud LOGIN item is the `MCP TOKEN` concealed field** (not the `password` field, which is empty). Sign-in is via GitHub OAuth — there's no user password to extract. After `op item get vtej74af4ew6tdqnvinqno35zy --fields "MCP TOKEN" --reveal`, mirror to Keychain via `security add-generic-password -a "$USER" -s "sonarcloud-token" -w "$TOKEN" -U`. The older 1Password item `Sonar Cloud Token` (id qd7gbl7xpggjrsybhao5akzxxa) has been rotated and returns `valid:false`.
-- Hotspots TO_REVIEW do NOT break the quality gate unless they appear in the `new_code` window — the metric is `new_security_hotspots_reviewed`. The 22 long-standing hotspots in this repo are safe-by-construction (non-crypto `random` for sim/shuffle; regex over bounded LLM output; `/tmp` literals in test fixtures) and can stay TO_REVIEW indefinitely without blocking CD.
-
-## NOSONAR + 79-char formatter wrapping collision
-
-- `pyproject.toml` enforces `ruff format` with `line-length = 79`. A signature already near the limit (e.g. `async def list_runs(_request: web.Request) -> web.Response:` = 60 chars) cannot fit `# NOSONAR(python:S7503)` (24 chars including spaces) inline — total 84+ chars, the formatter wraps the whole signature, and the NOSONAR ends up on the closing `):` line, which Sonar IGNORES (per global skill: NOSONAR must be on `def` or `except` keyword line).
-- Workaround: use bare `# NOSONAR` (suppresses ALL rules on the line; 11 chars), keep on the `def` line, and place a follow-up `# Sxxxx: reason` comment as the function body's first line for human readers. This is the pattern used in `interfaces/web/runs.py` and `interfaces/web/server.py` for the 6 aiohttp typed-handler S7503 suppressions.
-- **Reason text after `# NOSONAR(rule)` triggers S7632 (malformed NOSONAR parse).** Either use bare `# NOSONAR` and put rationale as a separate `#` comment, or keep the `# NOSONAR(rule)` form clean (no trailing prose). Example breakage: `# NOSONAR(python:S5713) pydantic v2 ValidationError does not extend ValueError` — Sonar parses this as invalid and raises a MAJOR S7632 on the same line.
-- **typescript:S4325 false-positive on `as unknown as T` double-cast** (Sonar thinks one of the assertions is redundant though `tsc -b` requires both). `// NOSONAR` on a separate line ABOVE the cast does NOT suppress — Sonar treats `// NOSONAR` as line-local only. Workaround: hoist the cast into a `const` and put inline `// NOSONAR` on the const declaration line, then pass the const to the consumer. Pattern in `frontend/src/hooks/useWebSocket.ts`.
+- Web/auth runtime deps (`aiohttp`, `bcrypt`, `PyJWT`, `psycopg2`) live in the `gui` optional-extra (`pip install certamen-core[gui]` / `uv sync --extra gui`). pyright resolves `psycopg2` via typeshed stubs; `bcrypt`/`jwt` carry inline `# pyright: ignore[reportMissingImports]` because the default dev env (`uv sync --extra dev`) does not install them.
 
 ## pre-commit ruff rev vs installed ruff
 
