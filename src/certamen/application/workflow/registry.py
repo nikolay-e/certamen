@@ -20,6 +20,9 @@ class NodeRegistry:
     def get(self, node_type: str) -> type[BaseNode] | None:
         return self._nodes.get(node_type)
 
+    def node_types(self) -> list[str]:
+        return list(self._nodes.keys())
+
     def create(
         self,
         node_type: str,

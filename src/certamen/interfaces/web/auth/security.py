@@ -7,8 +7,8 @@ import uuid
 from collections import defaultdict, deque
 from typing import Any
 
-import bcrypt
-import jwt
+import bcrypt  # pyright: ignore[reportMissingImports]
+import jwt  # pyright: ignore[reportMissingImports]
 from aiohttp import web
 
 from certamen.interfaces.web.auth.config import (

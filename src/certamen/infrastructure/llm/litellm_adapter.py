@@ -304,15 +304,17 @@ class LiteLLMModel(BaseModel):
         prompt_tokens = 0
         completion_tokens = 0
         total_tokens = 0
-        if hasattr(response, "usage") and response.usage:
-            prompt_tokens = getattr(response.usage, "prompt_tokens", 0)
-            completion_tokens = getattr(response.usage, "completion_tokens", 0)
-            total_tokens = getattr(response.usage, "total_tokens", 0)
+        usage = getattr(response, "usage", None)
+        if usage:
+            prompt_tokens = getattr(usage, "prompt_tokens", 0)
+            completion_tokens = getattr(usage, "completion_tokens", 0)
+            total_tokens = getattr(usage, "total_tokens", 0)
 
         # Extract rate limit headers if available
         rate_limit_info = ""
-        if hasattr(response, "_hidden_params"):
-            headers = getattr(response._hidden_params, "headers", {})
+        hidden_params = getattr(response, "_hidden_params", None)
+        if hidden_params is not None:
+            headers = getattr(hidden_params, "headers", {})
             if headers:
                 rate_limit_headers = {
                     k: v

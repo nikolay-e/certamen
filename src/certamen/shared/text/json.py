@@ -15,9 +15,7 @@ def to_dict(obj: Any) -> dict[str, Any]:
         if isinstance(result, dict):
             return result
     try:
-        result = dict(obj)
-        if isinstance(result, dict):
-            return result
+        return dict(obj)
     except (TypeError, ValueError):
         pass
     return {}
@@ -58,7 +56,7 @@ def _try_convert_set_to_list(
 def extract_json_from_text(
     text: str,
 ) -> dict[str, object] | list[object] | None:
-    if not text or not isinstance(text, str):
+    if not text:
         return None
 
     # Extract JSON text from input

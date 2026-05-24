@@ -2,9 +2,8 @@ import time
 from contextlib import contextmanager
 from typing import Any
 
-import psycopg2
 from psycopg2.extras import RealDictCursor
-from psycopg2.pool import SimpleConnectionPool
+from psycopg2.pool import PoolError, SimpleConnectionPool
 
 from certamen.interfaces.web.auth.config import (
     DB_HOST,
@@ -53,9 +52,9 @@ def get_db() -> Any:
             DB_POOL_MIN_SIZE,
             DB_POOL_MAX_SIZE,
         )
-        conn = db_pool.getconn(timeout=10)
+        conn = db_pool.getconn()
         if conn is None:
-            raise psycopg2.pool.PoolError("Failed to get connection from pool")
+            raise PoolError("Failed to get connection from pool")
         logger.debug("Connection acquired from pool")
         return conn
     except Exception as e:
@@ -133,7 +132,7 @@ def db_transaction(write: bool = False) -> Any:
                 duration_ms,
             )
 
-    except psycopg2.pool.PoolError as e:
+    except PoolError as e:
         logger.exception("Connection pool error: %s", e)
         _safe_rollback(conn)
         raise

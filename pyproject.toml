@@ -51,10 +51,7 @@ dev = [
     "hypothesis~=6.0",
     "coverage[toml]~=7.13",
     "ruff>=0.15.10,<1.0",
-    "mypy>=1.11,<3.0",
-    "types-colorama~=0.4",
-    "types-PyYAML~=6.0",
-    "types-aiofiles~=25.1",
+    "pyright>=1.1.408",
     "pre-commit~=4.5",
     "mutmut~=3.5",
     "radon~=6.0",
@@ -190,39 +187,21 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
 
-[tool.mypy]
-strict = true
-warn_unreachable = true
-warn_redundant_casts = true
-warn_unused_ignores = false
-disallow_any_generics = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-no_implicit_optional = true
-files = ["src/"]
-exclude = ["tests/", "^docs/", "^benchmarks/"]
-
-[[tool.mypy.overrides]]
-module = [
-    "litellm", "litellm.*",
-    "sklearn", "sklearn.*",
-    "markdown_it", "markdown_it.*",
-    "httpx", "httpx.*",
-    "dotenv", "dotenv.*",
-    "yaml", "yaml.*",
-    "colorama", "colorama.*",
-    "pydantic", "pydantic.*",
-    "bcrypt", "bcrypt.*",
-    "jwt", "jwt.*",
-    "psycopg2", "psycopg2.*",
-]
-ignore_missing_imports = true
-disable_error_code = ["attr-defined"]
-
-[[tool.mypy.overrides]]
-module = "certamen.infrastructure.config.models"
-disable_error_code = ["misc"]
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__", "tests", "docs", "benchmarks", "build", "dist"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+# Untyped third-party libs (litellm, sklearn, bcrypt, jwt, psycopg2) ship no
+# stubs. The prior mypy config treated them as Any via ignore_missing_imports;
+# silencing the Unknown-type reports keeps that stance so strict checking still
+# applies fully to our own annotated code without drowning in external noise.
+reportMissingTypeStubs = "none"
+reportMissingModuleSource = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownLambdaType = "none"
 
 # Mutation testing configuration
 # Evidence: Mutation score correlates with real fault detection

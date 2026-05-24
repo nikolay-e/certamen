@@ -74,17 +74,15 @@ def clear_task_context() -> None:
 def build_context_parts(record: logging.LogRecord) -> list[str]:
     context_parts = []
 
-    if hasattr(record, "run_id") and record.run_id:
-        context_parts.append(f"run:{record.run_id}")
-
-    if hasattr(record, "task_id") and record.task_id:
-        context_parts.append(f"task:{record.task_id}")
-
-    if hasattr(record, "phase") and record.phase:
-        context_parts.append(f"phase:{record.phase}")
-
-    if hasattr(record, "model") and record.model:
-        context_parts.append(f"model:{record.model}")
+    for prefix, attr in (
+        ("run", "run_id"),
+        ("task", "task_id"),
+        ("phase", "phase"),
+        ("model", "model"),
+    ):
+        value = getattr(record, attr, None)
+        if value:
+            context_parts.append(f"{prefix}:{value}")
 
     return context_parts
 

@@ -315,9 +315,10 @@ class GUIServer:
             if isinstance(result, Exception):
                 failure_count += 1
                 self.broadcast_failure_count += 1
+                req = getattr(client, "_req", None)
                 peer = (
-                    client._req.transport.get_extra_info("peername")
-                    if client._req and client._req.transport
+                    req.transport.get_extra_info("peername")
+                    if req and req.transport
                     else None
                 )
                 client_id = f"{peer[0]}:{peer[1]}" if peer else "unknown"

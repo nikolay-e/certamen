@@ -60,12 +60,9 @@ def _get_backoff_multiplier(error_type: str, provider: str) -> float:
         provider_mult = multiplier_value.get(
             provider, multiplier_value["default"]
         )
-        return float(provider_mult) if provider_mult is not None else 1.5
+        return float(provider_mult)
 
-    if isinstance(multiplier_value, (int, float)):
-        return float(multiplier_value)
-
-    return 1.5
+    return float(multiplier_value)
 
 
 def _get_jitter_range(error_type: str, provider: str) -> float:

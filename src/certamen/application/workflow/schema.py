@@ -4,11 +4,11 @@ from certamen.application.workflow.registry import registry
 
 
 def list_node_types() -> list[str]:
-    return sorted(registry._nodes.keys())
+    return sorted(registry.node_types())
 
 
 def get_node_schema(node_type: str) -> dict[str, Any] | None:
-    node_class = registry._nodes.get(node_type)
+    node_class = registry.get(node_type)
     if not node_class:
         return None
 

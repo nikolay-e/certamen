@@ -5,31 +5,27 @@ from certamen.application.workflow.nodes.base import (
     PortType,
 )
 
+_NODE_MODULES = (
+    "disagreement",
+    "evaluation",
+    "flow",
+    "generation",
+    "input",
+    "interrogation",
+    "knowledge",
+    "llm",
+    "output",
+    "synthesis",
+)
+
 
 def register_all() -> None:
-    import certamen.application.workflow.nodes.disagreement
-    import certamen.application.workflow.nodes.evaluation
-    import certamen.application.workflow.nodes.flow
-    import certamen.application.workflow.nodes.generation
-    import certamen.application.workflow.nodes.input
-    import certamen.application.workflow.nodes.interrogation
-    import certamen.application.workflow.nodes.knowledge
-    import certamen.application.workflow.nodes.llm
-    import certamen.application.workflow.nodes.output
-    import certamen.application.workflow.nodes.synthesis
+    import importlib
 
-    del (
-        certamen.application.workflow.nodes.disagreement,
-        certamen.application.workflow.nodes.evaluation,
-        certamen.application.workflow.nodes.flow,
-        certamen.application.workflow.nodes.generation,
-        certamen.application.workflow.nodes.input,
-        certamen.application.workflow.nodes.interrogation,
-        certamen.application.workflow.nodes.knowledge,
-        certamen.application.workflow.nodes.llm,
-        certamen.application.workflow.nodes.output,
-        certamen.application.workflow.nodes.synthesis,
-    )
+    for module_name in _NODE_MODULES:
+        importlib.import_module(
+            f"certamen.application.workflow.nodes.{module_name}"
+        )
 
 
 __all__ = ["BaseNode", "ExecutionContext", "Port", "PortType", "register_all"]

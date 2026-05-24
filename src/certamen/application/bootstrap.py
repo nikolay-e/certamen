@@ -1,8 +1,9 @@
+import importlib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 # Import providers to trigger registration at bootstrap time
-import certamen.infrastructure.llm.providers  # noqa: F401
+importlib.import_module("certamen.infrastructure.llm.providers")
 
 if TYPE_CHECKING:
     from certamen.engine import Certamen
@@ -235,10 +236,8 @@ async def build_certamen(
                 f"Invalid configuration provided. Missing or invalid sections:\n  - {error_details}\n\n"
                 f"Required sections: models, retry, features, prompts, outputs_dir"
             )
-    elif isinstance(config, Config):
-        config_obj = config
     else:
-        raise TypeError(f"Unsupported config type: {type(config)}")
+        config_obj = config
 
     config_data = config_obj.config_data
 

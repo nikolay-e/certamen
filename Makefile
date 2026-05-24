@@ -19,7 +19,7 @@ lint:  ## Run all linters
 	python scripts/lint_structure.py
 	ruff check $(PY_SOURCES)
 	ruff format --check $(PY_SOURCES)
-	mypy src/
+	pyright src/
 
 test:  ## Run tests with coverage
 	@echo "Running tests..."

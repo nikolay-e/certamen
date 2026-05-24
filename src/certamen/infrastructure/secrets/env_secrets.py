@@ -8,7 +8,7 @@ from certamen.shared.logging import get_contextual_logger
 logger = get_contextual_logger("certamen.utils.secrets")
 
 
-def _validate_config_structure(config: dict[str, object] | None) -> None:
+def _validate_config_structure(config: object | None) -> None:
     if config is None:
         raise ConfigurationError(
             "Secret configuration not provided. Config must be passed to get_secret_config."

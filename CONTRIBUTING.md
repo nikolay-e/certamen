@@ -73,7 +73,7 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 |--------|---------|
 | `make dev` | Install dev dependencies + pre-commit hooks |
 | `make fmt` | Format + autofix code (`ruff format` + `ruff check --fix`) |
-| `make lint` | Lint + format check + type check (ruff, mypy) |
+| `make lint` | Lint + format check + type check (ruff, pyright) |
 | `make test` | Run tests with coverage |
 | `make test-quick` | Run tests without coverage |
 | `make clean` | Remove build artifacts |
@@ -106,7 +106,7 @@ We do not use docstrings or inline comments explaining "what" the code does. Ins
 
 ### Type Safety
 
-- All code must pass `mypy --strict`
+- All code must pass `pyright` in strict mode
 - Use proper type annotations on all public functions
 - Avoid `Any` unless absolutely necessary
 
