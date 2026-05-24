@@ -118,3 +118,10 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 
 - A **back-edge in a workflow graph is NOT rejected as a cycle** — the executor classifies it as a bounded *feedback loop* (the mechanism behind tournament gate-loops) and runs the iteration loop up to `max_iterations` (default 20), then stops with normal `outputs`. `GraphValidationError("Graph contains a cycle")` only fires for a cycle *within a single execution layer* (non-feedback). So the safety property to assert for a cyclic graph is **termination** (returns `outputs`, no hang), not an error. See `tests/integration/test_executor_gaps.py`.
 - `simple/text` reads `texts:` only when no `input_text` is connected; seed text placed in `pages:` is silently ignored → empty `output_text` (validates + "runs" green). Covered by `test_executor_gaps.py`.
+
+## GUI runtime bugs (found via Playwright MCP)
+
+- **Tournament-results WS reconnect storm**: `TournamentView`'s attach-WebSocket `useEffect` must depend ONLY on `selectedId`. Including `liveStatus` (which the effect itself sets to connecting→live) re-runs the effect on every status change → close+reopen WS forever (192+ `WebSocket closed before connection established` warnings on opening any run). The `// eslint-disable react-hooks/exhaustive-deps` masked it. Use a functional update in `onclose` (`setLiveStatus(prev => prev === "live" ? "ended" : prev)`) instead of reading `liveStatus`.
+- **React error #31 on champion**: `tournament_ended.payload.champion` is `{name, model_name, provider}` (object) for current runs, but older runs emit a string. Rendering it directly crashes the run-detail subtree. Extract a display string (`typeof === "string" ? it : c.name ?? c.model_name`) before assigning to a rendered field. (Reconnect storm was masking this until the WS stabilised.)
+- **Editor fires ~1 `POST /api/validate` per node on load** (28 for diamond-tournament) — all 200 but a chatty re-validate; debounce opportunity, not a bug.
+- Local `certamen gui` shows version `v0.0.0-placeholder` (the `GIT_SHA` sed runs only at Docker build) — expected, not a finding.
