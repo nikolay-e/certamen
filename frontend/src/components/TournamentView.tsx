@@ -286,15 +286,14 @@ export function TournamentView() {
     };
     ws.onerror = () => setLiveStatus("error");
     ws.onclose = () => {
-      if (liveStatus === "live") setLiveStatus("ended");
+      setLiveStatus((prev) => (prev === "live" ? "ended" : prev));
     };
 
     return () => {
       ws.close();
       wsRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, liveStatus]);
+  }, [selectedId]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
@@ -320,7 +319,15 @@ export function TournamentView() {
       } else if (e.event_type === "model_eliminated") {
         eliminated++;
       } else if (e.event_type === "tournament_ended") {
-        champion = (e.payload.champion as string) || null;
+        // champion may be a plain string or a {name, model_name, provider}
+        // object — extract a display string so React never renders the object.
+        const rawChampion = e.payload.champion;
+        if (typeof rawChampion === "string") {
+          champion = rawChampion;
+        } else if (rawChampion && typeof rawChampion === "object") {
+          const c = rawChampion as { name?: string; model_name?: string };
+          champion = c.name ?? c.model_name ?? null;
+        }
         if (e.payload.total_cost != null) {
           totalCost = e.payload.total_cost as number;
         }
