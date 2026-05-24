@@ -51,24 +51,23 @@ install:  ## Install package in editable mode
 	pip install -e .
 
 dev:  ## Install package with dev dependencies
-	pip install -e .[dev]
+	uv sync --extra dev
 	pre-commit install
 
 build:  ## Build distribution packages
 	@echo "Building distribution packages..."
-	python -m build
+	uv build
 
 publish-test:  ## Publish to TestPyPI
 	@echo "Publishing to TestPyPI..."
-	@command -v twine >/dev/null 2>&1 || { echo "Twine not installed. Run: pip install twine"; exit 1; }
-	twine upload --repository testpypi dist/*
+	uv publish --publish-url https://test.pypi.org/legacy/
 
 publish:  ## Publish to PyPI (use with caution!)
 	@echo "Publishing to PyPI..."
 	@read -p "Are you sure you want to publish to PyPI? [y/N] " -n 1 -r; \
 	echo; \
 	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		twine upload dist/*; \
+		uv publish; \
 	else \
 		echo "Cancelled."; \
 	fi

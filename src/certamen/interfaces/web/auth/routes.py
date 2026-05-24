@@ -41,10 +41,10 @@ async def parse_request_json(
         return schema_class(**data), None
     except (
         ValueError,
-        ValidationError,  # NOSONAR
+        ValidationError,
     ) as e:
-        # pydantic v2 ValidationError does NOT extend ValueError;
-        # NOSONAR suppresses Sonar S5713 false positive.
+        # pydantic v2 ValidationError does NOT extend ValueError, so it
+        # must be caught explicitly alongside ValueError.
         logger.warning("%s validation error: %s", error_context, e)
         return None, error_response(
             f"Invalid {error_context.lower()} data", 400
@@ -247,7 +247,7 @@ async def refresh_access_token(request: web.Request) -> web.Response:
         return error_response("Token refresh failed", 500)
 
 
-async def delete_account(  # NOSONAR - aiohttp route handler requires coroutine
+async def delete_account(  # aiohttp route handler requires coroutine
     request: web.Request,
 ) -> web.Response:
     try:

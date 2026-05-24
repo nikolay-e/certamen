@@ -266,7 +266,7 @@ export function TournamentView() {
     const wsProtocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
     const safeRunId = encodeURIComponent(selectedId);
     const wsUrl = `${wsProtocol}//${globalThis.location.host}/api/runs/${safeRunId}/attach?from_seq=0`;
-    const ws = new WebSocket(wsUrl); // NOSONAR - URL is derived from window.location (same origin), not user input
+    const ws = new WebSocket(wsUrl); // URL is derived from window.location (same origin), not user input
     wsRef.current = ws;
 
     ws.onopen = () => setLiveStatus("live");

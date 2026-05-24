@@ -112,7 +112,7 @@ def _summarize_run(run_dir: Path) -> dict[str, Any]:
     return summary
 
 
-async def list_runs(_request: web.Request) -> web.Response:  # NOSONAR
+async def list_runs(_request: web.Request) -> web.Response:
     # S7503: aiohttp typed handler signature requires async
     root = _runs_root()
     if not root.exists():
@@ -127,7 +127,7 @@ async def list_runs(_request: web.Request) -> web.Response:  # NOSONAR
     return web.json_response({"runs": runs})
 
 
-async def get_run(request: web.Request) -> web.Response:  # NOSONAR
+async def get_run(request: web.Request) -> web.Response:
     # S7503: aiohttp typed handler signature requires async
     run_id = request.match_info["run_id"]
     run_dir = _runs_root() / run_id
@@ -136,7 +136,7 @@ async def get_run(request: web.Request) -> web.Response:  # NOSONAR
     return web.json_response(_summarize_run(run_dir))
 
 
-async def get_run_events(request: web.Request) -> web.Response:  # NOSONAR
+async def get_run_events(request: web.Request) -> web.Response:
     # S7503: aiohttp typed handler signature requires async
     run_id = request.match_info["run_id"]
     run_dir = _runs_root() / run_id

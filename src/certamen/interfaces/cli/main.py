@@ -426,7 +426,7 @@ async def _execute_workflow_dict(
             },
         )
 
-        async def broadcast_event(  # NOSONAR - awaited by AsyncExecutor._broadcast
+        async def broadcast_event(  # awaited by AsyncExecutor._broadcast
             message_str: str,
         ) -> None:
             try:

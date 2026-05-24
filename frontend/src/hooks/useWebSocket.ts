@@ -25,13 +25,13 @@ export function useWebSocket(url: string): UseWebSocketResult {
     switch (message.type) {
       case "models":
         if (message.data) {
-          const modelsData = message.data as unknown as Record<string, ModelInfo>; // NOSONAR
+          const modelsData = message.data as unknown as Record<string, ModelInfo>;
           setModels(modelsData);
         }
         break;
       case "nodes":
         if (message.data) {
-          const nodesData = message.data as unknown as NodesByCategory; // NOSONAR
+          const nodesData = message.data as unknown as NodesByCategory;
           setNodeDefinitions(nodesData);
         }
         break;
