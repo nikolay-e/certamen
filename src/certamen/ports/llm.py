@@ -2,24 +2,19 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable
 from typing import TYPE_CHECKING, Any, Protocol
 
+from pydantic.dataclasses import dataclass
+
 if TYPE_CHECKING:
     from certamen.ports.cache import CacheProtocol
 
 
+@dataclass
 class ModelResponse:
-    def __init__(
-        self,
-        content: str,
-        error: str | None = None,
-        error_type: str | None = None,
-        provider: str | None = None,
-        cost: float = 0.0,
-    ):
-        self.content = content
-        self.error = error
-        self.error_type = error_type
-        self.provider = provider
-        self.cost = cost
+    content: str
+    error: str | None = None
+    error_type: str | None = None
+    provider: str | None = None
+    cost: float = 0.0
 
     @classmethod
     def create_success(

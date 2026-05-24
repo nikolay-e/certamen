@@ -1,6 +1,8 @@
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import field
+
+from pydantic.dataclasses import dataclass
 
 from certamen.domain.disagreement.detector import Disagreement
 from certamen.ports.llm import BaseModel

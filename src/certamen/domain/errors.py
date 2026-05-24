@@ -1,3 +1,5 @@
+from pydantic.dataclasses import dataclass
+
 from certamen.shared.constants import RETRYABLE_ERROR_TYPES
 from certamen.shared.errors import (
     CertamenError,
@@ -123,15 +125,11 @@ class GraphValidationError(CertamenError):
         super().__init__(enhanced_message, *args)
 
 
+@dataclass(slots=True)
 class ErrorClassification:
-    __slots__ = ("error_type", "is_retryable", "message")
-
-    def __init__(
-        self, error_type: str, message: str, is_retryable: bool
-    ) -> None:
-        self.error_type = error_type
-        self.message = message
-        self.is_retryable = is_retryable
+    error_type: str
+    message: str
+    is_retryable: bool
 
 
 class ExceptionClassifier:

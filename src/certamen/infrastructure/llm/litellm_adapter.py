@@ -1,8 +1,10 @@
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import field
 from typing import Any
 
 import litellm
+from pydantic import ConfigDict
+from pydantic.dataclasses import dataclass
 
 from certamen.domain.errors import (
     ExceptionClassifier,
@@ -18,7 +20,7 @@ from certamen.shared.text.json import to_dict
 _logger = get_contextual_logger("certamen.models")
 
 
-@dataclass
+@dataclass(config=ConfigDict(protected_namespaces=()))
 class LiteLLMModelOptions:
     reasoning: bool = False
     reasoning_effort: str | None = None

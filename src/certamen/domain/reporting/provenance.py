@@ -1,26 +1,25 @@
 import asyncio
 import json
 from collections.abc import Awaitable, Callable
+from dataclasses import field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from pydantic.dataclasses import dataclass
+
 from certamen.shared.json_utils import sanitize_for_json
 
 
+@dataclass
 class ProvenanceReport:
-    def __init__(
-        self,
-        question: str,
-        champion_model: str,
-        champion_answer: str,
-        tournament_data: dict[str, Any],
-    ):
-        self.question = question
-        self.champion_model = champion_model
-        self.champion_answer = champion_answer
-        self.tournament_data = tournament_data
-        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    question: str
+    champion_model: str
+    champion_answer: str
+    tournament_data: dict[str, Any]
+    timestamp: str = field(
+        default_factory=lambda: datetime.now().strftime("%Y%m%d_%H%M%S")
+    )
 
     def _generate_champion_with_provenance(self) -> str:
         md = []

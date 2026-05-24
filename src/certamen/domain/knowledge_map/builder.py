@@ -1,6 +1,8 @@
 import re
-from dataclasses import dataclass, field
+from dataclasses import field
 from typing import TYPE_CHECKING, Any
+
+from pydantic.dataclasses import dataclass
 
 from certamen.domain.confidence.parser import ConfidenceParser
 

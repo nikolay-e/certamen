@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import field
 from enum import Enum
 from typing import Any, ClassVar
+
+from pydantic import ConfigDict
+from pydantic.dataclasses import dataclass
 
 from certamen.shared.logging import get_contextual_logger
 
@@ -32,7 +35,7 @@ class Port:
     description: str = ""
 
 
-@dataclass
+@dataclass(config=ConfigDict(arbitrary_types_allowed=True))
 class ExecutionContext:
     question: str = ""
     round_num: int = 0
