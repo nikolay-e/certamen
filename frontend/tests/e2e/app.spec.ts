@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test.describe("GUI Application", () => {
   test("should load application successfully", async ({ page }) => {
@@ -24,9 +24,7 @@ test.describe("GUI Application", () => {
     await expect(propertiesPanel).toBeVisible();
   });
 
-  test("should display execute and cancel buttons in header", async ({
-    page,
-  }) => {
+  test("should display execute and cancel buttons in header", async ({ page }) => {
     await page.goto("/");
     const executeButton = page.getByRole("button", { name: /execute/i });
     const cancelButton = page.getByRole("button", { name: /cancel/i });

@@ -1,23 +1,23 @@
-import { useCallback, useEffect, useRef, useMemo } from "react";
-import type { DragEvent } from "react";
-import { useShallow } from "zustand/react/shallow";
+import type { Connection, Edge, EdgeTypes } from "@xyflow/react";
 import {
-  ReactFlow,
   Background,
   Controls,
   MiniMap,
+  ReactFlow,
   ReactFlowProvider,
   useReactFlow,
   useUpdateNodeInternals,
 } from "@xyflow/react";
-import type { Connection, Edge, EdgeTypes } from "@xyflow/react";
+import type { DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import "@xyflow/react/dist/style.css";
-import { useWorkflowStore } from "../store/workflowStore";
-import { BaseNode } from "../nodes/BaseNode";
-import { ColoredSmartEdge } from "./ColoredSmartEdge";
-import type { NodeDefinition, ExecutionMessage, NodeData } from "../types";
-import { isPortCompatible } from "../utils";
 import { NODE_TYPES } from "../constants/nodeTypes";
+import { BaseNode } from "../nodes/BaseNode";
+import { useWorkflowStore } from "../store/workflowStore";
+import type { ExecutionMessage, NodeData, NodeDefinition } from "../types";
+import { isPortCompatible } from "../utils";
+import { ColoredSmartEdge } from "./ColoredSmartEdge";
 
 const nodeTypes = {
   [NODE_TYPES.WORKFLOW]: BaseNode,
@@ -97,9 +97,7 @@ function CanvasInner({ executionMessages }: Readonly<CanvasProps>) {
     }));
   }, [rawEdges]);
 
-  const validationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const validationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const validateWorkflow = useCallback(async () => {
     try {
@@ -150,7 +148,7 @@ function CanvasInner({ executionMessages }: Readonly<CanvasProps>) {
         clearTimeout(validationTimeoutRef.current);
       }
     };
-  }, [nodes, edges, validateWorkflow]);
+  }, [validateWorkflow]);
 
   const isValidConnection = useCallback(
     (connection: Edge | Connection) => {
@@ -162,12 +160,8 @@ function CanvasInner({ executionMessages }: Readonly<CanvasProps>) {
 
       if (!sourceNode || !targetNode) return false;
 
-      const sourcePort = sourceNode.data.outputs.find(
-        (p) => p.name === connection.sourceHandle!,
-      );
-      const targetPort = targetNode.data.inputs.find(
-        (p) => p.name === connection.targetHandle!,
-      );
+      const sourcePort = sourceNode.data.outputs.find((p) => p.name === connection.sourceHandle);
+      const targetPort = targetNode.data.inputs.find((p) => p.name === connection.targetHandle);
 
       if (!sourcePort || !targetPort) return false;
 
@@ -181,7 +175,7 @@ function CanvasInner({ executionMessages }: Readonly<CanvasProps>) {
       applyExecutionMessage(msg, updateNodeData, updateNodeProperty);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionMessages]);
+  }, [executionMessages, updateNodeProperty, updateNodeData]);
 
   // Update React Flow internals when dynamic handles are added
   useEffect(() => {
@@ -222,10 +216,7 @@ function CanvasInner({ executionMessages }: Readonly<CanvasProps>) {
           inputs: [...nodeDef.inputs],
           outputs: nodeDef.outputs,
           properties: Object.fromEntries(
-            Object.entries(nodeDef.properties).map(([key, prop]) => [
-              key,
-              prop.default,
-            ]),
+            Object.entries(nodeDef.properties).map(([key, prop]) => [key, prop.default]),
           ),
           propertyDefs: nodeDef.properties,
           dynamicInputs: nodeDef.dynamic_inputs,

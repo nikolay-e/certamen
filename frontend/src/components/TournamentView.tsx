@@ -42,7 +42,7 @@ function formatCost(cost: number): string {
 }
 
 function formatQuestion(question: string): string {
-  return question.length > 80 ? question.slice(0, 80) + "…" : question;
+  return question.length > 80 ? `${question.slice(0, 80)}…` : question;
 }
 
 function StatusBadge({ status }: Readonly<{ status: string }>) {
@@ -102,11 +102,7 @@ function PhaseStrip({ events }: Readonly<{ events: CertamenEvent[] }>) {
   }, [seenPhases]);
 
   if (allPhases.length === 0) {
-    return (
-      <div className="phase-strip-empty">
-        Waiting for tournament to start…
-      </div>
-    );
+    return <div className="phase-strip-empty">Waiting for tournament to start…</div>;
   }
 
   return (
@@ -118,10 +114,7 @@ function PhaseStrip({ events }: Readonly<{ events: CertamenEvent[] }>) {
         if (done) phaseClass = "phase-done";
         else if (active) phaseClass = "phase-active";
         return (
-          <div
-            key={phase}
-            className={`phase-pill ${phaseClass}`}
-          >
+          <div key={phase} className={`phase-pill ${phaseClass}`}>
             {phase}
           </div>
         );
@@ -158,8 +151,7 @@ function EventCard({ event }: Readonly<{ event: CertamenEvent }>) {
   };
 
   const title = titleMap[event.event_type] || event.event_type;
-  const isError =
-    event.event_type === "llm_response" && p.is_error === true;
+  const isError = event.event_type === "llm_response" && p.is_error === true;
   const cost = (p.cost as number) || 0;
   const phaseTag = p.phase as string | undefined;
   const modelTag = p.model as string | undefined;
@@ -211,11 +203,7 @@ function RunList({
         <ul>
           {runs.map((run) => (
             <li key={run.run_id} className={selectedId === run.run_id ? "selected" : ""}>
-              <button
-                type="button"
-                className="run-item-btn"
-                onClick={() => onSelect(run.run_id)}
-              >
+              <button type="button" className="run-item-btn" onClick={() => onSelect(run.run_id)}>
                 <div className="run-list-row">
                   <code className="run-id">{run.run_id}</code>
                   <StatusBadge status={run.status} />
@@ -242,9 +230,9 @@ export function TournamentView() {
   const [events, setEvents] = useState<CertamenEvent[]>([]);
   const [filter, setFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
-  const [liveStatus, setLiveStatus] = useState<
-    "idle" | "connecting" | "live" | "ended" | "error"
-  >("idle");
+  const [liveStatus, setLiveStatus] = useState<"idle" | "connecting" | "live" | "ended" | "error">(
+    "idle",
+  );
   const wsRef = useRef<WebSocket | null>(null);
 
   const fetchRuns = useCallback(async () => {
@@ -306,7 +294,7 @@ export function TournamentView() {
       wsRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
+  }, [selectedId, liveStatus]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
@@ -345,21 +333,14 @@ export function TournamentView() {
 
   return (
     <div className="tournament-view">
-      <RunList
-        runs={runs}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        onRefresh={fetchRuns}
-      />
+      <RunList runs={runs} selectedId={selectedId} onSelect={setSelectedId} onRefresh={fetchRuns} />
       <div className="tournament-main">
         {selectedId ? (
           <>
             <div className="tournament-header">
               <div>
                 <h2>{selectedId}</h2>
-                <div className="tournament-question">
-                  {summary.question || "(loading…)"}
-                </div>
+                <div className="tournament-question">{summary.question || "(loading…)"}</div>
               </div>
               <div className="tournament-status">
                 <span className={`live-indicator live-${liveStatus}`}>
@@ -375,9 +356,7 @@ export function TournamentView() {
               </div>
               <div className="card">
                 <div className="card-label">Total Cost</div>
-                <div className="card-value">
-                  {formatCost(summary.totalCost)}
-                </div>
+                <div className="card-value">{formatCost(summary.totalCost)}</div>
               </div>
               <div className="card">
                 <div className="card-label">LLM Calls</div>
@@ -396,10 +375,7 @@ export function TournamentView() {
             <PhaseStrip events={events} />
 
             <div className="event-controls">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-              >
+              <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                 <option value="">All event types</option>
                 <option value="phase_started">Phase boundaries</option>
                 <option value="llm_request">LLM requests</option>
@@ -424,9 +400,7 @@ export function TournamentView() {
             </div>
           </>
         ) : (
-          <div className="tournament-empty">
-            Select a run from the left to view its details.
-          </div>
+          <div className="tournament-empty">Select a run from the left to view its details.</div>
         )}
       </div>
     </div>

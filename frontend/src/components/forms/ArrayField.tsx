@@ -1,5 +1,5 @@
-import { FormField } from "./FormField";
 import type { PropertyDefinition } from "../../types";
+import { FormField } from "./FormField";
 
 interface ArrayFieldProps {
   label: string;
@@ -8,18 +8,10 @@ interface ArrayFieldProps {
   onChange: (value: string[]) => void;
 }
 
-export function ArrayField({
-  label,
-  value,
-  definition,
-  onChange,
-}: Readonly<ArrayFieldProps>) {
+export function ArrayField({ label, value, definition, onChange }: Readonly<ArrayFieldProps>) {
   const displayValue = value.length === 0 ? [""] : value;
 
-  const itemsToDisplay =
-    displayValue.at(-1) === ""
-      ? displayValue
-      : [...displayValue, ""];
+  const itemsToDisplay = displayValue.at(-1) === "" ? displayValue : [...displayValue, ""];
 
   const handleRemove = (index: number) => {
     const newArray = value.filter((_, i) => i !== index);
@@ -51,16 +43,15 @@ export function ArrayField({
       <div className="array-field">
         {itemsToDisplay.map((item, index) => (
           <div
-            key={index /* NOSONAR - no stable id for string[] items */}
+            // biome-ignore lint/suspicious/noArrayIndexKey: string[] items have no stable id
+            key={index}
             className={`array-item${isPlaceholder(index) ? " placeholder" : ""}`}
           >
             <input
               type="text"
               value={item}
               onChange={(e) => handleChange(index, e.target.value)}
-              placeholder={
-                isPlaceholder(index) ? "Type to add item..." : undefined
-              }
+              placeholder={isPlaceholder(index) ? "Type to add item..." : undefined}
             />
             {!isPlaceholder(index) && (
               <button

@@ -8,10 +8,7 @@ const TEXT_COMPATIBLE_TYPES = new Set<string>([
   "results",
 ]);
 
-export function isPortCompatible(
-  sourcePort: PortDefinition,
-  targetPort: PortDefinition,
-): boolean {
+export function isPortCompatible(sourcePort: PortDefinition, targetPort: PortDefinition): boolean {
   const sourceType = sourcePort.port_type;
   const targetType = targetPort.port_type;
 

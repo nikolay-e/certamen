@@ -1,5 +1,5 @@
-import { FormField } from "./FormField";
 import type { PropertyDefinition } from "../../types";
+import { FormField } from "./FormField";
 
 interface BooleanFieldProps {
   label: string;
@@ -8,12 +8,7 @@ interface BooleanFieldProps {
   onChange: (value: boolean) => void;
 }
 
-export function BooleanField({
-  label,
-  value,
-  definition,
-  onChange,
-}: Readonly<BooleanFieldProps>) {
+export function BooleanField({ label, value, definition, onChange }: Readonly<BooleanFieldProps>) {
   return (
     <FormField label={label} description={definition?.description}>
       <input

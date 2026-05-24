@@ -1,5 +1,5 @@
 import type { DragEvent } from "react";
-import type { NodesByCategory, NodeDefinition } from "../types";
+import type { NodeDefinition, NodesByCategory } from "../types";
 import { getPortColor } from "../utils";
 
 interface SidebarProps {
@@ -16,10 +16,7 @@ const categoryIcons: Record<string, string> = {
 
 export function Sidebar({ nodeDefinitions, connected }: Readonly<SidebarProps>) {
   const onDragStart = (event: DragEvent, nodeDefinition: NodeDefinition) => {
-    event.dataTransfer.setData(
-      "application/reactflow",
-      JSON.stringify(nodeDefinition),
-    );
+    event.dataTransfer.setData("application/reactflow", JSON.stringify(nodeDefinition));
     event.dataTransfer.effectAllowed = "move";
   };
 
@@ -73,10 +70,9 @@ export function Sidebar({ nodeDefinitions, connected }: Readonly<SidebarProps>) 
                           title={`${port.name} (${port.port_type})`}
                         />
                       ))}
-                      {(nodeDef.inputs || []).length > 0 &&
-                        (nodeDef.outputs || []).length > 0 && (
-                          <span className="port-arrow">→</span>
-                        )}
+                      {(nodeDef.inputs || []).length > 0 && (nodeDef.outputs || []).length > 0 && (
+                        <span className="port-arrow">→</span>
+                      )}
                       {(nodeDef.outputs || []).map((port) => (
                         <span
                           key={`out-${port.name}`}

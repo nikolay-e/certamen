@@ -1,5 +1,5 @@
-import { FormField } from "./FormField";
 import type { PropertyDefinition } from "../../types";
+import { FormField } from "./FormField";
 
 interface NumberFieldProps {
   label: string;
@@ -8,12 +8,7 @@ interface NumberFieldProps {
   onChange: (value: number) => void;
 }
 
-export function NumberField({
-  label,
-  value,
-  definition,
-  onChange,
-}: Readonly<NumberFieldProps>) {
+export function NumberField({ label, value, definition, onChange }: Readonly<NumberFieldProps>) {
   const isInteger = definition?.type === "integer";
   const min = definition?.min;
   const max = definition?.max;

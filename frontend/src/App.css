@@ -354,7 +354,6 @@
   color: var(--accent-orange);
 }
 
-
 :root {
   --bg-primary: #1a1a2e;
   --bg-secondary: #16213e;
@@ -372,8 +371,7 @@
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
 }
@@ -1833,19 +1831,19 @@ body {
 
 /* Node Resizer */
 .node-resize-line {
-  border-color: var(--accent-blue) !important;
-  border-width: 2px !important;
+  border-color: var(--accent-blue);
+  border-width: 2px;
 }
 
 .node-resize-handle {
-  width: 10px !important;
-  height: 10px !important;
-  border-radius: 2px !important;
-  background: var(--accent-blue) !important;
-  border: none !important;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--accent-blue);
+  border: none;
 }
 
 .node-resize-handle:hover {
-  background: #2563eb !important;
+  background: #2563eb;
   transform: scale(1.2);
 }

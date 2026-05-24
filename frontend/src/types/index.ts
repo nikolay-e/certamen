@@ -1,4 +1,4 @@
-import { NodeCategory, PropertyType, NodeStatus } from "./enums";
+import type { NodeCategory, NodeStatus, PropertyType } from "./enums";
 
 // Property values - typed union вместо unknown
 export type PropertyValue = string | number | boolean | string[] | null;

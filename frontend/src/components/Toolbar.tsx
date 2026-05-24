@@ -27,6 +27,7 @@ export function Toolbar({
       </div>
       <div className="toolbar-right">
         <button
+          type="button"
           className="toolbar-button secondary"
           onClick={onLoadWorkflow}
           disabled={executing}
@@ -34,6 +35,7 @@ export function Toolbar({
           Load
         </button>
         <button
+          type="button"
           className="toolbar-button secondary"
           onClick={onSaveWorkflow}
           disabled={!hasNodes || executing}
@@ -41,6 +43,7 @@ export function Toolbar({
           Save
         </button>
         <button
+          type="button"
           className="toolbar-button secondary"
           onClick={onClear}
           disabled={!hasNodes || executing}
@@ -48,11 +51,12 @@ export function Toolbar({
           Clear
         </button>
         {executing ? (
-          <button className="toolbar-button danger" onClick={onCancel}>
+          <button type="button" className="toolbar-button danger" onClick={onCancel}>
             Stop
           </button>
         ) : (
           <button
+            type="button"
             className="toolbar-button primary"
             onClick={onExecute}
             disabled={!hasNodes}

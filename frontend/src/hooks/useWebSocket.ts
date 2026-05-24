@@ -18,9 +18,7 @@ export function useWebSocket(url: string): UseWebSocketResult {
   const [connected, setConnected] = useState(false);
   const [models, setModels] = useState<Record<string, ModelInfo>>({});
   const [nodeDefinitions, setNodeDefinitions] = useState<NodesByCategory>({});
-  const [executionMessages, setExecutionMessages] = useState<
-    ExecutionMessage[]
-  >([]);
+  const [executionMessages, setExecutionMessages] = useState<ExecutionMessage[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
 
   const handleMessage = useCallback((message: ExecutionMessage) => {

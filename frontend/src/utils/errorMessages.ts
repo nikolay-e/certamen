@@ -17,7 +17,7 @@ const errorMappings: ErrorMapping[] = [
     matcher: (_msg) => _msg.toLowerCase().includes("timeout"),
     getError: (_msg, nodeType) => ({
       title: "Operation timed out",
-      message: `The ${nodeType ? nodeType + " node" : "operation"} took too long to complete and was cancelled.`,
+      message: `The ${nodeType ? `${nodeType} node` : "operation"} took too long to complete and was cancelled.`,
       suggestions: [
         "Check your internet connection stability",
         "Try increasing the timeout in node settings",
@@ -57,8 +57,7 @@ const errorMappings: ErrorMapping[] = [
     matcher: (_msg) => _msg.toLowerCase().includes("api key"),
     getError: () => ({
       title: "API key issue",
-      message:
-        "The API key for one of your LLM providers is missing, invalid, or has expired.",
+      message: "The API key for one of your LLM providers is missing, invalid, or has expired.",
       suggestions: [
         "Check that your API keys are correctly set in environment variables",
         "Verify the API key has not reached its rate limit or expiration",
@@ -95,12 +94,10 @@ const errorMappings: ErrorMapping[] = [
   },
   {
     matcher: (_msg) =>
-      _msg.toLowerCase().includes("memory") ||
-      _msg.toLowerCase().includes("out of memory"),
+      _msg.toLowerCase().includes("memory") || _msg.toLowerCase().includes("out of memory"),
     getError: () => ({
       title: "Out of memory",
-      message:
-        "The system ran out of available memory while processing your workflow.",
+      message: "The system ran out of available memory while processing your workflow.",
       suggestions: [
         "Try running a simpler workflow with fewer nodes",
         "Reduce the size of input data passed to nodes",
@@ -111,8 +108,7 @@ const errorMappings: ErrorMapping[] = [
   },
   {
     matcher: (_msg) =>
-      _msg.toLowerCase().includes("permission") ||
-      _msg.toLowerCase().includes("unauthorized"),
+      _msg.toLowerCase().includes("permission") || _msg.toLowerCase().includes("unauthorized"),
     getError: () => ({
       title: "Permission denied",
       message: "You do not have permission to perform this action.",
@@ -126,8 +122,7 @@ const errorMappings: ErrorMapping[] = [
   },
   {
     matcher: (_msg) =>
-      _msg.toLowerCase().includes("invalid json") ||
-      _msg.toLowerCase().includes("parse error"),
+      _msg.toLowerCase().includes("invalid json") || _msg.toLowerCase().includes("parse error"),
     getError: () => ({
       title: "Invalid data format",
       message: "The data passed to this node could not be parsed correctly.",
@@ -166,5 +161,5 @@ export function mapTechnicalError(
 }
 
 function sanitizeErrorMessage(message: string): string {
-  return message.length > 200 ? message.slice(0, 200) + "..." : message;
+  return message.length > 200 ? `${message.slice(0, 200)}...` : message;
 }

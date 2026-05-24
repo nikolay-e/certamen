@@ -1,5 +1,5 @@
-import { FormField } from "./FormField";
 import type { PropertyDefinition } from "../../types";
+import { FormField } from "./FormField";
 
 interface StringFieldProps {
   label: string;
@@ -8,28 +8,15 @@ interface StringFieldProps {
   onChange: (value: string) => void;
 }
 
-export function StringField({
-  label,
-  value,
-  definition,
-  onChange,
-}: Readonly<StringFieldProps>) {
+export function StringField({ label, value, definition, onChange }: Readonly<StringFieldProps>) {
   const isMultiline = definition?.multiline || false;
 
   return (
     <FormField label={label} description={definition?.description}>
       {isMultiline ? (
-        <textarea
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          rows={4}
-        />
+        <textarea value={value || ""} onChange={(e) => onChange(e.target.value)} rows={4} />
       ) : (
-        <input
-          type="text"
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-        />
+        <input type="text" value={value || ""} onChange={(e) => onChange(e.target.value)} />
       )}
     </FormField>
   );

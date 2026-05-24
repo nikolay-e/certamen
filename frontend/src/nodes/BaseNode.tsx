@@ -1,8 +1,8 @@
+import { Handle, NodeResizer, Position } from "@xyflow/react";
 import { memo, useMemo } from "react";
-import { Handle, Position, NodeResizer } from "@xyflow/react";
-import type { NodeData, PortDefinition } from "../types";
 import { useWorkflowStore } from "../store/workflowStore";
-import { getPortColor, getCategoryColor } from "../utils";
+import type { NodeData, PortDefinition } from "../types";
+import { getCategoryColor, getPortColor } from "../utils";
 import { truncateText } from "../utils/formatting";
 import { TextNodeBody } from "./TextNodeBody";
 
@@ -86,16 +86,13 @@ function BaseNodeComponent({ id, data, selected }: Readonly<BaseNodeProps>) {
         {data.hasWarning && (
           <div
             className="node-warning-badge"
-            title={
-              typeof data.warning === "string"
-                ? data.warning
-                : "Validation warning"
-            }
+            title={typeof data.warning === "string" ? data.warning : "Validation warning"}
           >
             ⚠️
           </div>
         )}
         <button
+          type="button"
           className="node-delete-btn"
           onClick={(e) => {
             e.stopPropagation();

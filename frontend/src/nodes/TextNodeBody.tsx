@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useMemo, memo } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useWorkflowStore } from "../store/workflowStore";
 
 interface TextNodeBodyProps {
@@ -22,10 +22,7 @@ function TextNodeBodyComponent({
   const { updateNodeProperty } = useWorkflowStore();
   const textareasRef = useRef<Map<number, HTMLTextAreaElement>>(new Map());
 
-  const currentFields = useMemo(
-    () => pages[currentPage] || [""],
-    [pages, currentPage],
-  );
+  const currentFields = useMemo(() => pages[currentPage] || [""], [pages, currentPage]);
   const totalPages = pages.length;
 
   // Clear all refs on unmount
@@ -50,7 +47,7 @@ function TextNodeBodyComponent({
     refs.forEach((textarea) => {
       adjustTextareaHeight(textarea);
     });
-  }, [currentFields, currentPage]);
+  }, [currentFields]);
 
   const updatePages = useCallback(
     (newPages: string[][]) => {
@@ -79,11 +76,7 @@ function TextNodeBodyComponent({
       }
 
       // Remove trailing empty fields, but keep at least one
-      while (
-        newFields.length > 1 &&
-        newFields.at(-1) === "" &&
-        newFields.at(-2) === ""
-      ) {
+      while (newFields.length > 1 && newFields.at(-1) === "" && newFields.at(-2) === "") {
         newFields.pop();
       }
 
@@ -135,6 +128,7 @@ function TextNodeBodyComponent({
           {totalPages > 1 ? `Page ${currentPage + 1}/${totalPages}` : "Texts"}
         </span>
         <button
+          type="button"
           className="text-node-add-page nodrag"
           onClick={(e) => {
             e.stopPropagation();
@@ -149,7 +143,11 @@ function TextNodeBodyComponent({
       {/* Fields Container */}
       <div className="text-node-fields">
         {currentFields.map((value, index) => (
-          <div key={index /* NOSONAR - no stable id for string[] fields */} className="text-node-field">
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: positional string[] fields have no stable id
+            key={index}
+            className="text-node-field"
+          >
             <span className="text-node-field-number">{index + 1}</span>
             <div className="text-node-field-input-wrapper">
               <textarea
@@ -172,14 +170,13 @@ function TextNodeBodyComponent({
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
-                placeholder={
-                  index === currentFields.length - 1 ? "Type to add..." : ""
-                }
+                placeholder={index === currentFields.length - 1 ? "Type to add..." : ""}
                 disabled={hidden}
                 rows={1}
               />
               {value && currentFields.length > 1 && !hidden && (
                 <button
+                  type="button"
                   className="text-node-delete-field nodrag"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -199,6 +196,7 @@ function TextNodeBodyComponent({
       {totalPages > 1 && (
         <div className="text-node-pagination nodrag">
           <button
+            type="button"
             className="text-node-nav-btn nodrag"
             onClick={(e) => {
               e.stopPropagation();
@@ -212,7 +210,9 @@ function TextNodeBodyComponent({
           <div className="text-node-page-buttons">
             {pages.map((_, index) => (
               <button
-                key={index /* NOSONAR - page array has no stable id */}
+                type="button"
+                // biome-ignore lint/suspicious/noArrayIndexKey: page list is positional with no stable id
+                key={index}
                 className={`text-node-page-btn nodrag ${index === currentPage ? "active" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -225,6 +225,7 @@ function TextNodeBodyComponent({
           </div>
 
           <button
+            type="button"
             className="text-node-nav-btn nodrag"
             onClick={(e) => {
               e.stopPropagation();

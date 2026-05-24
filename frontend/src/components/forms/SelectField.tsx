@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { FormField } from "./FormField";
 import type { PropertyDefinition } from "../../types";
+import { FormField } from "./FormField";
 
 interface SelectFieldProps {
   label: string;
@@ -41,32 +41,18 @@ export function SelectField({
     };
 
     fetchOptions();
-  }, [
-    dependentValue,
-    definition?.dynamic,
-    definition?.depends_on,
-    definition?.options,
-    label,
-  ]);
+  }, [dependentValue, definition?.dynamic, definition?.depends_on, definition?.options, label]);
 
   const isDisabled = loading || options.length === 0;
 
   return (
     <FormField label={label} description={definition?.description}>
-      <select
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={isDisabled}
-      >
+      <select value={value || ""} onChange={(e) => onChange(e.target.value)} disabled={isDisabled}>
         {loading && <option>Loading options...</option>}
-        {!loading && options.length === 0 && (
-          <option>No options available</option>
-        )}
+        {!loading && options.length === 0 && <option>No options available</option>}
         {!loading && options.length > 0 && (
           <>
-            {!options.includes(value) && value && (
-              <option value={value}>{value}</option>
-            )}
+            {!options.includes(value) && value && <option value={value}>{value}</option>}
             {options.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}

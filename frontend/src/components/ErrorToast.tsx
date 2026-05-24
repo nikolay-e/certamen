@@ -42,6 +42,7 @@ export function ErrorToast({ error, onClose }: Readonly<ErrorToastProps>) {
       <div className="error-toast-header">
         <span className="error-toast-title">{mappedError.title}</span>
         <button
+          type="button"
           className="error-toast-close"
           onClick={() => {
             setVisible(false);
@@ -64,17 +65,12 @@ export function ErrorToast({ error, onClose }: Readonly<ErrorToastProps>) {
         </div>
 
         {mappedError.action && (
-          <button
-            className="error-toast-action-button"
-            onClick={handleActionClick}
-          >
+          <button type="button" className="error-toast-action-button" onClick={handleActionClick}>
             {mappedError.action}
           </button>
         )}
 
-        {error.node_id && (
-          <div className="error-toast-node">Node: {error.node_id}</div>
-        )}
+        {error.node_id && <div className="error-toast-node">Node: {error.node_id}</div>}
 
         {error.traceback && (
           <details className="error-toast-traceback">

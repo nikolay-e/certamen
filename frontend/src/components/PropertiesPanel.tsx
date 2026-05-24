@@ -1,12 +1,6 @@
 import { useCallback } from "react";
 import type { ModelInfo, NodeData, PropertyDefinition } from "../types";
-import {
-  StringField,
-  NumberField,
-  BooleanField,
-  SelectField,
-  ArrayField,
-} from "./forms";
+import { ArrayField, BooleanField, NumberField, SelectField, StringField } from "./forms";
 
 interface PropertiesPanelProps {
   node: { id: string; data: NodeData } | null;
@@ -177,6 +171,7 @@ function PropertyEditor({
   // Fallback: show JSON
   return (
     <div className="property-field">
+      {/* biome-ignore lint/a11y/noLabelWithoutControl: read-only display label for a JSON value */}
       <label>{propertyKey}</label>
       <span className="property-unknown">{JSON.stringify(value)}</span>
     </div>
@@ -220,6 +215,7 @@ function MultiSelectEditor({
 
   return (
     <div className="property-field model-selector">
+      {/* biome-ignore lint/a11y/noLabelWithoutControl: group label for the multi-select control below */}
       <label>{formatLabel(label)}</label>
       <div className="model-selector-actions">
         <button type="button" onClick={selectAll}>
@@ -242,12 +238,8 @@ function MultiSelectEditor({
                 checked={value.includes(opt)}
                 onChange={() => toggleOption(opt)}
               />
-              <span className="model-name">
-                {modelInfo?.display_name || opt}
-              </span>
-              {modelInfo?.provider && (
-                <span className="model-provider">{modelInfo.provider}</span>
-              )}
+              <span className="model-name">{modelInfo?.display_name || opt}</span>
+              {modelInfo?.provider && <span className="model-provider">{modelInfo.provider}</span>}
             </label>
           );
         })}

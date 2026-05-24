@@ -1,16 +1,16 @@
+import type {
+  Connection,
+  Edge,
+  Node,
+  OnConnect,
+  OnEdgesChange,
+  OnNodesChange,
+} from "@xyflow/react";
+import { addEdge, applyEdgeChanges, applyNodeChanges } from "@xyflow/react";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
-import { applyNodeChanges, applyEdgeChanges, addEdge } from "@xyflow/react";
-import type {
-  Node,
-  Edge,
-  OnNodesChange,
-  OnEdgesChange,
-  OnConnect,
-  Connection,
-} from "@xyflow/react";
-import type { NodeData } from "../types";
 import { NODE_TYPES, validateNodeType } from "../constants/nodeTypes";
+import type { NodeData } from "../types";
 
 type WorkflowNode = Node<NodeData>;
 
@@ -21,18 +21,13 @@ function findNodeDefinitionInCategories(
   nodeDefinitions: Record<string, unknown[]>,
 ): Record<string, unknown> | null {
   for (const category of Object.values(nodeDefinitions)) {
-    const def = (category as Record<string, unknown>[]).find(
-      (n) => n.node_type === nodeType,
-    );
+    const def = (category as Record<string, unknown>[]).find((n) => n.node_type === nodeType);
     if (def) return def;
   }
   return null;
 }
 
-function findMaxPortIndex(
-  handles: (string | null | undefined)[],
-  extractRe: RegExp,
-): number {
+function findMaxPortIndex(handles: (string | null | undefined)[], extractRe: RegExp): number {
   let max = 0;
   for (const handle of handles) {
     const match = handle == null ? null : extractRe.exec(handle);
@@ -83,12 +78,8 @@ function restoreNodeDynamicPorts(
     findMaxPortIndex(oldStyleHandles, oldStyleExtractRe),
   );
 
-  const currentPortsNew = node.data.inputs.filter((p) =>
-    p.name.startsWith(`${prefix}_`),
-  );
-  const currentPortsOld = node.data.inputs.filter((p) =>
-    oldStyleRe.test(p.name),
-  );
+  const currentPortsNew = node.data.inputs.filter((p) => p.name.startsWith(`${prefix}_`));
+  const currentPortsOld = node.data.inputs.filter((p) => oldStyleRe.test(p.name));
   const currentMax = Math.max(currentPortsNew.length, currentPortsOld.length);
   const targetPortCount = maxPortNumber > 0 ? maxPortNumber + 1 : min_count;
 
@@ -123,17 +114,13 @@ function buildEnrichedNode(
   jsonNode: Record<string, unknown>,
   nodeDefinitions: Record<string, unknown[]>,
 ): WorkflowNode | null {
-  const backendNodeType =
-    jsonNode.type || (jsonNode.data as Record<string, unknown>)?.nodeType;
+  const backendNodeType = jsonNode.type || (jsonNode.data as Record<string, unknown>)?.nodeType;
   if (!backendNodeType) {
     console.warn(`Node ${jsonNode.id as string} missing type/nodeType, skipping`);
     return null;
   }
 
-  const nodeDef = findNodeDefinitionInCategories(
-    backendNodeType as string,
-    nodeDefinitions,
-  );
+  const nodeDef = findNodeDefinitionInCategories(backendNodeType as string, nodeDefinitions);
   if (!nodeDef) {
     console.warn(
       `Node definition not found for type ${backendNodeType as string}, skipping node ${jsonNode.id as string}`,
@@ -148,12 +135,9 @@ function buildEnrichedNode(
     {};
   const enrichedProperties = {
     ...Object.fromEntries(
-      Object.entries(
-        nodeDef.properties as Record<string, Record<string, unknown>>,
-      ).map(([key, prop]) => [
-        key,
-        properties[key] === undefined ? prop.default : properties[key],
-      ]),
+      Object.entries(nodeDef.properties as Record<string, Record<string, unknown>>).map(
+        ([key, prop]) => [key, properties[key] === undefined ? prop.default : properties[key]],
+      ),
     ),
     ...properties,
   };
@@ -166,8 +150,7 @@ function buildEnrichedNode(
     type: xyflowNodeType,
     position: (jsonNode.position as { x: number; y: number }) || { x: 0, y: 0 },
     data: {
-      label:
-        (nodeData?.label as string) || (nodeDef.display_name as string),
+      label: (nodeData?.label as string) || (nodeDef.display_name as string),
       nodeType: nodeDef.node_type,
       category: nodeDef.category,
       inputs: [...(nodeDef.inputs as unknown[])],
@@ -214,347 +197,336 @@ const initialEdges: Edge[] = [];
 
 export const useWorkflowStore = create<WorkflowStore>()(
   subscribeWithSelector((set, get) => ({
-  nodes: initialNodes,
-  edges: initialEdges,
-  selectedNode: null,
-  nodeIdsNeedingUpdate: [],
+    nodes: initialNodes,
+    edges: initialEdges,
+    selectedNode: null,
+    nodeIdsNeedingUpdate: [],
 
-  onNodesChange: (changes) => {
-    set({ nodes: applyNodeChanges(changes, get().nodes) as WorkflowNode[] });
-  },
+    onNodesChange: (changes) => {
+      set({ nodes: applyNodeChanges(changes, get().nodes) as WorkflowNode[] });
+    },
 
-  onEdgesChange: (changes) => {
-    set({ edges: applyEdgeChanges(changes, get().edges) });
-  },
+    onEdgesChange: (changes) => {
+      set({ edges: applyEdgeChanges(changes, get().edges) });
+    },
 
-  onConnect: (connection: Connection) => {
-    const { nodes, edges } = get();
-    const newEdges = addEdge(connection, edges);
+    onConnect: (connection: Connection) => {
+      const { nodes, edges } = get();
+      const newEdges = addEdge(connection, edges);
 
-    // Check if we need to add a dynamic port
-    const targetNode = nodes.find((n) => n.id === connection.target);
-    if (targetNode?.data.dynamicInputs && connection.targetHandle) {
-      const { prefix, port_type } = targetNode.data.dynamicInputs;
+      // Check if we need to add a dynamic port
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      if (targetNode?.data.dynamicInputs && connection.targetHandle) {
+        const { prefix, port_type } = targetNode.data.dynamicInputs;
 
-      // Check if the connected port matches the dynamic prefix
-      if (connection.targetHandle.startsWith(`${prefix}_`)) {
-        // Count existing ports with this prefix
-        const existingPorts = targetNode.data.inputs.filter((p) =>
-          p.name.startsWith(`${prefix}_`),
-        );
-
-        // Check if all existing dynamic ports are connected
-        const connectedPorts = new Set(
-          newEdges
-            .filter((e) => e.target === targetNode.id)
-            .map((e) => e.targetHandle),
-        );
-
-        const allConnected = existingPorts.every((p) =>
-          connectedPorts.has(p.name),
-        );
-
-        if (allConnected) {
-          // Add a new dynamic port
-          const newPortNumber = existingPorts.length + 1;
-          const newPort = {
-            name: `${prefix}_${newPortNumber}`,
-            port_type: port_type,
-            required: false,
-            description: `${prefix.charAt(0).toUpperCase() + prefix.slice(1)} ${newPortNumber}`,
-          };
-
-          const updatedNodes = nodes.map((n) =>
-            n.id === targetNode.id
-              ? {
-                  ...n,
-                  data: {
-                    ...n.data,
-                    inputs: [...n.data.inputs, newPort],
-                  },
-                }
-              : n,
+        // Check if the connected port matches the dynamic prefix
+        if (connection.targetHandle.startsWith(`${prefix}_`)) {
+          // Count existing ports with this prefix
+          const existingPorts = targetNode.data.inputs.filter((p) =>
+            p.name.startsWith(`${prefix}_`),
           );
 
-          // Mark node as needing React Flow internal update
-          set({
-            nodes: updatedNodes,
-            edges: newEdges,
-            nodeIdsNeedingUpdate: [
-              ...get().nodeIdsNeedingUpdate,
-              targetNode.id,
-            ],
-          });
-          return;
+          // Check if all existing dynamic ports are connected
+          const connectedPorts = new Set(
+            newEdges.filter((e) => e.target === targetNode.id).map((e) => e.targetHandle),
+          );
+
+          const allConnected = existingPorts.every((p) => connectedPorts.has(p.name));
+
+          if (allConnected) {
+            // Add a new dynamic port
+            const newPortNumber = existingPorts.length + 1;
+            const newPort = {
+              name: `${prefix}_${newPortNumber}`,
+              port_type: port_type,
+              required: false,
+              description: `${prefix.charAt(0).toUpperCase() + prefix.slice(1)} ${newPortNumber}`,
+            };
+
+            const updatedNodes = nodes.map((n) =>
+              n.id === targetNode.id
+                ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      inputs: [...n.data.inputs, newPort],
+                    },
+                  }
+                : n,
+            );
+
+            // Mark node as needing React Flow internal update
+            set({
+              nodes: updatedNodes,
+              edges: newEdges,
+              nodeIdsNeedingUpdate: [...get().nodeIdsNeedingUpdate, targetNode.id],
+            });
+            return;
+          }
         }
       }
-    }
 
-    set({ edges: newEdges });
-  },
+      set({ edges: newEdges });
+    },
 
-  addNode: (node) => {
-    set({ nodes: [...get().nodes, node] });
-  },
+    addNode: (node) => {
+      set({ nodes: [...get().nodes, node] });
+    },
 
-  deleteNode: (nodeId) => {
-    set({
-      nodes: get().nodes.filter((node) => node.id !== nodeId),
-      edges: get().edges.filter(
-        (edge) => edge.source !== nodeId && edge.target !== nodeId,
-      ),
-      selectedNode: get().selectedNode === nodeId ? null : get().selectedNode,
-    });
-  },
+    deleteNode: (nodeId) => {
+      set({
+        nodes: get().nodes.filter((node) => node.id !== nodeId),
+        edges: get().edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
+        selectedNode: get().selectedNode === nodeId ? null : get().selectedNode,
+      });
+    },
 
-  updateNodeData: (nodeId, data) => {
-    set({
-      nodes: get().nodes.map((node) =>
-        node.id === nodeId
-          ? { ...node, data: { ...node.data, ...data } }
-          : node,
-      ),
-    });
-  },
+    updateNodeData: (nodeId, data) => {
+      set({
+        nodes: get().nodes.map((node) =>
+          node.id === nodeId ? { ...node, data: { ...node.data, ...data } } : node,
+        ),
+      });
+    },
 
-  updateNodeProperty: (nodeId, key, value) => {
-    set({
-      nodes: get().nodes.map((node) => {
-        if (node.id !== nodeId) return node;
+    updateNodeProperty: (nodeId, key, value) => {
+      set({
+        nodes: get().nodes.map((node) => {
+          if (node.id !== nodeId) return node;
 
-        const newProperties = { ...node.data.properties, [key]: value };
+          const newProperties = { ...node.data.properties, [key]: value };
 
-        // For text nodes: clear execution pages when texts are edited
-        // This ensures canvas shows user input, not stale execution results
-        if (node.data.nodeType === "simple/text" && key === "texts") {
-          newProperties.pages = [];
-          newProperties.current_page = 0;
-        }
+          // For text nodes: clear execution pages when texts are edited
+          // This ensures canvas shows user input, not stale execution results
+          if (node.data.nodeType === "simple/text" && key === "texts") {
+            newProperties.pages = [];
+            newProperties.current_page = 0;
+          }
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              properties: newProperties,
+            },
+          };
+        }),
+      });
+    },
+
+    setSelectedNode: (nodeId) => {
+      set({ selectedNode: nodeId });
+    },
+
+    clearNodesNeedingUpdate: () => {
+      set({ nodeIdsNeedingUpdate: [] });
+    },
+
+    getWorkflowData: () => {
+      const { nodes, edges } = get();
+      return {
+        nodes: nodes.map((n) => ({
+          id: n.id,
+          type: n.data.nodeType,
+          position: n.position,
+          properties: n.data.properties, // properties на верхнем уровне, не в data!
+        })),
+        edges: edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle,
+          targetHandle: e.targetHandle,
+        })),
+      };
+    },
+
+    clearWorkflow: () => {
+      set({ nodes: [], edges: [], selectedNode: null });
+    },
+
+    loadStartupWorkflow: (nodeDefinitions) => {
+      const simpleNodes = (nodeDefinitions.Simple ||
+        nodeDefinitions.simple ||
+        nodeDefinitions.LLM ||
+        nodeDefinitions.llm ||
+        []) as Record<string, unknown>[];
+      const textNodeDef = simpleNodes.find((n) => n.node_type === "simple/text");
+      const llmNodeDef = simpleNodes.find((n) => n.node_type === "simple/llm");
+
+      if (!textNodeDef || !llmNodeDef) {
+        console.warn("Cannot load startup workflow: node definitions not found");
+        return;
+      }
+
+      const createNode = (
+        def: Record<string, unknown>,
+        id: string,
+        position: { x: number; y: number },
+        customProps?: Record<string, unknown>,
+      ) => {
+        const nodeType = NODE_TYPES.WORKFLOW;
+        validateNodeType(nodeType);
 
         return {
-          ...node,
+          id,
+          type: nodeType,
+          position,
           data: {
-            ...node.data,
-            properties: newProperties,
-          },
+            label: def.display_name,
+            nodeType: def.node_type,
+            category: def.category,
+            inputs: def.inputs,
+            outputs: def.outputs,
+            properties: {
+              ...Object.fromEntries(
+                Object.entries(def.properties as Record<string, Record<string, unknown>>).map(
+                  ([key, prop]) => [key, prop.default],
+                ),
+              ),
+              ...customProps,
+            },
+            propertyDefs: def.properties,
+          } as NodeData,
         };
-      }),
-    });
-  },
+      };
 
-  setSelectedNode: (nodeId) => {
-    set({ selectedNode: nodeId });
-  },
+      const nodes: WorkflowNode[] = [
+        createNode(
+          textNodeDef,
+          "text-input",
+          { x: 100, y: 150 },
+          {
+            texts: ["Say hello world in a creative and friendly way!"],
+            separator: "\n",
+            hidden: false,
+          },
+        ),
+        createNode(
+          llmNodeDef,
+          "llm-main",
+          { x: 450, y: 150 },
+          {
+            provider: "ollama",
+          },
+        ),
+        createNode(
+          textNodeDef,
+          "text-output",
+          { x: 800, y: 150 },
+          {
+            texts: [],
+            separator: "\n",
+            hidden: false,
+          },
+        ),
+      ];
 
-  clearNodesNeedingUpdate: () => {
-    set({ nodeIdsNeedingUpdate: [] });
-  },
+      const edges: Edge[] = [
+        {
+          id: "e-input-llm",
+          source: "text-input",
+          target: "llm-main",
+          sourceHandle: "output_text",
+          targetHandle: "prompt",
+        },
+        {
+          id: "e-llm-output",
+          source: "llm-main",
+          target: "text-output",
+          sourceHandle: "response",
+          targetHandle: "input_text",
+        },
+      ];
 
-  getWorkflowData: () => {
-    const { nodes, edges } = get();
-    return {
-      nodes: nodes.map((n) => ({
+      set({ nodes, edges });
+    },
+
+    loadWorkflow: (workflowJson, nodeDefinitions) => {
+      const enrichedNodes = (workflowJson.nodes as Record<string, unknown>[])
+        .map((node) => buildEnrichedNode(node, nodeDefinitions))
+        .filter((node): node is WorkflowNode => node !== null);
+
+      const enrichedEdges = ((workflowJson.edges as Record<string, unknown>[]) || []).map(
+        (edge) => ({
+          id: (edge.id as string) || `${edge.source}-${edge.target}`,
+          source: edge.source as string,
+          target: edge.target as string,
+          sourceHandle: edge.sourceHandle as string,
+          targetHandle: edge.targetHandle as string,
+        }),
+      );
+
+      // Restore dynamic ports based on edges
+      const nodeIdsNeedingUpdate: string[] = [];
+      const nodesWithDynamicPorts = enrichedNodes.map((node) => {
+        const { updatedNode, needsUpdate } = restoreNodeDynamicPorts(node, enrichedEdges);
+        if (needsUpdate) nodeIdsNeedingUpdate.push(node.id);
+        return updatedNode;
+      });
+
+      // First set nodes with dynamic ports (without edges)
+      set({
+        nodes: nodesWithDynamicPorts,
+        edges: [],
+        selectedNode: null,
+        nodeIdsNeedingUpdate: nodeIdsNeedingUpdate,
+      });
+
+      const nodesSummary = nodesWithDynamicPorts.map((n) => ({
         id: n.id,
         type: n.data.nodeType,
-        position: n.position,
-        properties: n.data.properties, // properties на верхнем уровне, не в data!
-      })),
-      edges: edges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        sourceHandle: e.sourceHandle,
-        targetHandle: e.targetHandle,
-      })),
-    };
-  },
+        inputs: n.data.inputs.map((i) => i.name),
+      }));
 
-  clearWorkflow: () => {
-    set({ nodes: [], edges: [], selectedNode: null });
-  },
+      // Then set edges after React Flow updates node internals
+      // This ensures handles exist before edges are created
+      setTimeout(() => {
+        set({ edges: enrichedEdges });
+        console.log(
+          `Loaded workflow: ${enrichedNodes.length} nodes, ${enrichedEdges.length} edges`,
+        );
+        console.log("Nodes:", nodesSummary);
+        console.log("Edges:", enrichedEdges);
+      }, EDGE_SETTLE_DELAY_MS);
+    },
 
-  loadStartupWorkflow: (nodeDefinitions) => {
-    const simpleNodes = (nodeDefinitions.Simple ||
-      nodeDefinitions.simple ||
-      nodeDefinitions.LLM ||
-      nodeDefinitions.llm ||
-      []) as Record<string, unknown>[];
-    const textNodeDef = simpleNodes.find((n) => n.node_type === "simple/text");
-    const llmNodeDef = simpleNodes.find((n) => n.node_type === "simple/llm");
+    setDefaultModelIfEmpty: (models) => {
+      const { nodes, updateNodeProperty } = get();
 
-    if (!textNodeDef || !llmNodeDef) {
-      console.warn("Cannot load startup workflow: node definitions not found");
-      return;
-    }
+      // Find LLM nodes with empty model_name
+      const llmNodesWithoutModel = nodes.filter(
+        (node) =>
+          node.data.nodeType === "simple/llm" &&
+          (!node.data.properties.model_name || node.data.properties.model_name === ""),
+      );
 
-    const createNode = (
-      def: Record<string, unknown>,
-      id: string,
-      position: { x: number; y: number },
-      customProps?: Record<string, unknown>,
-    ) => {
-      const nodeType = NODE_TYPES.WORKFLOW;
-      validateNodeType(nodeType);
+      if (llmNodesWithoutModel.length === 0) {
+        return; // No nodes need updating
+      }
 
-      return {
-        id,
-        type: nodeType,
-        position,
-        data: {
-          label: def.display_name,
-          nodeType: def.node_type,
-          category: def.category,
-          inputs: def.inputs,
-          outputs: def.outputs,
-          properties: {
-            ...Object.fromEntries(
-              Object.entries(
-                def.properties as Record<string, Record<string, unknown>>,
-              ).map(([key, prop]) => [key, prop.default]),
-            ),
-            ...customProps,
-          },
-          propertyDefs: def.properties,
-        } as NodeData,
-      };
-    };
+      // Get first available model from Ollama
+      const modelNames = Object.keys(models);
+      if (modelNames.length === 0) {
+        console.warn("No Ollama models available");
+        return;
+      }
 
-    const nodes: WorkflowNode[] = [
-      createNode(
-        textNodeDef,
-        "text-input",
-        { x: 100, y: 150 },
-        {
-          texts: ["Say hello world in a creative and friendly way!"],
-          separator: "\n",
-          hidden: false,
-        },
-      ),
-      createNode(
-        llmNodeDef,
-        "llm-main",
-        { x: 450, y: 150 },
-        {
-          provider: "ollama",
-        },
-      ),
-      createNode(
-        textNodeDef,
-        "text-output",
-        { x: 800, y: 150 },
-        {
-          texts: [],
-          separator: "\n",
-          hidden: false,
-        },
-      ),
-    ];
+      const firstModel = modelNames[0];
+      console.log(`Setting default model to: ${firstModel}`);
 
-    const edges: Edge[] = [
-      {
-        id: "e-input-llm",
-        source: "text-input",
-        target: "llm-main",
-        sourceHandle: "output_text",
-        targetHandle: "prompt",
-      },
-      {
-        id: "e-llm-output",
-        source: "llm-main",
-        target: "text-output",
-        sourceHandle: "response",
-        targetHandle: "input_text",
-      },
-    ];
-
-    set({ nodes, edges });
-  },
-
-  loadWorkflow: (workflowJson, nodeDefinitions) => {
-    const enrichedNodes = (workflowJson.nodes as Record<string, unknown>[])
-      .map((node) => buildEnrichedNode(node, nodeDefinitions))
-      .filter((node): node is WorkflowNode => node !== null);
-
-    const enrichedEdges = (
-      (workflowJson.edges as Record<string, unknown>[]) || []
-    ).map((edge) => ({
-      id: (edge.id as string) || `${edge.source}-${edge.target}`,
-      source: edge.source as string,
-      target: edge.target as string,
-      sourceHandle: edge.sourceHandle as string,
-      targetHandle: edge.targetHandle as string,
-    }));
-
-    // Restore dynamic ports based on edges
-    const nodeIdsNeedingUpdate: string[] = [];
-    const nodesWithDynamicPorts = enrichedNodes.map((node) => {
-      const { updatedNode, needsUpdate } = restoreNodeDynamicPorts(node, enrichedEdges);
-      if (needsUpdate) nodeIdsNeedingUpdate.push(node.id);
-      return updatedNode;
-    });
-
-    // First set nodes with dynamic ports (without edges)
-    set({
-      nodes: nodesWithDynamicPorts,
-      edges: [],
-      selectedNode: null,
-      nodeIdsNeedingUpdate: nodeIdsNeedingUpdate,
-    });
-
-    const nodesSummary = nodesWithDynamicPorts.map((n) => ({
-      id: n.id,
-      type: n.data.nodeType,
-      inputs: n.data.inputs.map((i) => i.name),
-    }));
-
-    // Then set edges after React Flow updates node internals
-    // This ensures handles exist before edges are created
-    setTimeout(() => {
-      set({ edges: enrichedEdges });
-      console.log(`Loaded workflow: ${enrichedNodes.length} nodes, ${enrichedEdges.length} edges`);
-      console.log("Nodes:", nodesSummary);
-      console.log("Edges:", enrichedEdges);
-    }, EDGE_SETTLE_DELAY_MS);
-  },
-
-  setDefaultModelIfEmpty: (models) => {
-    const { nodes, updateNodeProperty } = get();
-
-    // Find LLM nodes with empty model_name
-    const llmNodesWithoutModel = nodes.filter(
-      (node) =>
-        node.data.nodeType === "simple/llm" &&
-        (!node.data.properties.model_name ||
-          node.data.properties.model_name === ""),
-    );
-
-    if (llmNodesWithoutModel.length === 0) {
-      return; // No nodes need updating
-    }
-
-    // Get first available model from Ollama
-    const modelNames = Object.keys(models);
-    if (modelNames.length === 0) {
-      console.warn("No Ollama models available");
-      return;
-    }
-
-    const firstModel = modelNames[0];
-    console.log(`Setting default model to: ${firstModel}`);
-
-    // Update all LLM nodes without model
-    llmNodesWithoutModel.forEach((node) => {
-      updateNodeProperty(node.id, "model_name", firstModel);
-    });
-  },
-  }))
+      // Update all LLM nodes without model
+      llmNodesWithoutModel.forEach((node) => {
+        updateNodeProperty(node.id, "model_name", firstModel);
+      });
+    },
+  })),
 );
 
 export const useNodes = () => useWorkflowStore((s) => s.nodes);
 export const useEdges = () => useWorkflowStore((s) => s.edges);
 export const useSelectedNode = () => useWorkflowStore((s) => s.selectedNode);
-export const useNodeIdsNeedingUpdate = () =>
-  useWorkflowStore((s) => s.nodeIdsNeedingUpdate);
+export const useNodeIdsNeedingUpdate = () => useWorkflowStore((s) => s.nodeIdsNeedingUpdate);
 export const useSelectedNodeData = () =>
   useWorkflowStore((s) => {
     const node = s.nodes.find((n) => n.id === s.selectedNode);

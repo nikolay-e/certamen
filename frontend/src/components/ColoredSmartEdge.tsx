@@ -1,9 +1,9 @@
-import { memo, useMemo } from "react";
-import { useNodes, getSmoothStepPath, BaseEdge } from "@xyflow/react";
-import type { EdgeProps, Node } from "@xyflow/react";
 import { SmartBezierEdge } from "@tisoap/react-flow-smart-edge";
-import { getPortColor } from "../utils/colors";
+import type { EdgeProps, Node } from "@xyflow/react";
+import { BaseEdge, getSmoothStepPath, useNodes } from "@xyflow/react";
+import { memo, useMemo } from "react";
 import type { NodeData } from "../types";
+import { getPortColor } from "../utils/colors";
 
 interface ColoredEdgeData {
   portType?: string;
@@ -38,9 +38,7 @@ function ColoredSmartEdgeComponent(props: EdgeProps) {
 
     const sourceNode = nodes.find((n) => n.id === source);
     if (sourceNode && sourceHandleId) {
-      const sourcePort = sourceNode.data?.outputs?.find(
-        (p) => p.name === sourceHandleId,
-      );
+      const sourcePort = sourceNode.data?.outputs?.find((p) => p.name === sourceHandleId);
       if (sourcePort) {
         return getPortColor(sourcePort.port_type);
       }

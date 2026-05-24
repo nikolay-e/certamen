@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { Canvas } from "./components/Canvas";
+import { ErrorToast } from "./components/ErrorToast";
+import { PropertiesPanel } from "./components/PropertiesPanel";
 import { Sidebar } from "./components/Sidebar";
 import { Toolbar } from "./components/Toolbar";
-import { Canvas } from "./components/Canvas";
-import { PropertiesPanel } from "./components/PropertiesPanel";
-import { ErrorToast } from "./components/ErrorToast";
 import { TournamentView } from "./components/TournamentView";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useWorkflowStore } from "./store/workflowStore";
-import type { ErrorInfo } from "./types";
 import diamondTournamentYaml from "./templates/diamond-tournament.yml?raw";
+import type { ErrorInfo } from "./types";
 import "./App.css";
 
 type Tab = "workflow" | "results";
@@ -35,9 +35,7 @@ function App() {
     for (let i = executionMessages.length - 1; i >= 0; i--) {
       const msg = executionMessages[i];
       if (msg.type === "execution_error" && msg.error) {
-        return typeof msg.error === "string"
-          ? { type: "Error", message: msg.error }
-          : msg.error;
+        return typeof msg.error === "string" ? { type: "Error", message: msg.error } : msg.error;
       }
       if (msg.type === "execution_start") {
         return null;
@@ -77,10 +75,7 @@ function App() {
         };
         loadWorkflow(data, nodeDefinitions);
       } catch (err) {
-        console.error(
-          "Failed to load Diamond Tournament template, falling back",
-          err,
-        );
+        console.error("Failed to load Diamond Tournament template, falling back", err);
         loadStartupWorkflow(nodeDefinitions);
       }
     })();
@@ -104,13 +99,7 @@ function App() {
     clearExecutionMessages();
     const { nodes: workflowNodes, edges } = getWorkflowData();
     executeWorkflow(workflowNodes, edges);
-  }, [
-    nodes,
-    updateNodeData,
-    clearExecutionMessages,
-    getWorkflowData,
-    executeWorkflow,
-  ]);
+  }, [nodes, updateNodeData, clearExecutionMessages, getWorkflowData, executeWorkflow]);
 
   const handleClear = useCallback(() => {
     clearWorkflow();
@@ -143,9 +132,7 @@ function App() {
       } catch (error) {
         console.error("Failed to load workflow:", error);
         alert(
-          `Failed to load workflow: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
+          `Failed to load workflow: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
       }
     };
@@ -210,10 +197,7 @@ function App() {
               onPropertyChange={handlePropertyChange}
             />
           </div>
-          <ErrorToast
-            error={currentError}
-            onClose={() => clearExecutionMessages()}
-          />
+          <ErrorToast error={currentError} onClose={() => clearExecutionMessages()} />
         </>
       ) : (
         <TournamentView />

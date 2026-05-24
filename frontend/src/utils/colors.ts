@@ -1,4 +1,4 @@
-import { PORT_COLORS, CATEGORY_COLORS } from "../constants";
+import { CATEGORY_COLORS, PORT_COLORS } from "../constants";
 
 export function getPortColor(portType: string): string {
   const upperType = portType.toUpperCase();
@@ -7,7 +7,5 @@ export function getPortColor(portType: string): string {
 
 export function getCategoryColor(category: string): string {
   const upperCategory = category.toUpperCase();
-  return (
-    CATEGORY_COLORS[upperCategory as keyof typeof CATEGORY_COLORS] || "#6b7280"
-  );
+  return CATEGORY_COLORS[upperCategory as keyof typeof CATEGORY_COLORS] || "#6b7280";
 }
