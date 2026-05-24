@@ -68,7 +68,11 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv pip install -e ".[dev]" --system
+        run: uv pip install -e ".[dev,gui]" --system
+
+      - name: Check dependency hygiene (deptry)
+        if: runner.os == 'Linux' && matrix.python-version == '3.12'
+        run: deptry src tests
 
       - name: Run tests with coverage
         shell: bash
@@ -193,3 +197,35 @@ jobs:
 
       - name: Validate architecture
         run: lint-imports || echo "::warning::Architecture violations detected"
+
+  frontend:
+    name: Frontend (Biome + types)
+    needs: [pre-commit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Biome check (lint + format)
+        run: npx biome ci .
+        working-directory: frontend
+
+      - name: Type check
+        run: npx tsc -b
+        working-directory: frontend
+
+      - name: Unit tests (Vitest)
+        run: npx vitest run
+        working-directory: frontend

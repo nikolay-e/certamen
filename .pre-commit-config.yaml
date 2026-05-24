@@ -88,6 +88,16 @@ repos:
         name: ruff (formatter, replaces black)
 
   # ============================================================================
+  # DEPENDENCY HYGIENE
+  # ============================================================================
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.11.16
+    hooks:
+      - id: uv-lock
+        name: uv.lock in sync with pyproject
+        args: ["--check"]
+
+  # ============================================================================
   # SECURITY & VULNERABILITY DETECTION
   # ============================================================================
   - repo: https://github.com/trailofbits/pip-audit
@@ -180,7 +190,7 @@ repos:
     hooks:
       - id: codespell
         args: ["--write-changes", "--ignore-words-list=crate,nd,ser,llm,async,cli,theses,rouge"]
-        exclude: ^(\.git/|\.venv/|venv/)
+        exclude: ^(\.git/|\.venv/|venv/)|(^|/)(package-lock\.json|uv\.lock)$
 
   # ============================================================================
   # YAML LINTING

@@ -20,6 +20,7 @@ lint:  ## Run all linters
 	ruff check $(PY_SOURCES)
 	ruff format --check $(PY_SOURCES)
 	pyright src/
+	deptry src tests
 
 test:  ## Run tests with coverage
 	@echo "Running tests..."
@@ -50,8 +51,8 @@ clean:  ## Clean build artifacts and cache
 install:  ## Install package in editable mode
 	pip install -e .
 
-dev:  ## Install package with dev dependencies
-	uv sync --extra dev
+dev:  ## Install package with dev + gui dependencies
+	uv sync --extra dev --extra gui
 	pre-commit install
 
 build:  ## Build distribution packages

@@ -56,10 +56,11 @@ dev = [
     "mutmut~=3.5",
     "radon~=6.0",
     "import-linter~=2.0",
+    "deptry>=0.23,<1.0",
 ]
 gui = [
     "aiohttp>=3.10,<4.0",
-    "bcrypt>=4.1,<5.0",
+    "bcrypt>=4.1,<6.0",
     "PyJWT>=2.8,<3.0",
     "psycopg2-binary>=2.9,<3.0",
 ]
@@ -153,7 +154,7 @@ deadline = 2000  # 2 seconds per test case
 
 [tool.ruff]
 line-length = 79
-target-version = "py310"
+target-version = "py311"
 exclude = ["docs/", "site/", "build/", "dist/", "*.ipynb"]
 
 [tool.ruff.lint]
@@ -208,6 +209,20 @@ reportUnknownMemberType = "none"
 reportUnknownVariableType = "none"
 reportUnknownArgumentType = "none"
 reportUnknownLambdaType = "none"
+
+[tool.deptry]
+# `dev` extra holds tooling never imported from src; `gui` extra IS imported
+# (interfaces/web) so it stays a runtime group deptry checks for usage.
+pep621_dev_dependency_groups = ["dev"]
+
+[tool.deptry.package_module_name_map]
+PyJWT = ["jwt"]
+psycopg2-binary = ["psycopg2"]
+
+[tool.deptry.per_rule_ignores]
+# Declared runtime deps that litellm needs but we never import directly —
+# pinned defensively so a litellm transitive change can't silently drop them.
+DEP002 = ["tiktoken", "aiofiles", "google-auth"]
 
 # Mutation testing configuration
 # Evidence: Mutation score correlates with real fault detection
