@@ -280,7 +280,7 @@ Original Question:
 {question}
 
 Response to evaluate:
-{result['content']}
+{result["content"]}
 
 Evaluate this response on the following criteria (1-10 scale):
 1. **Depth of Analysis**: How thoroughly does it examine the problem?
@@ -579,7 +579,7 @@ Responses to evaluate:
 """
 
     for answer in answers:
-        evaluation_prompt += f"\n\n{'='*60}\n{answer['blind_id']}:\n{'='*60}\n{answer['content']}\n"
+        evaluation_prompt += f"\n\n{'=' * 60}\n{answer['blind_id']}:\n{'=' * 60}\n{answer['content']}\n"
 
     evaluation_prompt += "\n\nProvide your scores in this format:\nAnswer_X: [Score]/10 - [Justification]"
 

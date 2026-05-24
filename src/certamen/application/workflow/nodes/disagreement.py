@@ -184,7 +184,9 @@ class DisagreementInvestigationNode(BaseNode):
         )
 
         valid_reports: list[DisagreementReport] = [
-            r for r in reports if isinstance(r, DisagreementReport)  # type: ignore[misc]
+            r
+            for r in reports
+            if isinstance(r, DisagreementReport)  # type: ignore[misc]
         ]
         failed = sum(1 for r in reports if isinstance(r, BaseException))
         if failed:

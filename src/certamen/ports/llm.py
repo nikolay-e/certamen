@@ -50,8 +50,7 @@ class ModelResponse:
                 f"error={self.error!r}, provider={self.provider!r})"
             )
         return (
-            f"ModelResponse(content={self.content[:80]!r}, "
-            f"cost={self.cost})"
+            f"ModelResponse(content={self.content[:80]!r}, cost={self.cost})"
         )
 
 

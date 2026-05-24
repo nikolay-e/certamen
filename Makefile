@@ -5,10 +5,10 @@ PY_SOURCES = src/ tests/
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-fmt:  ## Format code with black and isort
+fmt:  ## Format and autofix code with ruff
 	@echo "Formatting code..."
-	black $(PY_SOURCES)
-	isort $(PY_SOURCES)
+	ruff check --fix $(PY_SOURCES)
+	ruff format $(PY_SOURCES)
 
 lint-structure:  ## Run structure linter
 	@echo "Checking structure..."
@@ -18,8 +18,7 @@ lint:  ## Run all linters
 	@echo "Running linters..."
 	python scripts/lint_structure.py
 	ruff check $(PY_SOURCES)
-	black --check $(PY_SOURCES)
-	isort --check $(PY_SOURCES)
+	ruff format --check $(PY_SOURCES)
 	mypy src/
 
 test:  ## Run tests with coverage

@@ -147,10 +147,10 @@ async def main():
     ✅ Will manually review responses
 
     Use Tournament when:
-    ✅ Decision value > $1,000 ({1000/tournament_metrics['total_cost']:.0f}x cost)
+    ✅ Decision value > $1,000 ({1000 / tournament_metrics["total_cost"]:.0f}x cost)
     ✅ Irreversible decision
     ✅ Stakeholder buy-in needed (synthesis helps)
-    ✅ Worth extra {tournament_time-single_time:.0f} seconds for quality
+    ✅ Worth extra {tournament_time - single_time:.0f} seconds for quality
     """)
 
 

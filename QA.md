@@ -12,7 +12,7 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 **Applicable:**
 
 - Tests: `make test` — 225+ integration tests, 30%+ coverage, no mocks
-- Lint: `make lint` — ruff (bandit security rules), mypy strict, isort, black
+- Lint: `make lint` — ruff (lint + format + import sort + bandit security rules), mypy strict
 - Pre-commit: full suite including gitleaks, semgrep, vulture, detect-secrets
 - Code review: manual diff review for prompt/config changes
 - **Ollama smoke**: `make discover-ollama` + at least one slim-config run via `certamen --config /tmp/cert-*.yml` to catch provider-prefix and slim-schema regressions
@@ -107,13 +107,13 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 - **Valid user-scope token in 1Password Sonarcloud LOGIN item is the `MCP TOKEN` concealed field** (not the `password` field, which is empty). Sign-in is via GitHub OAuth — there's no user password to extract. After `op item get vtej74af4ew6tdqnvinqno35zy --fields "MCP TOKEN" --reveal`, mirror to Keychain via `security add-generic-password -a "$USER" -s "sonarcloud-token" -w "$TOKEN" -U`. The older 1Password item `Sonar Cloud Token` (id qd7gbl7xpggjrsybhao5akzxxa) has been rotated and returns `valid:false`.
 - Hotspots TO_REVIEW do NOT break the quality gate unless they appear in the `new_code` window — the metric is `new_security_hotspots_reviewed`. The 22 long-standing hotspots in this repo are safe-by-construction (non-crypto `random` for sim/shuffle; regex over bounded LLM output; `/tmp` literals in test fixtures) and can stay TO_REVIEW indefinitely without blocking CD.
 
-## NOSONAR + black 79-char wrapping collision
+## NOSONAR + 79-char formatter wrapping collision
 
-- `pyproject.toml` enforces black `line-length = 79`. A signature already near the limit (e.g. `async def list_runs(_request: web.Request) -> web.Response:` = 60 chars) cannot fit `# NOSONAR(python:S7503)` (24 chars including spaces) inline — total 84+ chars, black wraps the whole signature, and the NOSONAR ends up on the closing `):` line, which Sonar IGNORES (per global skill: NOSONAR must be on `def` or `except` keyword line).
+- `pyproject.toml` enforces `ruff format` with `line-length = 79`. A signature already near the limit (e.g. `async def list_runs(_request: web.Request) -> web.Response:` = 60 chars) cannot fit `# NOSONAR(python:S7503)` (24 chars including spaces) inline — total 84+ chars, the formatter wraps the whole signature, and the NOSONAR ends up on the closing `):` line, which Sonar IGNORES (per global skill: NOSONAR must be on `def` or `except` keyword line).
 - Workaround: use bare `# NOSONAR` (suppresses ALL rules on the line; 11 chars), keep on the `def` line, and place a follow-up `# Sxxxx: reason` comment as the function body's first line for human readers. This is the pattern used in `interfaces/web/runs.py` and `interfaces/web/server.py` for the 6 aiohttp typed-handler S7503 suppressions.
 - **Reason text after `# NOSONAR(rule)` triggers S7632 (malformed NOSONAR parse).** Either use bare `# NOSONAR` and put rationale as a separate `#` comment, or keep the `# NOSONAR(rule)` form clean (no trailing prose). Example breakage: `# NOSONAR(python:S5713) pydantic v2 ValidationError does not extend ValueError` — Sonar parses this as invalid and raises a MAJOR S7632 on the same line.
 - **typescript:S4325 false-positive on `as unknown as T` double-cast** (Sonar thinks one of the assertions is redundant though `tsc -b` requires both). `// NOSONAR` on a separate line ABOVE the cast does NOT suppress — Sonar treats `// NOSONAR` as line-local only. Workaround: hoist the cast into a `const` and put inline `// NOSONAR` on the const declaration line, then pass the const to the consumer. Pattern in `frontend/src/hooks/useWebSocket.ts`.
 
-## pre-commit black pin vs pyproject
+## pre-commit ruff rev vs installed ruff
 
-- `.pre-commit-config.yaml` `psf/black` rev must match `pyproject.toml`'s black version constraint (currently `>=26.3.1,<27.0`). Older pin (25.1.0) produces different formatting for docstring-heavy expressions and triple-quoted print statements — local `make lint` (uses venv black 26.x) and CI pre-commit (was black 25.x) disagree, manifesting as `make lint` rejecting files that pre-commit happily accepts. Bump pre-commit's `rev` whenever pyproject is upgraded.
+- `.pre-commit-config.yaml` `astral-sh/ruff-pre-commit` rev must stay aligned with `pyproject.toml`'s ruff constraint (currently `>=0.15.10,<1.0`). `ruff format` output can differ between minor versions, so a stale pre-commit rev makes CI pre-commit and local `make lint` (venv ruff) disagree — `make lint` rejecting files that pre-commit accepts, or vice versa. Bump the `ruff-pre-commit` rev whenever the pyproject ruff pin is upgraded. (Ruff now replaces black + isort + pyupgrade, so there is a single formatter/linter version to keep in sync instead of three.)

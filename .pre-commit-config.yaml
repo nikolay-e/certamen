@@ -53,28 +53,6 @@ repos:
         name: Lint GitHub Actions
 
   # ============================================================================
-  # CODE FORMATTING (Order: isort → black to avoid conflicts)
-  # ============================================================================
-  - repo: https://github.com/pycqa/isort
-    rev: 7.0.0
-    hooks:
-      - id: isort
-
-  - repo: https://github.com/psf/black
-    rev: 26.3.1
-    hooks:
-      - id: black
-        language_version: python3
-
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.1
-    hooks:
-      - id: pyupgrade
-        name: pyupgrade (auto-upgrade Python syntax)
-        args: ['--py310-plus']
-        files: ^src/.*\.py$
-
-  # ============================================================================
   # STATIC TYPING
   # ============================================================================
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -92,14 +70,16 @@ repos:
         files: ^src/
 
   # ============================================================================
-  # LINTING (Ruff for speed + correctness)
+  # LINT + FORMAT (Ruff: replaces flake8, isort, pyupgrade, and black)
   # ============================================================================
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.0
+    rev: v0.15.12
     hooks:
       - id: ruff
-        name: ruff (correctness-focused checks)
+        name: ruff (lint + import sort + pyupgrade, autofix)
         args: ["--fix", "--unsafe-fixes"]
+      - id: ruff-format
+        name: ruff (formatter, replaces black)
 
   # ============================================================================
   # SECURITY & VULNERABILITY DETECTION

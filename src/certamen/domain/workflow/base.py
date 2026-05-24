@@ -208,7 +208,9 @@ class BaseNode(ABC):
             port.name: (
                 {}
                 if port.port_type in mapping_ports
-                else [] if port.port_type == PortType.RANKINGS else ""
+                else []
+                if port.port_type == PortType.RANKINGS
+                else ""
             )
             for port in self.OUTPUTS
         }

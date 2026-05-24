@@ -472,9 +472,7 @@ def load_bbh_questions(num_per_task: int = 5) -> list[dict[str, Any]]:
 
     for task in BBH_TASKS:
         try:
-            dataset = load_dataset(
-                bbh_dataset, task
-            )  # nosec B615 - trusted source
+            dataset = load_dataset(bbh_dataset, task)  # nosec B615 - trusted source
 
             # Take subset
             for i, example in enumerate(dataset["test"]):
@@ -511,9 +509,7 @@ def load_gpqa_questions(num_questions: int = 20) -> list[dict[str, Any]]:
 
     try:
         # GPQA Diamond subset (highest quality)
-        dataset = load_dataset(
-            gpqa_dataset, "gpqa_diamond"
-        )  # nosec B615 - trusted source
+        dataset = load_dataset(gpqa_dataset, "gpqa_diamond")  # nosec B615 - trusted source
 
         questions = []
         for i, example in enumerate(dataset["train"]):

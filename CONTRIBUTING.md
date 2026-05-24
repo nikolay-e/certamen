@@ -72,8 +72,8 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 | Target | Purpose |
 |--------|---------|
 | `make dev` | Install dev dependencies + pre-commit hooks |
-| `make fmt` | Format code (black + isort) |
-| `make lint` | Lint + type check (ruff, black, isort, mypy) |
+| `make fmt` | Format + autofix code (`ruff format` + `ruff check --fix`) |
+| `make lint` | Lint + format check + type check (ruff, mypy) |
 | `make test` | Run tests with coverage |
 | `make test-quick` | Run tests without coverage |
 | `make clean` | Remove build artifacts |

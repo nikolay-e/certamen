@@ -74,7 +74,7 @@ async def main():
         metrics["cost_by_model"].items(), key=lambda x: x[1], reverse=True
     ):
         print(
-            f"   {model:20} ${cost:7.4f} ({cost/metrics['total_cost']*100:.1f}%)"
+            f"   {model:20} ${cost:7.4f} ({cost / metrics['total_cost'] * 100:.1f}%)"
         )
         total += cost
     print(f"   {'TOTAL':20} ${total:7.4f}")
