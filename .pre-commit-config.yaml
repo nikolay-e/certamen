@@ -105,6 +105,7 @@ repos:
     hooks:
       - id: pip-audit
         name: pip-audit (CVE detection in dependencies)
+        additional_dependencies: ["pip>=26.1.2"]
         args:
           [
             "--desc",

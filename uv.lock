@@ -303,7 +303,7 @@ requires-dist = [
     { name = "httpx", specifier = "~=0.28.1" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = "~=6.0" },
     { name = "import-linter", marker = "extra == 'dev'", specifier = "~=2.0" },
-    { name = "litellm", specifier = ">=1.77.1,<1.86.0" },
+    { name = "litellm", specifier = ">=1.77.1,<1.89.0" },
     { name = "markdown-it-py", specifier = "~=4.0" },
     { name = "mutmut", marker = "extra == 'dev'", specifier = "~=3.5" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = "~=4.5" },
