@@ -1,6 +1,9 @@
 # QA Methodology — certamen
 
-> Generic QA patterns (pre-commit, ArgoCD, etc.) live in the global `/qa` skill. This file holds project-specific overrides only.
+> Generic QA patterns live in the `/qa` skill. This file holds project-specific
+> overrides only. Packaging QA (wheel/clean-venv E2E, `uv lock --check` hook,
+> pyright-outside-venv, import-smoke, CI-Windows-path-test) is in the skill's
+> **Packaging QA** section — referenced, not duplicated, below.
 
 ## Project Type
 
@@ -23,19 +26,17 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 
 - Schemathesis / ZAP / autoqa: no HTTP API surface intended for external traffic (the GUI server is dev-only, binds 0.0.0.0 intentionally, has no OpenAPI). The crawler / accessibility checks are out-of-scope until/unless we ship the GUI as a hosted product.
 - K8s logs: deployment is simple container, no complex orchestration
-- SonarCloud: removed 2026-05 (`sonar-project.properties` deleted). Coverage via pytest-cov, security via ruff `S*` + bandit + CodeQL, secrets via gitleaks/detect-secrets — Sonar duplicated all of it
+- SonarCloud: removed (`sonar-project.properties` deleted). Coverage via pytest-cov, security via ruff `S*` + bandit + CodeQL, secrets via gitleaks/detect-secrets — Sonar duplicated all of it, so it was retired rather than maintained twice
 
 ## Project-Specific Findings
 
 - **S104 (ruff/bandit)** in web server/CLI — intentional bind to 0.0.0.0, suppressed with `# noqa: S104`.
-- **pylint duplicate-code** between `certamen` (legacy) and `certamen` — scoped to `certamen/` only in pre-commit; do NOT scope to `src/`.
 - **pip-audit may flag pip itself** — transient CVE, added to ignore list.
 - **Intentional bcrypt dummy hash** (timing-attack prevention) needs `# pragma: allowlist secret` for detect-secrets.
 - **JSONC files** (tsconfig with comments) must be excluded from `check-json` hook.
 - **markdownlint** on generated reports/docs: exclude `benchmarks/reports/` and `docs/` dirs.
 - **After package rename**, search BOTH `.github/workflows/` and `Makefile` for stale source paths — `--cov=src/<old_name>` causes "0.00% coverage" failure on CI while passing locally.
 - **Docker builds don't follow symlinks** — always use real files for anything copied in Dockerfile.
-- **CI Windows path test**: use `set.issubset(set(path.parts))` not `"src/certamen/workflows" in str(path)` to avoid backslash separator failure.
 
 ## Coverage Threshold
 
@@ -59,12 +60,12 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 ## Workflow YAML Authoring Traps
 
 - **`simple/text` node**: properties are `texts: [str, ...]`, `separator: str`, and (internal) `pages`, `current_page`, `hidden`. **Putting seed input into `pages:` instead of `texts:` produces silent empty outputs** — `TextNode.execute()` only reads `pages` when `input_text` is connected. Symptom: workflow validates AND executes successfully, all LLM nodes get empty prompts, all `simple/text` output nodes show `output_text: ""`. Seen on `examples/workflows/multi-model-comparison.yml` and `examples/workflows/prompt-template.yml`. Fix: convert `pages: [["seed text"]]` + `mode: append` → `texts: ["seed text"]` + `separator: "\n"`. The `mode:` property does NOT exist on `simple/text` (only on `flow/gate`).
-- **`simple/llm` model_name MUST include provider prefix** when provider is `ollama`: `model_name: ollama/gemma3:1b`, not `model_name: gemma3:1b`. Without the prefix, LiteLLM raises `BadRequestError: LLM Provider NOT provided` and the model returns an error response. As of the 2026-05-17 fix, `LiteLLMModel._validate_required_fields` auto-prepends the prefix for `ollama` provider — but example workflows should still write the prefix explicitly for clarity.
+- **`simple/llm` model_name MUST include provider prefix** when provider is `ollama`: `model_name: ollama/gemma3:1b`, not `model_name: gemma3:1b`. Without the prefix, LiteLLM raises `BadRequestError: LLM Provider NOT provided` and the model returns an error response. `LiteLLMModel._validate_required_fields` now auto-prepends the prefix for `ollama` provider — but example workflows should still write the prefix explicitly for clarity.
 
-## Ollama Provider Prefix + Error Classifier Foot-Gun
+## Error Classifier Foot-Guns
 
-- `scripts/discover_ollama_models.py` (the `make discover-ollama` command) was generating slim configs with model_name missing the `ollama/` prefix AND with legacy `tournament:`/`knowledge_bank:` keys that `SlimConfig` rejects. Now fixed — generated config matches slim schema and uses `ollama/<name>` everywhere.
-- `ExceptionClassifier` substring patterns must be long enough or word-delimited to avoid collisions with docs URLs and unrelated words. The pattern `"tps"` in `rate_limit` matched inside `https://` and misclassified EVERY `BadRequestError` (which contains a `https://docs.litellm.ai/...` link) as a rate-limit error → caller would retry forever for a permanent config bug. Wrapped short patterns (`tps`, `rpm`, `429`, `code: 6`) with surrounding spaces; added explicit `BadRequestError` mapping to `bad_request` (non-retryable) in `_EXCEPTION_TYPE_MAP`. When adding error-pattern strings: anything under ~5 chars MUST be space-delimited or word-bounded.
+- `scripts/discover_ollama_models.py` (the `make discover-ollama` command) once generated slim configs with model_name missing the `ollama/` prefix AND with legacy `tournament:`/`knowledge_bank:` keys that `SlimConfig` rejects. Now fixed — generated config matches slim schema and uses `ollama/<name>` everywhere.
+- **`ExceptionClassifier` short-substring collision**: a substring error-pattern (e.g. `"tps"`) matched inside `https://` in every `BadRequestError` (whose message carries a `docs.litellm.ai` URL) → misclassified permanent config bugs as retryable rate-limits → infinite retry. When adding error-pattern strings: anything under ~5 chars MUST be space-delimited or word-bounded; `BadRequestError` is mapped to `bad_request` (non-retryable) in `_EXCEPTION_TYPE_MAP`.
 - Logged errors should include the actual error string, not the wrapper object. `ModelResponse` had no `__repr__`, so `logger.warning("... %s", response)` printed `<ModelResponse object at 0x...>`. Now logs `model=<name> error_type=<type> error=<text>` AND `ModelResponse.__repr__` returns the same shape for defensive logging.
 
 ## Tournament Event Metadata
@@ -103,15 +104,16 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 
 ## pre-commit ruff rev vs installed ruff
 
-- `.pre-commit-config.yaml` `astral-sh/ruff-pre-commit` rev must stay aligned with `pyproject.toml`'s ruff constraint (currently `>=0.15.10,<1.0`). `ruff format` output can differ between minor versions, so a stale pre-commit rev makes CI pre-commit and local `make lint` (venv ruff) disagree — `make lint` rejecting files that pre-commit accepts, or vice versa. Bump the `ruff-pre-commit` rev whenever the pyproject ruff pin is upgraded. (Ruff now replaces black + isort + pyupgrade, so there is a single formatter/linter version to keep in sync instead of three.)
+- `.pre-commit-config.yaml` `astral-sh/ruff-pre-commit` rev must stay aligned with `pyproject.toml`'s ruff constraint (currently `>=0.15.10,<1.0`). `ruff format` output can differ between minor versions, so a stale pre-commit rev makes CI pre-commit and local `make lint` (venv ruff) disagree. Bump the `ruff-pre-commit` rev whenever the pyproject ruff pin is upgraded. (Ruff replaces black + isort + pyupgrade, so there is a single formatter/linter version to keep in sync instead of three.)
 
-## CI gates & tooling (2026-05 consolidation)
+## CI gates & tooling
 
-- **Type check is pyright (strict), not mypy.** `Unknown*` reports are disabled for untyped libs (litellm/sklearn) to mirror the old `ignore_missing_imports`; `pythonVersion = "3.11"` matches `requires-python`. Run via `make lint` inside the venv (bare `pyright` outside the venv resolves the wrong interpreter and floods false errors).
-- **`uv lock --check` is a pre-commit hook** (`astral-sh/uv-pre-commit`, id `uv-lock`). Any dependency edit MUST be followed by `uv lock` or this gate fails — lockfile drift bit twice during the migration.
+- **Type check is pyright (strict), not mypy.** `Unknown*` reports are disabled for untyped libs (litellm/sklearn) to mirror the old `ignore_missing_imports`; `pythonVersion = "3.11"` matches `requires-python`. See `/qa` skill: Packaging QA — bare `pyright` outside the venv resolves the wrong interpreter and floods false errors; run via `make lint` inside the venv.
+- **`uv lock --check` is a pre-commit hook** (`astral-sh/uv-pre-commit`, id `uv-lock`) — see `/qa` skill: Packaging QA. Any dependency edit MUST be followed by `uv lock` or this gate fails.
 - **deptry guards dependency completeness** (CI `test` job + `make lint`). Config: `dev` is a dev-group; `PyJWT→jwt` / `psycopg2-binary→psycopg2` name-map; `tiktoken`/`aiofiles`/`google-auth` are `DEP002`-ignored (litellm runtime extras we never import directly).
-- **import-smoke test** (`tests/integration/test_import_smoke.py`) walks every module — needs the `gui` extra installed AND sets `CERTAMEN_JWT_SECRET` (the auth package hard-fails at import without a ≥32-char secret). CI `test` job installs `.[dev,gui]`.
-- **Frontend is gated in CI** (`Frontend` job: `biome ci` + `tsc -b` + `vitest run`). Vitest tests exercise real behavior (real store via `getState`, real hooks via `renderHook`) — no mocks, per the integration-only philosophy.
+- **import-smoke test** (`tests/integration/test_import_smoke.py`) walks every module — needs the `gui` extra installed AND sets `CERTAMEN_JWT_SECRET` (the auth package hard-fails at import without a ≥32-char secret). CI `test` job installs `.[dev,gui]`. See `/qa` skill: Packaging QA (import smoke).
+- **CI Windows path test**: use `set.issubset(set(path.parts))` not `"src/certamen/workflows" in str(path)` to avoid backslash separator failure (see `/qa` skill: Packaging QA).
+- **Frontend is gated in CI** (`Frontend` job: `biome ci` + `tsc -b` + `vitest run`). Vitest tests exercise real behavior (real store via `getState`, real hooks via `renderHook`) — no mocks.
 - **codespell skips lockfiles** (`package-lock.json`, `uv.lock`) — hash fragments trip false positives.
 
 ## Workflow executor — cycles vs feedback loops
@@ -125,3 +127,7 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 - **React error #31 on champion**: `tournament_ended.payload.champion` is `{name, model_name, provider}` (object) for current runs, but older runs emit a string. Rendering it directly crashes the run-detail subtree. Extract a display string (`typeof === "string" ? it : c.name ?? c.model_name`) before assigning to a rendered field. (Reconnect storm was masking this until the WS stabilised.)
 - **Editor fires ~1 `POST /api/validate` per node on load** (28 for diamond-tournament) — all 200 but a chatty re-validate; debounce opportunity, not a bug.
 - Local `certamen gui` shows version `v0.0.0-placeholder` (the `GIT_SHA` sed runs only at Docker build) — expected, not a finding.
+
+---
+
+Generic QA patterns live in the `/qa` skill — do not duplicate here.
