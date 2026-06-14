@@ -112,12 +112,24 @@ jobs:
           echo "tag_name=v${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
 
   pre-release-tests:
-    name: Pre-release Tests
+    name: Pre-release Tests (Python ${{ matrix.python-version }} / ${{ matrix.os }})
     needs: prepare-release
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     permissions:
       contents: read
+    # Full cross-platform matrix runs HERE (release-only), not on every CI push:
+    # all Python versions on Linux + macOS (10x) / Windows (2x) spot-checks.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.11', '3.12', '3.13']
+        include:
+          - os: macos-latest
+            python-version: '3.12'
+          - os: windows-latest
+            python-version: '3.12'
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -125,7 +137,7 @@ jobs:
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
 
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
@@ -135,6 +147,7 @@ jobs:
         run: uv pip install -e ".[dev]" --system
 
       - name: Run tests
+        shell: bash
         run: pytest tests/ -v --cov=src/certamen --cov-report=term-missing
 
   build:
