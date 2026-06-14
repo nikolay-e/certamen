@@ -6,6 +6,10 @@ name: CI
   pull_request:
     branches: ['**']
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ============================================================================
   # LAYER 1: Fast feedback (~1-2 min)

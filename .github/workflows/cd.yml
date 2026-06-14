@@ -15,6 +15,10 @@ name: CD
           - 'true'
           - 'false'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   prepare-release:
     name: Prepare Release
