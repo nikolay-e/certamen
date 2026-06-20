@@ -213,7 +213,7 @@ reportUnknownLambdaType = "none"
 [tool.deptry]
 # `dev` extra holds tooling never imported from src; `gui` extra IS imported
 # (interfaces/web) so it stays a runtime group deptry checks for usage.
-pep621_dev_dependency_groups = ["dev"]
+optional_dependencies_dev_groups = ["dev"]
 
 [tool.deptry.package_module_name_map]
 PyJWT = ["jwt"]
