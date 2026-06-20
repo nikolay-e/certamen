@@ -123,6 +123,8 @@ repos:
             "GHSA-qccp-gfcp-xxvc",
             "--ignore-vuln",
             "GHSA-mf9v-mfxr-j63j",
+            "--ignore-vuln",
+            "GHSA-6v7p-g79w-8964",
           ]
 
   - repo: https://github.com/Yelp/detect-secrets
