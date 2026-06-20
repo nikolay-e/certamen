@@ -242,6 +242,12 @@ class LLMNode(BaseNode):
             "default": "",
             "description": "Friendly name shown in tournament results (e.g., 'GPT-4' or 'Claude')",
         },
+        "system_prompt": {
+            "type": "string",
+            "default": "",
+            "multiline": True,
+            "description": "Role/persona instruction sent as the system message (e.g., 'You are a Python expert'). Overridden by a connected 'system' input.",
+        },
         "provider": {
             "type": "select",
             "default": "ollama",
@@ -276,6 +282,12 @@ class LLMNode(BaseNode):
             "default": None,
             "options": ["minimal", "low", "medium", "high"],
             "description": "Reasoning depth for o-series / GPT-5 / Claude thinking models. Ignored by non-reasoning models.",
+        },
+        "web_search_options": {
+            "type": "object",
+            "default": None,
+            "ui_hidden": True,
+            "description": "Provider-native web search settings forwarded to LiteLLM (e.g., search context size). Optional.",
         },
     }
 
