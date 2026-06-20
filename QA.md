@@ -103,6 +103,20 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 - `websocket_handler` returns either `WebSocketResponse` on success or `Response(status=403/503/429)` for pre-upgrade rejections. Annotate return as `web.StreamResponse` (parent of both) — not `WebSocketResponse`.
 - Web/auth runtime deps (`aiohttp`, `bcrypt`, `PyJWT`, `psycopg2`) live in the `gui` optional-extra (`pip install certamen-core[gui]` / `uv sync --extra gui`). pyright resolves `psycopg2` via typeshed stubs; `bcrypt`/`jwt` carry inline `# pyright: ignore[reportMissingImports]` because the default dev env (`uv sync --extra dev`) does not install them.
 
+## Frontend tooling (biome / deptry config drift)
+
+- **`biome migrate --write` mis-converts `linter.rules.recommended: true` →
+  `preset: "none"`** on biome 2.5.0 — i.e. it DISABLES every rule (the opposite
+  of intent), while `biome ci` still exits 0, so the regression is invisible.
+  The correct value is `preset: "recommended"`. After a biome bump, hand-fix the
+  config: bump `biome.json` `$schema` to the installed version AND set
+  `rules.preset` to `"recommended"` yourself — never trust `migrate`'s output.
+  Reproduces with and without a `linter.domains` block. Filed upstream:
+  biomejs/biome#10716.
+- **deptry config**: `pep621_dev_dependency_groups` is deprecated (deptry ≥0.25)
+  → use `optional_dependencies_dev_groups`. Surfaces as a non-fatal warning in
+  `make lint`/CI; bump the key in `[tool.deptry]` when seen.
+
 ## pre-commit ruff rev vs installed ruff
 
 - `.pre-commit-config.yaml` `astral-sh/ruff-pre-commit` rev must stay aligned with `pyproject.toml`'s ruff constraint (currently `>=0.15.10,<1.0`). `ruff format` output can differ between minor versions, so a stale pre-commit rev makes CI pre-commit and local `make lint` (venv ruff) disagree. Bump the `ruff-pre-commit` rev whenever the pyproject ruff pin is upgraded. (Ruff replaces black + isort + pyupgrade, so there is a single formatter/linter version to keep in sync instead of three.)
