@@ -31,7 +31,7 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 ## Project-Specific Findings
 
 - **S104 (ruff/bandit)** in web server/CLI — intentional bind to 0.0.0.0, suppressed with `# noqa: S104`.
-- **pip-audit may flag pip itself** — transient CVE, added to ignore list.
+- **pip-audit audits its OWN hook environment**, not certamen's deps (the venv/uv.lock). CVEs in pip-audit's transitive deps (e.g. `pip` itself, or `msgpack` via `cachecontrol`) surface here even though they're absent from certamen's supply chain — add the GHSA to the hook's `--ignore-vuln` list in `.pre-commit-config.yaml`. Do NOT `uv lock --upgrade-package <pkg>` for these (the package isn't in uv.lock, so it triggers a full-lock re-resolution churn instead).
 - **Intentional bcrypt dummy hash** (timing-attack prevention) needs `# pragma: allowlist secret` for detect-secrets.
 - **JSONC files** (tsconfig with comments) must be excluded from `check-json` hook.
 - **markdownlint** on generated reports/docs: exclude `benchmarks/reports/` and `docs/` dirs.
@@ -89,6 +89,7 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 - **Pattern**: any workflow node accepting a `model` or `champion` input from `gate`/`rank` nodes must handle dict input via `ensure_single_model_instance()` before calling `safe_generate()`.
 - **Executor termination**: `_is_iteration_done` must check ALL `node_outputs` entries (not just last layer tasks) — gate node in early layers was not detected otherwise.
 - **Small models (1B–4B) as judges**: rankings will be empty (can't produce parseable `LLM1: X/10` scores); expected behavior, not a bug — tournament still terminates and produces synthesis.
+- **`simple/llm` `PROPERTIES` schema must declare every key `_build_model_config` reads.** `system_prompt` and `web_search_options` are read from `node_properties` and applied, but were absent from `LLMNode.PROPERTIES` → `BaseNode._validate_properties` logged `Unknown properties {'system_prompt'}` on EVERY workflow using personas (knowledge-bank, tournament-elimination, chain-of-thought, diamond-tournament), even though the property worked at runtime (the validator only warns, never strips). The schema is also what the frontend editor renders from `/api/nodes`, so an undeclared-but-used property is invisible in the UI. Rule: any property the node's `execute`/`_build_model_config` consumes MUST be in `PROPERTIES`.
 
 ## `asyncio.CancelledError` discipline
 
@@ -105,6 +106,35 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 ## pre-commit ruff rev vs installed ruff
 
 - `.pre-commit-config.yaml` `astral-sh/ruff-pre-commit` rev must stay aligned with `pyproject.toml`'s ruff constraint (currently `>=0.15.10,<1.0`). `ruff format` output can differ between minor versions, so a stale pre-commit rev makes CI pre-commit and local `make lint` (venv ruff) disagree. Bump the `ruff-pre-commit` rev whenever the pyproject ruff pin is upgraded. (Ruff replaces black + isort + pyupgrade, so there is a single formatter/linter version to keep in sync instead of three.)
+
+## CI / branch-protection / dependabot gotchas
+
+- **Branch-protection required checks MUST mirror the CI job matrix.** Moving the
+  macOS/Windows test matrix out of CI (`ci.yml`) into release-only (`cd.yml`
+  `pre-release-tests`) left `Test (Python 3.12 / macos-latest)` and
+  `Test (Python 3.12 / windows-latest)` as *required* contexts that CI no longer
+  reports — every PR then sits in `BLOCKED`/"Expected, waiting for status"
+  forever. Fix with `gh api --method PATCH repos/<o>/<r>/branches/main/protection/required_status_checks`
+  passing only the contexts CI actually emits.
+- **Dependabot must use the `uv` ecosystem, not `pip`.** This project is
+  uv-managed (uv.lock + the `uv-lock` pre-commit gate). The `pip` ecosystem edits
+  pyproject.toml constraints but never updates uv.lock, so every Python dep PR is
+  born `BLOCKED` on the uv-lock check. The `uv` ecosystem updates pyproject +
+  uv.lock atomically. Frontend deps need a separate `npm` ecosystem entry
+  (`directory: /frontend`) — without it the frontend only receives repo-level
+  *security* PRs, not version bumps.
+- **`diff-context.yml` referenced a nonexistent `nikolay-e/treemapper-action`
+  reusable workflow** → 0s "workflow file issue" failure on every PR. There is no
+  published diff-context GitHub Action; the diff-context review is a local CLI
+  step (`diffctx . --diff …`). The workflow was removed.
+- **pre-commit pyright `additional_dependencies` omits the gui/auth runtime deps**
+  (`psycopg2-binary`, `bcrypt`, `PyJWT`). So CI's pre-commit pyright cannot
+  type-check `interfaces/web/auth/*` and stays green while `make lint` (run with
+  `.[dev,gui]` installed in the venv) surfaces strict errors there (e.g.
+  `reportUnnecessaryComparison` on a defensive `getconn() is None` guard). Run
+  `make lint` with the gui extra installed to catch what CI misses; suppress
+  genuinely-defensive-but-stub-dead guards with a targeted
+  `# pyright: ignore[reportUnnecessaryComparison]`.
 
 ## CI gates & tooling
 
@@ -127,6 +157,8 @@ Web interface (`interfaces/web/`) and logging infrastructure (`shared/logging/`)
 - **React error #31 on champion**: `tournament_ended.payload.champion` is `{name, model_name, provider}` (object) for current runs, but older runs emit a string. Rendering it directly crashes the run-detail subtree. Extract a display string (`typeof === "string" ? it : c.name ?? c.model_name`) before assigning to a rendered field. (Reconnect storm was masking this until the WS stabilised.)
 - **Editor fires ~1 `POST /api/validate` per node on load** (28 for diamond-tournament) — all 200 but a chatty re-validate; debounce opportunity, not a bug.
 - Local `certamen gui` shows version `v0.0.0-placeholder` (the `GIT_SHA` sed runs only at Docker build) — expected, not a finding.
+- **Completed-run detail stuck on "● LIVE" + 10-min idle WS.** Opening a finished run: `attach_run_websocket` replays all buffered events (incl. `tournament_ended`) as `{type:"event"}` but `_replay_events` never sent `{type:"ended"}`; `_tail_events` only sends "ended" for `tournament_ended` in *new* events, so for an already-complete run it idled `idle_timeout=600s` before closing → status frozen at "live" and a 10-min hung WS per opened run. Fix: `_replay_events` returns an `already_ended` flag; the handler sends `{type:"ended"}` and closes immediately when the replay already contained `tournament_ended`.
+- **PhaseStrip showed "Waiting for tournament to start…" forever on workflow runs.** The strip is built on `phase_started`/`phase_completed` events, but the workflow executor emits node-level events (`node_start`/`node_complete`/`iteration_start`), never phase events — so `allPhases` is always empty. Fix: when a `tournament_started` event exists but no phase events, render nothing instead of the stale "waiting to start" message.
 
 ---
 
