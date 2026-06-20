@@ -80,6 +80,8 @@ function ColoredSmartEdgeComponent(props: EdgeProps) {
     return (
       <SmartBezierEdge
         {...props}
+        type={props.type}
+        data={props.data}
         style={{
           stroke: edgeColor,
           strokeWidth,
