@@ -53,7 +53,9 @@ def get_db() -> Any:
             DB_POOL_MAX_SIZE,
         )
         conn = db_pool.getconn()
-        if conn is None:
+        # Defensive: psycopg2 stubs type getconn() as non-None, but guard
+        # against a misbehaving pool returning None at runtime.
+        if conn is None:  # pyright: ignore[reportUnnecessaryComparison]
             raise PoolError("Failed to get connection from pool")
         logger.debug("Connection acquired from pool")
         return conn

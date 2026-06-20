@@ -154,16 +154,19 @@ async def _replay_events(
     ws: web.WebSocketResponse,
     events_path: Path,
     from_seq: int,
-) -> tuple[int, int]:
+) -> tuple[int, int, bool]:
     events, size = _read_events_from_offset(events_path, from_seq)
     last_seq = from_seq
+    already_ended = False
     for event in events:
         try:
             await ws.send_json({"type": "event", "event": event})
             last_seq = event.get("seq", last_seq)
+            if event.get("event_type") == "tournament_ended":
+                already_ended = True
         except ConnectionResetError:
-            return last_seq, size
-    return last_seq, size
+            return last_seq, size, already_ended
+    return last_seq, size, already_ended
 
 
 async def _consume_ws_messages(ws: web.WebSocketResponse) -> None:
@@ -247,7 +250,14 @@ async def attach_run_websocket(
         return ws
 
     from_seq = int(request.query.get("from_seq", "0"))
-    last_seq, last_size = await _replay_events(ws, events_path, from_seq)
+    last_seq, last_size, already_ended = await _replay_events(
+        ws, events_path, from_seq
+    )
+    if already_ended:
+        if not ws.closed:
+            await ws.send_json({"type": "ended", "last_seq": last_seq})
+            await ws.close()
+        return ws
     if not ws.closed:
         await _tail_events(ws, events_path, last_seq, last_size)
     return ws

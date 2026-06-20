@@ -102,6 +102,13 @@ function PhaseStrip({ events }: Readonly<{ events: CertamenEvent[] }>) {
   }, [seenPhases]);
 
   if (allPhases.length === 0) {
+    const started = events.some((e) => e.event_type === "tournament_started");
+    if (started) {
+      // Workflow-based runs emit node-level events, not phase_started/completed,
+      // so there are no phases to strip — render nothing rather than a stale
+      // "waiting to start" message for a run that has clearly already started.
+      return null;
+    }
     return <div className="phase-strip-empty">Waiting for tournament to start…</div>;
   }
 
