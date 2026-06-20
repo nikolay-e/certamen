@@ -14,6 +14,7 @@ from certamen.domain.prompts.builder import PromptBuilder
 from certamen.domain.prompts.formatter import PromptFormatter
 from certamen.infrastructure.config.defaults import get_defaults
 from certamen.infrastructure.llm import ensure_single_model_instance
+from certamen.shared.mapping_utils import model_display_name
 
 
 async def _resolve_model(model_input: Any, context: ExecutionContext) -> Any:
@@ -201,21 +202,15 @@ class KnowledgeMapNode(BaseNode):
         if not responses or not question:
             return {"knowledge_map": None, "markdown": ""}
 
+        judge = await _resolve_model(judge, context)
         if judge is None:
-            model_keys = list(context.models.keys())
-            if not model_keys:
-                return {
-                    "knowledge_map": None,
-                    "markdown": "[No model available for knowledge map]",
-                }
-            judge = context.models[model_keys[0]]
+            return {
+                "knowledge_map": None,
+                "markdown": "[No model available for knowledge map]",
+            }
 
         builder = KnowledgeMapBuilder()
-        champion_label = ""
-        if champion is not None:
-            champion_label = getattr(champion, "display_name", None) or str(
-                champion
-            )
+        champion_label = model_display_name(champion)
 
         try:
             km = await builder.build(

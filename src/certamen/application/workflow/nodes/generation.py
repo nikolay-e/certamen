@@ -134,11 +134,14 @@ class ImproveNode(BaseNode):
         def build_improve_prompt(model_key: str, model: Any) -> str:
             parts = [f"Original response:\n{responses.get(model_key, '')}"]
 
-            model_feedback = feedback.get(model_key, {})
+            model_feedback = feedback.get(model_key)
             if model_feedback:
-                feedback_text = "\n".join(
-                    f"- {k}: {v}" for k, v in model_feedback.items()
-                )
+                if isinstance(model_feedback, dict):
+                    feedback_text = "\n".join(
+                        f"- {k}: {v}" for k, v in model_feedback.items()
+                    )
+                else:
+                    feedback_text = str(model_feedback)
                 parts.append(f"Feedback received:\n{feedback_text}")
 
             if insights:

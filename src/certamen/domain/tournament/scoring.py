@@ -240,7 +240,7 @@ class ScoreExtractor:
             if match:
                 score = self._try_extract_score_from_match(match, model_name)
                 if score is not None:
-                    return score
+                    return self.normalize_score(score, model_name)
                 # Continue to next pattern if this one failed
                 self.logger.warning(
                     "Invalid score value in pattern match for %s", model_name

@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from certamen.shared.mapping_utils import model_display_name
+
 _HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -178,7 +180,8 @@ def _apply_event_to_summary(
     elif et == "model_eliminated":
         state["eliminated_count"] += 1
     elif et == "tournament_ended":
-        state["champion"] = p.get("champion") or "—"
+        champion = p.get("champion")
+        state["champion"] = model_display_name(champion) if champion else "—"
         if p.get("total_cost") is not None:
             state["total_cost"] = float(p["total_cost"])
 

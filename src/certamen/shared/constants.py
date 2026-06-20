@@ -102,7 +102,7 @@ ERROR_PATTERNS = {
         "overloaded_error",
         "server overloaded",
         "server busy",
-        "529",
+        " 529",
         "server is currently overloaded",
     ],
     # Other retryable patterns (service issues)

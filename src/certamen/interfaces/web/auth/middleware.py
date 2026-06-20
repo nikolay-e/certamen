@@ -10,12 +10,6 @@ from certamen.shared.logging import get_contextual_logger
 
 logger = get_contextual_logger(__name__)
 
-PROTECTED_PATHS = [
-    "/api/execute",
-    "/api/validate",
-    "/ws",
-]
-
 PUBLIC_PATHS = [
     "/api/auth/register",
     "/api/auth/login",
@@ -29,15 +23,14 @@ PUBLIC_PATHS = [
 
 
 def is_path_protected(path: str) -> bool:
+    # Deny by default: every path that is not explicitly public requires auth.
+    # This keeps sensitive routes (e.g. /api/runs*, /api/runs/{id}/attach,
+    # /api/execute, /api/validate, /ws) protected without enumerating them.
     for public_path in PUBLIC_PATHS:
         if path.startswith(public_path):
             return False
 
-    for protected_path in PROTECTED_PATHS:
-        if path.startswith(protected_path):
-            return True
-
-    return False
+    return True
 
 
 @web.middleware  # type: ignore[misc]

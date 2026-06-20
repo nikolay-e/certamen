@@ -55,3 +55,63 @@ class TestFeedbackCycleTerminates:
         result = await SyncExecutor(verbose=False).execute(nodes, edges)
         assert "error" not in result
         assert result.get("outputs")
+
+
+class TestEarlyTerminationOnGateDone:
+    async def test_gate_done_terminates_before_max_iterations(self) -> None:
+        # A flow/gate that resolves to a single-model champion emits done:True,
+        # but the gate is NOT in the last execution layer. Termination must
+        # scan ALL node_outputs (not just the final-layer tasks) to observe the
+        # signal and stop early; otherwise the feedback loop runs to the
+        # 20-iteration cap. Regression guard for the sync/async executor split.
+        nodes = [
+            {
+                "id": "m1",
+                "type": "simple/llm",
+                "properties": {
+                    "name": "M1",
+                    "provider": "openai",
+                    "model_name": "gpt-4o-mini",
+                },
+            },
+            {"id": "models", "type": "tournament/models", "properties": {}},
+            {"id": "gate", "type": "flow/gate", "properties": {}},
+            {"id": "elim", "type": "tournament/eliminate", "properties": {}},
+            {"id": "out", "type": "simple/text", "properties": {"texts": []}},
+        ]
+        edges = [
+            {
+                "source": "m1",
+                "sourceHandle": "model_config",
+                "target": "models",
+                "targetHandle": "model_1",
+            },
+            {
+                "source": "models",
+                "sourceHandle": "models",
+                "target": "gate",
+                "targetHandle": "primary",
+            },
+            {
+                "source": "gate",
+                "sourceHandle": "models",
+                "target": "elim",
+                "targetHandle": "models",
+            },
+            {
+                "source": "elim",
+                "sourceHandle": "survivors",
+                "target": "gate",
+                "targetHandle": "feedback",
+            },
+            {
+                "source": "gate",
+                "sourceHandle": "champion",
+                "target": "out",
+                "targetHandle": "input_text",
+            },
+        ]
+        result = await SyncExecutor(verbose=False).execute(nodes, edges)
+        assert "error" not in result
+        assert result["iterations"] == 1
+        assert result["outputs"]["gate"]["done"] is True

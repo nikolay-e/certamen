@@ -177,11 +177,8 @@ LITELLM_LOG=INFO
 # Run tournament with config file
 certamen --config config.yml
 
-# Run with specific models only
-certamen --config config.yml --models gpt,claude
-
-# Interactive mode
-certamen --config config.yml --interactive
+# Override the workflow declared in the slim config
+certamen --config config.yml --workflow examples/workflows/tournament-elimination.yml
 
 # Execute YAML workflow
 certamen workflow execute workflow.yml

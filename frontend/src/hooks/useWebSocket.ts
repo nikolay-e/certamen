@@ -54,6 +54,9 @@ export function useWebSocket(url: string): UseWebSocketResult {
   }, []);
 
   useEffect(() => {
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let closedByCleanup = false;
+
     const connect = () => {
       ws.current = new WebSocket(url);
 
@@ -65,7 +68,11 @@ export function useWebSocket(url: string): UseWebSocketResult {
 
       ws.current.onclose = () => {
         setConnected(false);
-        setTimeout(connect, 3000);
+        // Do not reconnect when the effect cleanup closed the socket
+        // (unmount / url change) — that would leak a zombie reconnect loop.
+        if (!closedByCleanup) {
+          reconnectTimer = setTimeout(connect, 3000);
+        }
       };
 
       ws.current.onmessage = (event) => {
@@ -77,6 +84,10 @@ export function useWebSocket(url: string): UseWebSocketResult {
     connect();
 
     return () => {
+      closedByCleanup = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
       ws.current?.close();
     };
   }, [url, handleMessage]);

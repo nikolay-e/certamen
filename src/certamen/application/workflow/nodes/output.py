@@ -7,6 +7,7 @@ from certamen.application.workflow.nodes.base import (
     PortType,
 )
 from certamen.application.workflow.registry import register_node
+from certamen.shared.mapping_utils import model_display_name
 
 
 @register_node
@@ -190,7 +191,7 @@ class ReportNode(BaseNode):
         if question:
             lines.append(f"## Question\n{question}\n")
         if champion:
-            model_name = getattr(champion, "display_name", str(champion))
+            model_name = model_display_name(champion)
             lines.append(f"## Champion\n**{model_name}**\n")
         if rankings:
             lines.append("## Final Rankings\n")
@@ -219,7 +220,7 @@ class ReportNode(BaseNode):
         return json.dumps(
             {
                 "question": question,
-                "champion": str(champion) if champion else None,
+                "champion": model_display_name(champion) if champion else None,
                 "rankings": rankings,
                 "eliminated": eliminated_info,
             },
@@ -230,7 +231,7 @@ class ReportNode(BaseNode):
     def _render_text(champion: Any, rankings: list[Any]) -> str:
         lines = ["Tournament Report"]
         if champion:
-            lines.append(f"Champion: {champion}")
+            lines.append(f"Champion: {model_display_name(champion)}")
         if rankings:
             lines.append("Rankings:")
             for r in rankings:

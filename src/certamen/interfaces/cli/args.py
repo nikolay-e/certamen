@@ -20,12 +20,6 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
 
 def _add_tournament_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "-m",
-        "--models",
-        type=str,
-        help="Comma-separated list of model keys to run",
-    )
-    parser.add_argument(
         "-c",
         "--config",
         help=f"Path to config file (CLI default: {DEFAULT_CONFIG_FILE})",
@@ -47,12 +41,6 @@ def _add_tournament_args(parser: argparse.ArgumentParser) -> None:
         "--outputs-dir",
         default=None,
         help="Output directory for all files (default: current directory)",
-    )
-    parser.add_argument(
-        "-i",
-        "--interactive",
-        help="Run in interactive mode",
-        action="store_true",
     )
     parser.add_argument(
         "--no-color", help="Disable colored output", action="store_true"

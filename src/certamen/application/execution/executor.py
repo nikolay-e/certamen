@@ -709,16 +709,12 @@ class BaseExecutor(ABC):
     def _check_termination(
         self,
         execution_id: str,
-        tasks: list[tuple[str, Any]],
         node_outputs: dict[str, dict[str, Any]],
         iteration: int,
         max_iterations: int,
     ) -> bool:
-        for node_id, _ in tasks:
-            if (
-                node_id in node_outputs
-                and node_outputs[node_id].get("done") is True
-            ):
+        for node_id, outputs in node_outputs.items():
+            if outputs.get("done") is True:
                 logger.info(
                     "[%s] Termination signal from node %s",
                     execution_id[:8],
@@ -761,9 +757,8 @@ class BaseExecutor(ABC):
                     iteration,
                 )
 
-            last_tasks: list[tuple[str, Any]] = []
             for layer_index, layer in enumerate(execution_layers):
-                last_tasks = await self._run_layer(
+                await self._run_layer(
                     execution_id,
                     layer_index,
                     layer,
@@ -780,7 +775,6 @@ class BaseExecutor(ABC):
 
             if self._check_termination(
                 execution_id,
-                last_tasks,
                 node_outputs,
                 iteration,
                 max_iterations,
@@ -848,6 +842,7 @@ class BaseExecutor(ABC):
             return {
                 "execution_id": execution_id,
                 "outputs": node_outputs,
+                "iterations": iteration,
             }
 
         except Exception as e:

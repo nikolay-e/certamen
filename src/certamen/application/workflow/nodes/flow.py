@@ -13,6 +13,9 @@ from certamen.application.workflow.nodes.base import (
 )
 from certamen.application.workflow.registry import register_node
 from certamen.shared.constants import MAX_MULTI_INPUTS
+from certamen.shared.logging import get_contextual_logger
+
+logger = get_contextual_logger("certamen.nodes.flow")
 
 
 @register_node
@@ -282,6 +285,18 @@ class EliminateNode(BaseNode):
         if not models:
             return {"survivors": {}, "eliminated": {}, "eliminated_info": []}
 
+        if not scores:
+            logger.warning(
+                "EliminateNode: no scores provided; retaining all %d models "
+                "instead of eliminating by arbitrary insertion order",
+                len(models),
+            )
+            return {
+                "survivors": models,
+                "eliminated": {},
+                "eliminated_info": [],
+            }
+
         ranked = rank_by_scores(models, scores, reverse=False)
         eliminated, survivors = split_by_rank(models, ranked, count)
 
@@ -364,10 +379,16 @@ class GateNode(BaseNode):
         # This prevents state leakage between executions
         current_round = context.round_num
 
-        if feedback is None or len(feedback) == 0:
+        # feedback present & non-empty -> use survivors from previous round.
+        # feedback absent (None) on round 1 -> use primary (initial models).
+        # feedback present but empty on a later round -> tournament exhausted,
+        # fall through to the done branch instead of restarting with primary.
+        if feedback:
+            models = feedback
+        elif current_round <= 1:
             models = primary
         else:
-            models = feedback
+            models = {}
 
         model_count = len(models) if models else 0
 
