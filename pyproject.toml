@@ -29,7 +29,7 @@ classifiers = [
 ]
 keywords = ["llm", "ai", "tournament", "evaluation", "decision-making", "litellm"]
 dependencies = [
-    "litellm>=1.89.3,<1.90.0",
+    "litellm>=1.89.4,<1.90.0",
     "pyyaml~=6.0",
     "colorama~=0.4.6",
     "httpx~=0.28.1",
@@ -50,12 +50,12 @@ dev = [
     "pytest-xdist~=3.0",
     "hypothesis~=6.155",
     "coverage[toml]~=7.14",
-    "ruff>=0.15.18,<1.0",
-    "pyright>=1.1.410",
+    "ruff>=0.15.19,<1.0",
+    "pyright>=1.1.411",
     "pre-commit~=4.5",
     "mutmut~=3.6",
     "radon~=6.0",
-    "import-linter~=2.0",
+    "import-linter~=2.12",
     "deptry>=0.23,<1.0",
 ]
 gui = [
