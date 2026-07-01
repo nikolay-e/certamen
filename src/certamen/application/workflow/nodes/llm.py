@@ -16,6 +16,7 @@ from certamen.infrastructure.llm.factory import (
 )
 from certamen.infrastructure.llm.registry import ProviderRegistry
 from certamen.shared.logging import get_contextual_logger
+from certamen.shared.mapping_utils import model_display_name
 
 logger = get_contextual_logger(__name__)
 
@@ -188,6 +189,11 @@ class TextNode(BaseNode):
                 return ["\n".join(str(cell) for cell in row) for row in data]
             return [str(item) for item in data if item]
         if isinstance(data, dict):
+            if "model_name" in data and "provider" in data:
+                # Model/champion config from a gate/rank/eliminate node -
+                # show the display name, not the raw config (system_prompt,
+                # context_window, base_url, etc. are internal details).
+                return [model_display_name(data)]
             return [
                 f"[{k}]\n{v}" if isinstance(v, str) else f"[{k}]\n{v!s}"
                 for k, v in data.items()

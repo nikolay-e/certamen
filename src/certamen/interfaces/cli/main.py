@@ -234,6 +234,7 @@ def _print_node_types() -> None:
 
 
 def _validate_workflow_file(file_path: str) -> None:
+    from certamen.application.workflow.registry import registry
     from certamen.infrastructure.serialization import (
         WorkflowLoader,
         WorkflowValidationError,
@@ -241,6 +242,18 @@ def _validate_workflow_file(file_path: str) -> None:
 
     try:
         workflow = WorkflowLoader.load_from_file(file_path)
+        unknown_types = sorted(
+            {
+                node["type"]
+                for node in workflow["nodes"]
+                if registry.get(node["type"]) is None
+            }
+        )
+        if unknown_types:
+            raise FatalError(
+                "Validation failed: unknown node type(s): "
+                f"{', '.join(unknown_types)}"
+            )
         cli_success("Workflow is valid")
         print(f"\nWorkflow: {workflow['name']}")
         print(f"Description: {workflow.get('description', 'N/A')}")

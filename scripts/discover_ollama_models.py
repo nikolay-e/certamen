@@ -12,7 +12,7 @@ import yaml
 try:
     from certamen.shared.constants import DEFAULT_OLLAMA_URL
 except ImportError:
-    DEFAULT_OLLAMA_URL = "http://localhost:11434"
+    DEFAULT_OLLAMA_URL = "http://localhost:11434"  # pyright: ignore[reportConstantRedefinition]
 
 
 def get_ollama_models(base_url: str) -> list[dict[str, Any]]:
@@ -32,7 +32,6 @@ def generate_model_config(
 ) -> dict[str, Any]:
     """Generate configuration for a single model."""
     model_name = model["name"]
-    display_name = model.get("details", {}).get("family", model_name)
 
     size_gb = model.get("size", 0) / (1024**3)
     if size_gb < 1:
@@ -43,7 +42,7 @@ def generate_model_config(
     config = {
         "provider": "ollama",
         "model_name": f"ollama/{model_name}",
-        "display_name": f"{display_name} ({size_label})",
+        "display_name": f"{model_name} ({size_label})",
         "base_url": base_url,
     }
 

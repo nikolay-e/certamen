@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from colorama import Fore
 
@@ -29,9 +30,7 @@ class Display:
         color: str = self.model_colors.get(model_name, DEFAULT_COLOR)
         return color
 
-    def print(
-        self, text: str, level_or_color: str = DEFAULT_COLOR, _end: str = "\n"
-    ) -> None:
+    def print(self, text: str, level_or_color: str = DEFAULT_COLOR) -> None:
         level_map = {
             "info": logging.INFO,
             "warning": logging.WARNING,
@@ -41,7 +40,10 @@ class Display:
         }
 
         try:
-            clean_text = text.encode("ascii", errors="replace").decode("ascii")
+            stdout_encoding = sys.stdout.encoding or "utf-8"
+            clean_text = text.encode(stdout_encoding, errors="replace").decode(
+                stdout_encoding
+            )
 
             if level_or_color in level_map:
                 log_level = level_map[level_or_color]

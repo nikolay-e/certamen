@@ -1,9 +1,14 @@
+from pathlib import Path
+
 import pytest
+import yaml
 
 from certamen.application.execution.sync_executor import SyncExecutor
 from certamen.application.workflow.nodes import register_all
 from certamen.application.workflow.nodes.llm import TextNode
+from certamen.domain.errors import FatalError
 from certamen.domain.workflow.base import ExecutionContext
+from certamen.interfaces.cli.main import _validate_workflow_file
 
 
 @pytest.fixture(autouse=True)
@@ -24,6 +29,36 @@ class TestTextNodePagesTrap:
         node = TextNode("t", {"pages": [["seed"]], "separator": "\n"})
         out = await node.execute({}, ExecutionContext())
         assert out["output_text"] == ""
+
+    async def test_model_config_dict_renders_display_name_not_raw_config(
+        self,
+    ) -> None:
+        # gate.champion / eliminate.survivors emit raw model config dicts
+        # (system_prompt, context_window, base_url, ...). Wiring one straight
+        # into a simple/text output node (as the shipped
+        # tournament-elimination.yml does for champion_output) must show the
+        # display name, not dump every internal field.
+        node = TextNode("t", {})
+        champion = {
+            "name": "Creative Writer",
+            "provider": "ollama",
+            "model_name": "ollama/llama3.2:3b",
+            "system_prompt": "You are a creative science communicator.",
+            "context_window": 131072,
+        }
+        out = await node.execute({"input_text": champion}, ExecutionContext())
+        assert out["output_text"] == "Creative Writer"
+
+    async def test_generic_dict_without_model_shape_still_dumps_fields(
+        self,
+    ) -> None:
+        # Non-model dicts (debugging output, arbitrary node data) keep the
+        # existing key/value dump behavior.
+        node = TextNode("t", {})
+        out = await node.execute(
+            {"input_text": {"foo": "bar", "baz": 1}}, ExecutionContext()
+        )
+        assert out["output_text"] == "[foo]\nbar\n---\n[baz]\n1"
 
 
 class TestFeedbackCycleTerminates:
@@ -115,3 +150,32 @@ class TestEarlyTerminationOnGateDone:
         assert "error" not in result
         assert result["iterations"] == 1
         assert result["outputs"]["gate"]["done"] is True
+
+
+class TestValidateCatchesUnknownNodeType:
+    def _write_workflow(self, tmp_path: Path, node_type: str) -> str:
+        workflow = {
+            "name": "Test",
+            "version": "1.0",
+            "nodes": [
+                {"id": "a", "type": node_type, "properties": {}},
+            ],
+            "edges": [],
+            "outputs": [],
+        }
+        path = tmp_path / "wf.yml"
+        path.write_text(yaml.dump(workflow))
+        return str(path)
+
+    def test_rejects_unregistered_node_type(self, tmp_path: Path) -> None:
+        # `workflow validate` previously only ran the YAML-schema check
+        # (WorkflowLoader.load_from_file) and never checked node types
+        # against the registry, so a typo'd/unknown type reported
+        # "Workflow is valid" and only failed later at `workflow execute`.
+        path = self._write_workflow(tmp_path, "nonexistent/nodetype")
+        with pytest.raises(FatalError, match="unknown node type"):
+            _validate_workflow_file(path)
+
+    def test_accepts_registered_node_type(self, tmp_path: Path) -> None:
+        path = self._write_workflow(tmp_path, "simple/text")
+        _validate_workflow_file(path)  # must not raise
