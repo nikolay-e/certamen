@@ -154,5 +154,11 @@ directory_tree.yaml
 Makefile
 
 # Node modules (built in Docker)
-gui/node_modules/
-gui/dist/
+node_modules/
+.npm/
+
+# Dev-only artifacts (screenshots, QA runs, tournament reports, MCP console logs)
+reports/
+runs/
+qa/
+.playwright-mcp/
