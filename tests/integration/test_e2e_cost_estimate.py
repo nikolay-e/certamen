@@ -71,8 +71,11 @@ class TestPricing:
         slim = _ollama_diamond_config()
         workflow = materialize_workflow(slim)
         est = estimate_cost(workflow, slim.price_overrides)
-        assert est.total_expected == 0.0
-        assert all(c.price.input_per_token == 0.0 for c in est.competitors)
+        assert est.total_expected == pytest.approx(0.0, abs=1e-12)
+        assert all(
+            c.price.input_per_token == pytest.approx(0.0, abs=1e-12)
+            for c in est.competitors
+        )
 
     def test_flagships_priced_above_zero(self) -> None:
         slim = _flagship_diamond_config()

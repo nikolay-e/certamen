@@ -26,7 +26,7 @@ GUI server is local dev tool only (binds 0.0.0.0 intentionally).
 
 - Schemathesis / ZAP / autoqa: no HTTP API surface intended for external traffic (the GUI server is dev-only, binds 0.0.0.0 intentionally, has no OpenAPI). The crawler / accessibility checks are out-of-scope until/unless we ship the GUI as a hosted product.
 - K8s logs: deployment is simple container, no complex orchestration
-- SonarCloud: removed (`sonar-project.properties` deleted). Coverage via pytest-cov, security via ruff `S*` + bandit + CodeQL, secrets via gitleaks/detect-secrets — Sonar duplicated all of it, so it was retired rather than maintained twice
+- SonarCloud: **still ACTIVE and gating PRs** (project key `nikolay-e_arbitrium-core`, runs as a required `SonarCloud Code Analysis` check). It uses Automatic Analysis (no `sonar-project.properties`), so exclusions are set via the web UI / `POST /api/settings/set`. Quality gate flips to ERROR on a single new BUG (`new_reliability_rating` 1→3). Common trap in tests: **S1244 "Do not perform equality checks with floating point values"** — even `x == 0.0` on a literal-zero price fires; use `== pytest.approx(0.0, abs=1e-12)`. (Coverage via pytest-cov, security via ruff `S*` + bandit + CodeQL, secrets via gitleaks/detect-secrets also run — Sonar overlaps but is NOT retired.)
 
 ## Project-Specific Findings
 
