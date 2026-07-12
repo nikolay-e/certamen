@@ -197,7 +197,9 @@ class KnowledgeMapNode(BaseNode):
         question = inputs.get("question", "")
         synthesis = inputs.get("synthesis", "") or ""
         champion = inputs.get("champion")
-        judge = inputs.get("judge")
+        # No dedicated judge edge (a gate->judge edge trips cycle detection);
+        # reuse the champion model, which this node already receives, as judge.
+        judge = inputs.get("judge") or champion
 
         if not responses or not question:
             return {"knowledge_map": None, "markdown": ""}
