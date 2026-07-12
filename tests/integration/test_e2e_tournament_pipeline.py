@@ -97,7 +97,19 @@ def _stubbed(monkeypatch: pytest.MonkeyPatch) -> None:
 async def _run_diamond() -> dict[str, Any]:
     workflow = materialize_workflow(_diamond_config())
     ed = WorkflowLoader.to_executor_format(workflow)
-    result = await AsyncExecutor().execute(ed["nodes"], ed["edges"])
+
+    # Drive with a broadcast_fn like the real CLI path — this exercises the
+    # event-stream json.dumps of every node's outputs, which is where a
+    # non-serializable KnowledgeMap object crashed a real run.
+    events: list[str] = []
+
+    async def _broadcast(message: str) -> None:
+        events.append(message)
+
+    result = await AsyncExecutor(broadcast_fn=_broadcast).execute(
+        ed["nodes"], ed["edges"]
+    )
+    result["_events"] = events
     return result
 
 
