@@ -46,16 +46,33 @@ def _flagship_diamond_config() -> SlimConfig:
 
 class TestCallModel:
     def test_diamond_four_models_matches_empirical_call_count(self) -> None:
+        # The empirical ~143-144 calls / 4 iterations was measured with a single
+        # interrogation round; pin rounds=1 to keep that anchor honest (the
+        # shipped default is now rounds=3, exercised in the scaling test below).
         slim = _ollama_diamond_config()
+        slim.overrides["interrogate.rounds"] = 1
         workflow = materialize_workflow(slim)
         est = estimate_cost(workflow, slim.price_overrides)
-        # Healthy 4-model diamond re-runs divergence every iteration; measured
-        # real runs logged ~143-144 calls over 4 iterations.
         assert est.n_competitors == 4
         assert est.divergence_iterations == 4
         assert est.total_calls == 143
         # Stalled (scores never parse) runs to max_rounds > healthy.
         assert est.stalled_total_calls > est.total_calls
+
+    def test_interrogation_rounds_scale_call_count(self) -> None:
+        base = _ollama_diamond_config()
+        base.overrides["interrogate.rounds"] = 1
+        one = estimate_cost(materialize_workflow(base), base.price_overrides)
+
+        three = _ollama_diamond_config()
+        three.overrides["interrogate.rounds"] = 3
+        est3 = estimate_cost(
+            materialize_workflow(three), three.price_overrides
+        )
+
+        # More interrogation rounds ⇒ strictly more calls (interrogation is the
+        # dominant call class), but generate/improve/peer-review are unchanged.
+        assert est3.total_calls > one.total_calls
 
     def test_band_is_ordered(self) -> None:
         slim = _flagship_diamond_config()

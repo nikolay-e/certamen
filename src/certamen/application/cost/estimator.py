@@ -195,7 +195,13 @@ def estimate_cost(
     eliminate_count = (
         int(_node_prop(elim_nodes[0], "count", 1)) if elim_nodes else 1
     )
-    has_interrogation = bool(_find_nodes(workflow, "tournament/interrogate"))
+    interrogate_nodes = _find_nodes(workflow, "tournament/interrogate")
+    has_interrogation = bool(interrogate_nodes)
+    interrogate_rounds = (
+        max(1, int(_node_prop(interrogate_nodes[0], "rounds", 1)))
+        if interrogate_nodes
+        else 1
+    )
     has_peer_review = bool(_find_nodes(workflow, "tournament/peer_review"))
     n_diverge_improve = len(_find_nodes(workflow, "tournament/improve"))
 
@@ -209,12 +215,14 @@ def estimate_cost(
     # Per-model call counts (attribution). Survivor-round calls (peer_review,
     # converge) have unknown identity → attributed evenly across competitors.
     pairs_examiner_per_iter = n - 1  # each model examines n-1 others per iter
+    # Interrogation loops up to `rounds` follow-up passes per pair per iteration.
+    interro_per_iter = pairs_examiner_per_iter * interrogate_rounds
     per_model = {
         "generate": div_iters,
-        "interrogate_questions": div_iters * pairs_examiner_per_iter
+        "interrogate_questions": div_iters * interro_per_iter
         if has_interrogation
         else 0,
-        "interrogate_answers": div_iters * pairs_examiner_per_iter
+        "interrogate_answers": div_iters * interro_per_iter
         if has_interrogation
         else 0,
         # diamond has both a divergence-improve and a convergence-improve node;
@@ -228,11 +236,7 @@ def estimate_cost(
     stalled_total = round(
         (
             stalled_div
-            + (
-                2 * stalled_div * pairs_examiner_per_iter
-                if has_interrogation
-                else 0
-            )
+            + (2 * stalled_div * interro_per_iter if has_interrogation else 0)
             + (stalled_div if n_diverge_improve >= 1 else 0)
             + (stalled_pr / n if has_peer_review else 0)
             + (stalled_ci / n if n_diverge_improve >= 2 else 0)
@@ -271,9 +275,15 @@ def estimate_cost(
     stalled_scale = (stalled_total / total_calls) if total_calls else 1.0
     stalled_expected = total_expected * stalled_scale
 
+    interro_note = (
+        f" Interrogation runs up to {interrogate_rounds} follow-up round(s) per "
+        f"pair (an upper bound — a round stops early if a model asks nothing)."
+        if has_interrogation and interrogate_rounds > 1
+        else ""
+    )
     assumptions = [
         f"{n} competitors; workflow re-runs the divergence phase every iteration "
-        f"(no memoization) → {div_iters} divergence iterations.",
+        f"(no memoization) → {div_iters} divergence iterations.{interro_note}",
         f"Call count: {total_calls} (healthy) … up to {stalled_total} "
         f"(if peer-review scores fail to parse → no elimination → runs to "
         f"max_rounds={max_rounds}).",
