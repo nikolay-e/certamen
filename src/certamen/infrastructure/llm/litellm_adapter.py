@@ -347,6 +347,10 @@ class LiteLLMModel(BaseModel):
                 model_key=self.model_key,
             )
 
+        model_response.prompt_tokens = int(prompt_tokens)
+        model_response.completion_tokens = int(completion_tokens)
+        model_response.total_tokens = int(total_tokens)
+
         logger.log_response(
             model_response.content,
             model=self.display_name,

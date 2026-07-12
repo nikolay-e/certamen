@@ -85,7 +85,8 @@ nodes:
     type: tournament/interrogate
     position: { x: 1020, y: 220 }
     properties:
-      max_questions_per_pair: 4
+      max_questions_per_pair: 6
+      rounds: 3
 
   - id: diverge_improve
     type: tournament/improve
@@ -326,7 +327,11 @@ edges:
     targetHandle: feedback
 
   # --- FINALIZATION: Synthesis ---
-  - source: converge_improve
+  # Synthesize over the interrogation-enriched improved answers of ALL models
+  # (diverge_improve always produces content on every iteration, including the
+  # terminal one; converge_improve collapses to empty when the field is down to
+  # one survivor, which silently killed synthesis).
+  - source: diverge_improve
     target: synthesize
     sourceHandle: improved
     targetHandle: responses
@@ -340,7 +345,7 @@ edges:
     targetHandle: model
 
   # --- FINALIZATION: Knowledge Map ---
-  - source: converge_improve
+  - source: diverge_improve
     target: knowledge_map
     sourceHandle: improved
     targetHandle: responses

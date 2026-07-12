@@ -95,6 +95,19 @@ def parse_arguments() -> dict[str, Any]:
     _add_common_args(tournament_parser)
     _add_tournament_args(tournament_parser)
 
+    cost_parser = subparsers.add_parser(
+        "cost",
+        aliases=["estimate", "estimate-cost"],
+        help="Estimate the cost of running a tournament without running it",
+    )
+    _add_common_args(cost_parser)
+    cost_parser.add_argument(
+        "-c",
+        "--config",
+        help=f"Path to config file (default: {DEFAULT_CONFIG_FILE})",
+        default=DEFAULT_CONFIG_FILE,
+    )
+
     workflow_parser = subparsers.add_parser(
         "workflow",
         help="Execute and manage YAML workflows",

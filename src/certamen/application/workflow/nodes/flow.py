@@ -391,6 +391,7 @@ class GateNode(BaseNode):
             models = {}
 
         model_count = len(models) if models else 0
+        prev_count = inputs.get("_prev_model_count")
 
         if model_count <= 1:
             champion = (
@@ -401,6 +402,7 @@ class GateNode(BaseNode):
                 "champion": champion,
                 "done": True,
                 "round": current_round,
+                "_model_count": model_count,
             }
 
         if current_round >= max_rounds:
@@ -410,6 +412,27 @@ class GateNode(BaseNode):
                 "champion": first_model,
                 "done": True,
                 "round": current_round,
+                "_model_count": model_count,
+            }
+
+        # Stagnation guard: if the field did not shrink since the previous
+        # round, elimination is not making progress (e.g. peer-review scores
+        # failed to parse, so EliminateNode retained everyone). Terminate now
+        # instead of burning full-DAG iterations until max_rounds — this bounds
+        # the runaway-cost blast radius without unfairly eliminating anyone.
+        if prev_count is not None and model_count >= int(prev_count):
+            logger.warning(
+                "Gate: no elimination progress (%d models, was %d) — "
+                "terminating to avoid wasted iterations",
+                model_count,
+                int(prev_count),
+            )
+            return {
+                "models": {},
+                "champion": next(iter(models.values())),
+                "done": True,
+                "round": current_round,
+                "_model_count": model_count,
             }
 
         return {
@@ -417,6 +440,7 @@ class GateNode(BaseNode):
             "champion": None,
             "done": False,
             "round": current_round,
+            "_model_count": model_count,
         }
 
 

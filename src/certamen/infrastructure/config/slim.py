@@ -48,6 +48,7 @@ class SlimConfig(BaseModel):
     models: dict[str, SlimModel]
     workflow: str
     overrides: dict[str, Any] = Field(default_factory=dict)
+    price_overrides: dict[str, Any] = Field(default_factory=dict)
     secrets: SlimSecrets | None = None
     outputs_dir: str | None = None
     logging: SlimLogging | None = None

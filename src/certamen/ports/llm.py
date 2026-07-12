@@ -15,12 +15,26 @@ class ModelResponse:
     error_type: str | None = None
     provider: str | None = None
     cost: float = 0.0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
 
     @classmethod
     def create_success(
-        cls, content: str, cost: float = 0.0
+        cls,
+        content: str,
+        cost: float = 0.0,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        total_tokens: int = 0,
     ) -> "ModelResponse":
-        return cls(content=content, cost=cost)
+        return cls(
+            content=content,
+            cost=cost,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+        )
 
     @classmethod
     def create_error(

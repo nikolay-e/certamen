@@ -4,23 +4,49 @@ import re
 from certamen.ports.llm import BaseModel
 
 _QUESTION_GENERATION_PROMPT = """\
-Extract hidden knowledge from this submission. Ask {max_questions} specific questions targeting:
-evidence behind weak claims, avoided aspects, contradictions with the other submission, edge cases.
+You are a relentless adversarial interrogator. Your ONLY goal is to force this \
+submission to reveal knowledge it is holding back. Models hedge, simplify, and \
+omit — break that. Do NOT be polite or balanced.
 
-Question: {question}
+Ask {max_questions} sharp, specific questions that corner the author. Target: \
+evidence behind vague or [WEAK]/[MODERATE] claims, mechanisms it hand-waved, \
+numbers/thresholds it avoided, edge cases and failure modes it skipped, \
+contradictions with the other submission, and anything it conspicuously did \
+NOT say. Demand specifics — no question that can be dodged with a generality.
+
+Question under analysis: {question}
 
 Target submission:
 {target_response}
 
-Other submission:
+Rival submission (use to expose gaps/contradictions):
 {other_response}
 
-Each question must target a specific claim or gap. Output ONLY numbered questions."""
+Each question must pin down one concrete claim or omission. Output ONLY the \
+numbered questions."""
+
+_FOLLOWUP_PROMPT = """\
+You are the same relentless interrogator. The target ANSWERED your previous \
+questions below. They almost certainly evaded, hedged, or stayed vague on some. \
+Do NOT accept it. Ask {max_questions} harder follow-up questions that attack \
+the weakest, most evasive, or least-supported parts of these answers — demand \
+the specifics, evidence, or admissions they dodged. Escalate; do not repeat.
+
+Question under analysis: {question}
+
+Previous interrogation (their answers to press on):
+{prior_qa}
+
+Output ONLY the numbered follow-up questions."""
 
 _INTERROGATION_RESPONSE_PROMPT = """\
-Answer these questions about your previous submission. Be specific — reveal all relevant knowledge concisely.
+You are under adversarial interrogation about your previous submission. Answer \
+every question directly and completely. Do NOT hedge, do NOT deflect, do NOT \
+retreat to generalities — reveal the full extent of what you know, including \
+specifics, numbers, mechanisms, caveats, and uncomfortable admissions. Evasion \
+is failure. If you were holding something back, disclose it now.
 
-Question: {question}
+Question under analysis: {question}
 
 Your submission:
 {own_response}
@@ -28,7 +54,8 @@ Your submission:
 Questions:
 {questions}
 
-Answer each directly by number. Be brief but complete."""
+Answer each directly by number. Be specific and complete; brevity is fine only \
+if nothing is omitted."""
 
 
 class AdversarialInterrogator:
@@ -49,6 +76,25 @@ class AdversarialInterrogator:
             other_response=other_response,
             max_questions=max_questions,
         )
+        return await self._ask_for_questions(examiner_model, prompt)
+
+    async def generate_followup_questions(
+        self,
+        examiner_model: BaseModel,
+        prior_qa: str,
+        question: str,
+        max_questions: int = 4,
+    ) -> list[str]:
+        prompt = _FOLLOWUP_PROMPT.format(
+            question=question,
+            prior_qa=prior_qa,
+            max_questions=max_questions,
+        )
+        return await self._ask_for_questions(examiner_model, prompt)
+
+    async def _ask_for_questions(
+        self, examiner_model: BaseModel, prompt: str
+    ) -> list[str]:
         async with self._semaphore:
             response = await examiner_model.generate(prompt)
         if response.is_error():

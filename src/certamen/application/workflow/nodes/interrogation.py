@@ -48,6 +48,11 @@ class InterrogationNode(BaseNode):
 
     OUTPUTS = [
         Port(
+            "insights",
+            PortType.STRING,
+            description="Formatted knowledge pressed out of models — feed to Improve",
+        ),
+        Port(
             "extracted_knowledge",
             PortType.RESPONSES,
             description="Q&A pairs extracted through interrogation",
@@ -91,11 +96,19 @@ class InterrogationNode(BaseNode):
         question: str = inputs.get("question") or context.question
 
         if not responses or not question:
-            return {"extracted_knowledge": {}, "questions_asked": {}}
+            return {
+                "insights": "",
+                "extracted_knowledge": {},
+                "questions_asked": {},
+            }
 
         models_result, empty = await self.ensure_models_or_empty(models_input)
         if empty is not None:
-            return {"extracted_knowledge": {}, "questions_asked": {}}
+            return {
+                "insights": "",
+                "extracted_knowledge": {},
+                "questions_asked": {},
+            }
         models = models_result
 
         model_items = list(models.items())
@@ -103,11 +116,16 @@ class InterrogationNode(BaseNode):
 
         interrogator = AdversarialInterrogator(asyncio.Semaphore(4))
         max_q = self.max_questions_per_pair
+        rounds = max(1, self.rounds)
 
         results = await asyncio.gather(
             *[
                 self._interrogate_pair(
-                    interrogator, *t, question=question, max_q=max_q
+                    interrogator,
+                    *t,
+                    question=question,
+                    max_q=max_q,
+                    rounds=rounds,
                 )
                 for t in tasks
             ],
@@ -153,28 +171,49 @@ class InterrogationNode(BaseNode):
         target_resp: str,
         question: str,
         max_q: int,
+        rounds: int = 1,
     ) -> tuple[str, str, dict[str, str]]:
-        questions = await interrogator.generate_questions(
-            examiner_model=examiner_model,
-            target_response=target_resp,
-            other_response=examiner_resp,
-            question=question,
-            max_questions=max_q,
-        )
-        if not questions:
-            return examiner_key, target_key, {}
-        qa = await interrogator.conduct_interrogation(
-            target_model=target_model,
-            questions=questions,
-            question=question,
-            own_response=target_resp,
-        )
-        return examiner_key, target_key, qa
+        qa_all: dict[str, str] = {}
+        prior_qa = ""
+        for round_index in range(rounds):
+            if round_index == 0:
+                questions = await interrogator.generate_questions(
+                    examiner_model=examiner_model,
+                    target_response=target_resp,
+                    other_response=examiner_resp,
+                    question=question,
+                    max_questions=max_q,
+                )
+            else:
+                questions = await interrogator.generate_followup_questions(
+                    examiner_model=examiner_model,
+                    prior_qa=prior_qa,
+                    question=question,
+                    max_questions=max_q,
+                )
+            if not questions:
+                break
+            qa = await interrogator.conduct_interrogation(
+                target_model=target_model,
+                questions=questions,
+                question=question,
+                own_response=target_resp
+                + (
+                    "\n\nPrior interrogation:\n" + prior_qa if prior_qa else ""
+                ),
+            )
+            if not qa:
+                break
+            qa_all.update(qa)
+            prior_qa = "\n\n".join(
+                f"Q: {q}\nA: {a}" for q, a in qa_all.items()
+            )
+        return examiner_key, target_key, qa_all
 
     @staticmethod
     def _collect_results(
         results: list[Any],
-    ) -> dict[str, dict[str, str]]:
+    ) -> dict[str, Any]:
         extracted_knowledge: dict[str, str] = {}
         questions_asked: dict[str, str] = {}
         for result in results:
@@ -187,7 +226,12 @@ class InterrogationNode(BaseNode):
                 qa_text = "\n\n".join(f"Q: {q}\nA: {a}" for q, a in qa.items())
                 extracted_knowledge[pair_label] = qa_text
                 questions_asked[pair_label] = "\n".join(qa.keys())
+        insights = "\n\n".join(
+            f"[Interrogation {label}]\n{text}"
+            for label, text in extracted_knowledge.items()
+        )
         return {
+            "insights": insights,
             "extracted_knowledge": extracted_knowledge,
             "questions_asked": questions_asked,
         }

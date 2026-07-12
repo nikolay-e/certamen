@@ -542,6 +542,32 @@ async def run_workflow(args: dict[str, object]) -> None:
     raise FatalError(f"Unknown workflow command: {workflow_command}")
 
 
+def _run_cost_command(args: dict[str, Any]) -> None:
+    from certamen.application.cost.estimator import (
+        estimate_cost,
+        format_estimate,
+    )
+    from certamen.application.slim_loader import load_and_materialize
+    from certamen.domain.errors import ConfigurationError
+
+    config_path = str(args.get("config", DEFAULT_CONFIG_FILE))
+    if not _config_is_slim(config_path):
+        cli_error(
+            f"Config '{config_path}' is not a slim config "
+            "(missing top-level 'workflow:' key). See config.example.yml."
+        )
+        sys.exit(1)
+
+    try:
+        slim, workflow = load_and_materialize(config_path)
+        estimate = estimate_cost(workflow, slim.price_overrides)
+    except ConfigurationError as exc:
+        cli_error(str(exc))
+        sys.exit(1)
+
+    print(format_estimate(estimate))
+
+
 def _run_gui_command(args: dict[str, Any]) -> None:
     from certamen.interfaces.web.server import run_gui_server
 
@@ -639,6 +665,10 @@ def run_from_cli() -> None:
     colorama.init(autoreset=True)
 
     command = args.get("command", "tournament")
+
+    if command in ("cost", "estimate", "estimate-cost"):
+        _run_cost_command(args)
+        return
 
     if command in ("gui", "web"):
         _run_gui_command(args)

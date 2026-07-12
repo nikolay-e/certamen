@@ -52,7 +52,10 @@ class AsyncExecutor(BaseExecutor):
 
     async def _broadcast(self, message: dict[str, Any]) -> None:
         if self.broadcast_fn:
-            await self.broadcast_fn(json.dumps(message))
+            # Node outputs can carry rich, non-JSON objects (KnowledgeMap,
+            # model instances). The event stream is telemetry and must never
+            # crash execution — degrade unserializable values to their repr.
+            await self.broadcast_fn(json.dumps(message, default=str))
 
     def _schedule_broadcast(self, message: dict[str, Any]) -> None:
         async def _safe_broadcast() -> None:
