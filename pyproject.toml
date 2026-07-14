@@ -29,7 +29,7 @@ classifiers = [
 ]
 keywords = ["llm", "ai", "tournament", "evaluation", "decision-making", "litellm"]
 dependencies = [
-    "litellm>=1.91.1,<1.92.0",
+    "litellm>=1.92.0,<1.93.0",
     "pyyaml~=6.0",
     "colorama~=0.4.6",
     "httpx~=0.28.1",
@@ -37,7 +37,7 @@ dependencies = [
     "aiofiles>=24.1,<25.2",
     "scikit-learn>=1.9.0,<1.10",
     "markdown-it-py~=4.0",
-    "google-auth~=2.55",
+    "google-auth~=2.56",
     "pydantic~=2.13",
     "python-dotenv~=1.2",
 ]
