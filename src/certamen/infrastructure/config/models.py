@@ -24,8 +24,6 @@ class FeaturesConfig(BaseModel):
     disagreement_investigation_enabled: bool = True
     confidence_calibration_enabled: bool = True
     knowledge_map_enabled: bool = True
-    deep_extraction_enabled: bool = False
-    deep_extraction_depth: int = 2
     persistence_enabled: bool = True
     persistence_db_path: str = "certamen_knowledge.db"
 
@@ -34,24 +32,6 @@ class KnowledgeBankConfig(BaseModel):
     enabled: bool = True
     similarity_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     max_insights: int = Field(default=100, ge=1)
-
-
-class PromptMetadata(BaseModel):
-    version: str = "1.0"
-    type: str = "instruction"
-    phase: str
-
-
-class PromptConfig(BaseModel):
-    content: str
-    metadata: PromptMetadata
-
-
-class PromptsConfig(BaseModel):
-    initial: PromptConfig
-    feedback: PromptConfig
-    improvement: PromptConfig
-    evaluate: PromptConfig
 
 
 class ModelConfig(BaseModel):

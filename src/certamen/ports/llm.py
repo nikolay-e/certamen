@@ -1,11 +1,6 @@
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable
-from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic.dataclasses import dataclass
-
-if TYPE_CHECKING:
-    from certamen.ports.cache import CacheProtocol
 
 
 @dataclass
@@ -111,13 +106,3 @@ class BaseModel(ABC):
         max_delay: float | None = None,
     ) -> ModelResponse:
         pass
-
-
-class ModelProvider(Protocol):
-    @classmethod
-    def from_config(
-        cls,
-        model_key: str,
-        config: dict[str, Any],
-        response_cache: "CacheProtocol | None" = None,
-    ) -> Awaitable[BaseModel]: ...

@@ -66,7 +66,7 @@ class DisagreementDetectionNode(BaseNode):
         from certamen.domain.disagreement.detector import (
             DisagreementDetector,
         )
-        from certamen.infrastructure.llm.factory import (
+        from certamen.infrastructure.llm.model_factory import (
             ensure_single_model_instance,
         )
 

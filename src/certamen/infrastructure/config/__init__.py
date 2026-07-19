@@ -5,7 +5,6 @@ from certamen.infrastructure.config.defaults import (
     PROMPTS,
     RETRY,
     get_defaults,
-    select_model_with_highest_context,
 )
 from certamen.infrastructure.config.env import (
     get_bool_env,
@@ -29,6 +28,5 @@ __all__ = [
     "get_int_env",
     "get_ollama_base_url",
     "get_str_env",
-    "select_model_with_highest_context",
     "validate_config",
 ]

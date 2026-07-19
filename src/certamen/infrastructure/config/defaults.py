@@ -1,12 +1,5 @@
 from typing import Any
 
-from certamen.domain.model_selection import select_model_by_capacity
-
-
-def select_model_with_highest_context(models: dict[str, Any]) -> str | None:
-    return select_model_by_capacity(models, include_max_tokens=False)
-
-
 # Models are discovered dynamically from LiteLLM and Ollama API.
 # For Ollama: queries local server at OLLAMA_BASE_URL/api/tags
 # For cloud providers: uses litellm.models_by_provider as source of truth
@@ -35,11 +28,8 @@ FEATURES: dict[str, Any] = {
     "disagreement_investigation_enabled": True,  # Deep-dive into model disagreements
     "confidence_calibration_enabled": True,  # Append confidence tags to initial prompts
     "knowledge_map_enabled": True,  # Build structured knowledge map after tournament
-    "deep_extraction_enabled": False,  # Recursive sub-tournaments on exploration branches (expensive)
-    "deep_extraction_depth": 2,  # Max recursion depth for deep extraction
     "persistence_enabled": True,  # Persist knowledge maps to SQLite across tournaments
     "persistence_db_path": "certamen_knowledge.db",  # Path to knowledge store database
-    "interrogation_rounds": 1,  # Number of interrogation rounds (round 2 probes round 1 findings)
 }
 
 # Default prompts (JSON-like structured format)

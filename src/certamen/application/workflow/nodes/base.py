@@ -39,7 +39,7 @@ class BaseNode(DomainBaseNode):
     async def ensure_models_or_empty(
         self, models_input: Any, single: bool = False
     ) -> tuple[dict[str, Any], dict[str, Any] | None]:
-        from certamen.infrastructure.llm.factory import (
+        from certamen.infrastructure.llm.model_factory import (
             ensure_model_instances,
             ensure_single_model_instance,
         )

@@ -11,7 +11,7 @@ from certamen.application.workflow.nodes.base import (
 )
 from certamen.application.workflow.registry import register_node
 from certamen.infrastructure.config.env import get_ollama_base_url
-from certamen.infrastructure.llm.factory import (
+from certamen.infrastructure.llm.model_factory import (
     ensure_single_model_instance,
 )
 from certamen.infrastructure.llm.registry import ProviderRegistry
