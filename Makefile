@@ -38,8 +38,8 @@ test-quick:  ## Run tests without coverage
 test-coverage-enforce:  ## Run tests with strict coverage requirements for core modules
 	@echo "Running tests with strict coverage enforcement..."
 	python -m pytest tests/ -v \
-		--cov=src/certamen/domain/tournament/tournament.py \
-		--cov=src/certamen/ports/llm.py \
+		--cov=src/certamen/domain/tournament \
+		--cov=src/certamen/ports \
 		--cov-report=term-missing \
 		--cov-branch \
 		--cov-fail-under=60

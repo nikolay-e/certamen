@@ -1,47 +1,34 @@
 # Examples
 
-Python examples demonstrating Certamen Core features in order of increasing complexity.
+Examples demonstrating Certamen Core features.
 
-## Python Examples
+## Python Example
 
-### 1. `quickstart.py` - Your First Tournament
+### `single_model.py` - Ad-hoc Model Probing
 
-Minimal code to run a tournament. ~2 minutes, ~$0.50.
-
-```bash
-python examples/quickstart.py
-```
-
-### 2. `single_model.py` - Query Without Tournament
-
-Use Certamen for single-model queries. <30 seconds, ~$0.05-0.20.
+Query one model or fan out to all configured models without a tournament,
+using the `Certamen` class's `run_single_model` / `run_all_models` API.
+<30 seconds, ~$0.05-0.20.
 
 ```bash
 python examples/single_model.py
 ```
 
-### 3. `tournament_basic.py` - Full Tournament Flow
+> Full tournament execution is not a `Certamen` method — it runs through the
+> workflow executor (see below), not in-process Python.
 
-Phases, elimination, cost tracking. ~5-10 minutes, ~$0.50-2.00.
+## Tournaments (Workflow Executor)
 
-```bash
-python examples/tournament_basic.py
-```
-
-### 4. `tournament_with_kb.py` - Knowledge Bank in Action
-
-How eliminated models contribute to the final answer. ~5-10 minutes, ~$0.50-2.00.
+Tournaments run via the CLI against a config, or by executing a workflow
+definition directly. The `tournament-elimination.yml` workflow is the
+multi-round elimination flow (phases, elimination, knowledge bank).
 
 ```bash
-python examples/tournament_with_kb.py
-```
+# Run a tournament from a config file
+certamen --config config.yml
 
-### 5. `benchmark_comparison.py` - Cost-Benefit Analysis
-
-Compare single model vs all models vs tournament. ~10-20 minutes, ~$1-3.
-
-```bash
-python examples/benchmark_comparison.py
+# Or execute the elimination workflow directly
+certamen workflow execute examples/workflows/tournament-elimination.yml
 ```
 
 ## Workflow Examples
@@ -69,5 +56,5 @@ certamen workflow execute examples/workflows/hello-world.yml
 pip install certamen-core
 cp config.example.yml config.yml
 # Edit config.yml with your API keys
-python examples/quickstart.py
+python examples/single_model.py
 ```
