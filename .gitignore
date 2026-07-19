@@ -179,3 +179,7 @@ TODO.md
 
 GITHUB_PAGES_SETUP.md
 .treemapper/
+
+# Local analysis work-logs and theory configs
+config.diffctx-theory.yml
+ANALYSIS_*.md

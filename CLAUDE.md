@@ -62,7 +62,7 @@ method.
 │  certamen --config config.yml  │
 │  ┌───────────────────────────┐  │
 │  │  Tournament Engine        │  │
-│  │  (src/certamen/core/)    │  │
+│  │  (src/certamen/domain/)   │  │
 │  │  ├─ Competitors (LLMs)    │  │
 │  │  ├─ Judges (LLMs)         │  │
 │  │  ├─ Rubrics & Scoring     │  │
@@ -75,21 +75,22 @@ method.
 
 ### Core Components
 
+Layered DDD structure (6 layers: interfaces → application →
+infrastructure → domain → ports → shared):
+
 ```text
 src/certamen/
-├── core/
-│   ├── tournament.py      # Tournament orchestration
-│   ├── scorer.py          # Rubric-based scoring
-│   ├── knowledge_bank.py  # Insight extraction
-│   ├── nodes/             # Workflow node system
-│   └── executor/          # Graph executor
-├── models/
-│   └── litellm.py         # LLM provider adapters
-├── cli/
-│   └── main.py            # CLI entry point
-├── config/                # Configuration loading
-├── serialization/         # YAML workflow loader
-└── utils/                 # Utilities
+├── interfaces/         # Entry points: cli/, web/, render/
+├── application/        # Orchestration: execution/, workflow/, cost/
+├── domain/            # Core logic: tournament/, interrogation/,
+│                      #   disagreement/, knowledge/, knowledge_map/,
+│                      #   confidence/, prompts/, reporting/
+├── infrastructure/    # Adapters: llm/, config/, cache/, events/,
+│                      #   persistence/, secrets/, similarity/, serialization/
+├── ports/             # Protocols/ABCs (BaseModel, EventHandler,
+│                      #   HostEnvironment, SimilarityEngine)
+├── shared/            # Cross-cutting: text/, json_utils, logging/
+└── workflows/         # Bundled YAML workflow definitions
 ```
 
 ## Configuration
